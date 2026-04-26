@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>LectureBase – Mind Map</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 20px;
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; color: #a78bfa; }
+
+    #search {
+      flex: 1;
+      max-width: 320px;
+      padding: 6px 12px;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    #search:focus { border-color: #7c3aed; }
+
+    #controls { display: flex; gap: 8px; margin-left: auto; }
+
+    button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    #btn-build  { background: #7c3aed; color: #fff; }
+    #btn-build:hover { background: #6d28d9; }
+    #btn-reload { background: #1e293b; color: #94a3b8; border: 1px solid #2d3148; }
+    #btn-reload:hover { background: #2d3148; }
+
+    #status {
+      font-size: 0.75rem;
+      color: #64748b;
+      padding: 4px 8px;
+      background: #1a1d27;
+      border-radius: 4px;
+    }
+
+    #canvas { flex: 1; position: relative; }
+    svg { width: 100%; height: 100%; }
+
+    .node circle {
+      stroke-width: 1.5px;
+      cursor: pointer;
+      transition: r 0.2s;
+    }
+    .node text {
+      font-size: 11px;
+      fill: #cbd5e1;
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .node.highlighted circle { stroke: #f59e0b !important; stroke-width: 2.5px; }
+    .node.faded circle { opacity: 0.2; }
+    .node.faded text { opacity: 0.2; }
+
+    .link { stroke-opacity: 0.4; transition: stroke-opacity 0.2s; }
+    .link.highlighted { stroke-opacity: 1; stroke: #f59e0b; }
+    .link.faded { stroke-opacity: 0.05; }
+
+    #tooltip {
+      position: absolute;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>LectureBase Mind Map</h1>
+  <input id="search" type="text" placeholder="Konzept suchen…">
+  <div id="controls">
+    <span id="status">–</span>
+    <button id="btn-reload" onclick="loadGraph()">Aktualisieren</button>
+    <button id="btn-build"  onclick="buildMindMap()">Mind Map aufbauen</button>
+  </div>
+</header>
+
+<div id="canvas">
+  <svg id="svg"></svg>
+  <div id="tooltip"></div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const svg      = d3.select("#svg");
+const tooltip  = document.getElementById("tooltip");
+const statusEl = document.getElementById("status");
+
+let simulation, linkSel, nodeSel;
+
+// ── Farben nach Grad-Dezil ────────────────────────────────────────────────���───
+const color = d3.scaleSequential()
+  .interpolator(d3.interpolateViridis)
+  .domain([0, 1]);
+
+function nodeColor(d, maxDeg) {
+  return color(d.degree / (maxDeg || 1));
+}
+
+// ── Graph laden ───────────────────────────────────────────────────────────────
+async function loadGraph() {
+  statusEl.textContent = "Lade…";
+  try {
+    const data = await fetch("/api/mindmap").then(r => r.json());
+    if (!data.nodes || data.nodes.length === 0) {
+      statusEl.textContent = "Keine Konzepte – erst „Mind Map aufbauen" klicken";
+      return;
+    }
+    statusEl.textContent = `${data.nodes.length} Konzepte · ${data.links.length} Verbindungen`;
+    render(data);
+  } catch (e) {
+    statusEl.textContent = "Fehler beim Laden";
+    console.error(e);
+  }
+}
+
+// ── Mind Map aufbauen ─────────────────────────────────────────────────────────
+async function buildMindMap() {
+  const btn = document.getElementById("btn-build");
+  btn.disabled = true;
+  btn.textContent = "Wird verarbeitet…";
+  statusEl.textContent = "Claude extrahiert Konzepte…";
+  try {
+    const result = await fetch("/api/mindmap/build", {method: "POST"}).then(r => r.json());
+    statusEl.textContent = `Fertig: ${result.processedChunks} Chunks · ${result.extractedConcepts} Konzepte`;
+    await loadGraph();
+  } catch (e) {
+    statusEl.textContent = "Fehler beim Aufbauen";
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Mind Map aufbauen";
+  }
+}
+
+// ── D3.js Render ──────────────────────────────────────────────────────────────
+function render(data) {
+  svg.selectAll("*").remove();
+
+  const width  = svg.node().clientWidth;
+  const height = svg.node().clientHeight;
+  const maxDeg = d3.max(data.nodes, d => d.degree) || 1;
+
+  // Zoom
+  const g = svg.append("g");
+  svg.call(d3.zoom().scaleExtent([0.2, 4]).on("zoom", e => g.attr("transform", e.transform)));
+
+  // Links
+  linkSel = g.append("g").selectAll("line")
+    .data(data.links).join("line")
+    .attr("class", "link")
+    .attr("stroke", "#475569")
+    .attr("stroke-width", d => Math.sqrt(d.weight) * 0.8);
+
+  // Nodes
+  nodeSel = g.append("g").selectAll("g")
+    .data(data.nodes).join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", dragStart)
+      .on("drag",  dragged)
+      .on("end",   dragEnd))
+    .on("click",      highlight)
+    .on("mouseover",  showTooltip)
+    .on("mouseout",   hideTooltip);
+
+  nodeSel.append("circle")
+    .attr("r", d => 5 + Math.sqrt(d.degree) * 3)
+    .attr("fill", d => nodeColor(d, maxDeg))
+    .attr("stroke", "#1e293b");
+
+  nodeSel.append("text")
+    .text(d => d.name)
+    .attr("dy", d => -(7 + Math.sqrt(d.degree) * 3));
+
+  // Simulation
+  simulation = d3.forceSimulation(data.nodes)
+    .force("link",   d3.forceLink(data.links).id(d => d.id).distance(80).strength(0.5))
+    .force("charge", d3.forceManyBody().strength(-200))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide(d => 10 + Math.sqrt(d.degree) * 4))
+    .on("tick", () => {
+      linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+             .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+}
+
+// ── Highlight bei Klick ───────────────────────────────────────────────────────
+function highlight(event, d) {
+  event.stopPropagation();
+
+  const connectedIds = new Set([d.id]);
+  linkSel.each(l => {
+    if (l.source.id === d.id) connectedIds.add(l.target.id);
+    if (l.target.id === d.id) connectedIds.add(l.source.id);
+  });
+
+  nodeSel.classed("highlighted", n => n.id === d.id)
+         .classed("faded", n => !connectedIds.has(n.id));
+
+  linkSel.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id)
+         .classed("faded", l => l.source.id !== d.id && l.target.id !== d.id);
+}
+
+svg.on("click", () => {
+  nodeSel?.classed("highlighted faded", false);
+  linkSel?.classed("highlighted faded", false);
+});
+
+// ── Suche ─────────────────────────────────────────────────────────────────────
+document.getElementById("search").addEventListener("input", function () {
+  const q = this.value.toLowerCase();
+  if (!nodeSel) return;
+  if (!q) {
+    nodeSel.classed("highlighted faded", false);
+    linkSel.classed("highlighted faded", false);
+    return;
+  }
+  nodeSel.classed("highlighted", d => d.name.toLowerCase().includes(q))
+         .classed("faded", d => !d.name.toLowerCase().includes(q));
+  linkSel.classed("faded", true).classed("highlighted", false);
+});
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+function showTooltip(event, d) {
+  tooltip.innerHTML = `<strong>${d.name}</strong><br>Verbindungen: ${d.degree}`;
+  tooltip.style.opacity = 1;
+  tooltip.style.left = (event.offsetX + 14) + "px";
+  tooltip.style.top  = (event.offsetY - 10) + "px";
+}
+function hideTooltip() { tooltip.style.opacity = 0; }
+
+// ── Drag ──────────────────────────────────────────────────────────────────────
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragged(event, d)  { d.fx = event.x; d.fy = event.y; }
+function dragEnd(event, d)  {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadGraph();
+</script>
+</body>
+</html>
