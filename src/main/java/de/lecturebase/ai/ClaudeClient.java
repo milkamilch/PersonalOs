@@ -27,11 +27,21 @@ public class ClaudeClient {
     }
 
     public String ask(String systemPrompt, String userMessage) {
+        return askWithHistory(systemPrompt, List.of(), userMessage);
+    }
+
+    public String askWithHistory(String systemPrompt,
+                                 List<ChatSession.Message> history,
+                                 String userMessage) {
+        List<Map<String, String>> messages = new java.util.ArrayList<>();
+        history.forEach(m -> messages.add(Map.of("role", m.role(), "content", m.content())));
+        messages.add(Map.of("role", "user", "content", userMessage));
+
         Map<String, Object> body = Map.of(
                 "model",      MODEL,
                 "max_tokens", MAX_TOKENS,
                 "system",     systemPrompt,
-                "messages",   List.of(Map.of("role", "user", "content", userMessage))
+                "messages",   messages
         );
 
         @SuppressWarnings("unchecked")
