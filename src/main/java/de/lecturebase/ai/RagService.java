@@ -19,17 +19,20 @@ public class RagService {
             Antworte auf Deutsch.
             """;
 
-    private final ChunkRepository   repository;
-    private final ChunkScorer       scorer;
-    private final ClaudeClient      claudeClient;
-    private final ChatSessionStore  sessionStore;
+    private final ChunkRepository       repository;
+    private final ChunkScorer           scorer;
+    private final ClaudeClient          claudeClient;
+    private final ChatSessionStore      sessionStore;
+    private final SemanticSearchService semanticSearch;
 
     public RagService(ChunkRepository repository, ChunkScorer scorer,
-                      ClaudeClient claudeClient, ChatSessionStore sessionStore) {
-        this.repository   = repository;
-        this.scorer       = scorer;
-        this.claudeClient = claudeClient;
-        this.sessionStore = sessionStore;
+                      ClaudeClient claudeClient, ChatSessionStore sessionStore,
+                      SemanticSearchService semanticSearch) {
+        this.repository     = repository;
+        this.scorer         = scorer;
+        this.claudeClient   = claudeClient;
+        this.sessionStore   = sessionStore;
+        this.semanticSearch = semanticSearch;
     }
 
     public AskResponse ask(String question, String tag) {
@@ -37,9 +40,9 @@ public class RagService {
     }
 
     public AskResponse ask(String question, String tag, String sessionId) {
-        List<Chunk> candidates = repository.findCandidates(question, tag);
-        List<ChunkScorer.ScoredChunk> topChunks = scorer.score(question, candidates)
-                .stream().limit(TOP_K).toList();
+        List<Chunk> topChunks = semanticSearch.isAvailable()
+                ? semanticSearch.findSimilar(question, TOP_K, tag)
+                : keywordTopChunks(question, tag);
 
         if (topChunks.isEmpty()) {
             return new AskResponse(
@@ -52,24 +55,32 @@ public class RagService {
                 ? sessionStore.getOrCreate(sessionId)
                 : sessionStore.createNew();
 
-        String context       = buildContext(topChunks);
-        String userMessage   = "Kontext:\n" + context + "\n\nFrage: " + question;
-        String answer        = claudeClient.askWithHistory(SYSTEM_PROMPT, session.getHistory(), userMessage);
+        String context     = buildContext(topChunks);
+        String userMessage = "Kontext:\n" + context + "\n\nFrage: " + question;
+        String answer      = claudeClient.askWithHistory(SYSTEM_PROMPT, session.getHistory(), userMessage);
 
         session.add("user",      userMessage);
         session.add("assistant", answer);
 
         List<Source> sources = topChunks.stream()
-                .map(sc -> new Source(sc.chunk().getDocumentId(), sc.chunk().getPageNumber(), sc.score()))
+                .map(c -> new Source(c.getDocumentId(), c.getPageNumber(), 1.0))
                 .toList();
 
         return new AskResponse(answer, sources, session.getSessionId());
     }
 
-    private String buildContext(List<ChunkScorer.ScoredChunk> chunks) {
+    private List<Chunk> keywordTopChunks(String question, String tag) {
+        List<Chunk> candidates = repository.findCandidates(question, tag);
+        return scorer.score(question, candidates)
+                .stream().limit(TOP_K)
+                .map(ChunkScorer.ScoredChunk::chunk)
+                .toList();
+    }
+
+    private String buildContext(List<Chunk> chunks) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < chunks.size(); i++) {
-            Chunk c = chunks.get(i).chunk();
+            Chunk c = chunks.get(i);
             sb.append("[%d] Seite %d:%n%s%n%n".formatted(i + 1, c.getPageNumber(), c.getText()));
         }
         return sb.toString();

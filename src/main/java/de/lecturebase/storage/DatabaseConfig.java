@@ -66,6 +66,34 @@ public class DatabaseConfig {
                     FOREIGN KEY (tag_id)      REFERENCES tags(id)
                 )
             """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS chunk_embeddings (
+                    chunk_id  INTEGER PRIMARY KEY,
+                    embedding TEXT NOT NULL,
+                    FOREIGN KEY (chunk_id) REFERENCES chunks(id)
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS flashcards (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    document_id INTEGER NOT NULL,
+                    chunk_id    INTEGER,
+                    question    TEXT NOT NULL,
+                    answer      TEXT NOT NULL,
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS summaries (
+                    document_id  INTEGER PRIMARY KEY,
+                    summary      TEXT    NOT NULL,
+                    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
         };
     }
 }

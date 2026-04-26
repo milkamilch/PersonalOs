@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -69,6 +70,11 @@ public class ChunkRepository {
             "SELECT * FROM chunks ORDER BY document_id, page_number, chunk_index",
             chunkMapper
         );
+    }
+
+    public Optional<Chunk> findById(long id) {
+        List<Chunk> result = jdbc.query("SELECT * FROM chunks WHERE id = ?", chunkMapper, id);
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 
     public List<Document> findAllDocuments() {
