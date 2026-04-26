@@ -49,6 +49,23 @@ public class DatabaseConfig {
                     FOREIGN KEY (concept_b) REFERENCES concepts(id)
                 )
             """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS tags (
+                    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS document_tags (
+                    document_id INTEGER NOT NULL,
+                    tag_id      INTEGER NOT NULL,
+                    PRIMARY KEY (document_id, tag_id),
+                    FOREIGN KEY (document_id) REFERENCES documents(id),
+                    FOREIGN KEY (tag_id)      REFERENCES tags(id)
+                )
+            """);
         };
     }
 }

@@ -19,7 +19,9 @@ public class SearchController {
     }
 
     @GetMapping("/search")
-    public List<SearchService.SearchResult> search(@RequestParam String q) {
-        return searchService.search(q);
+    public List<SearchService.SearchResult> search(
+            @RequestParam String q,
+            @RequestParam(required = false) String tag) {
+        return searchService.search(q, tag);
     }
 }

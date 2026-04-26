@@ -29,8 +29,8 @@ public class RagService {
         this.claudeClient = claudeClient;
     }
 
-    public AskResponse ask(String question) {
-        List<Chunk> candidates = repository.findCandidates(question);
+    public AskResponse ask(String question, String tag) {
+        List<Chunk> candidates = repository.findCandidates(question, tag);
         List<ChunkScorer.ScoredChunk> topChunks = scorer.score(question, candidates)
                 .stream().limit(TOP_K).toList();
 

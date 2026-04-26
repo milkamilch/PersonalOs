@@ -71,42 +71,76 @@ public class ChunkRepository {
         );
     }
 
-    /**
-     * Liefert bis zu 100 Chunks, die mindestens einen Suchbegriff enthalten.
-     * Dient als Vorfilter für den ChunkScorer, damit nicht alle Chunks geladen werden müssen.
-     */
+    public List<Document> findAllDocuments() {
+        return findDocuments(null);
+    }
+
+    public List<Document> findByTag(String tag) {
+        return findDocuments(tag);
+    }
+
+    private List<Document> findDocuments(String tag) {
+        String sql = """
+            SELECT d.id, d.name, d.file_path, d.uploaded_at,
+                   GROUP_CONCAT(t.name, ',') AS tags
+            FROM documents d
+            LEFT JOIN document_tags dt ON d.id = dt.document_id
+            LEFT JOIN tags t ON t.id = dt.tag_id
+            %s
+            GROUP BY d.id
+            ORDER BY d.uploaded_at DESC
+            """.formatted(tag != null ? "WHERE d.id IN (SELECT dt2.document_id FROM document_tags dt2 JOIN tags t2 ON dt2.tag_id = t2.id WHERE t2.name = ?)" : "");
+
+        Object[] params = tag != null ? new Object[]{tag} : new Object[0];
+
+        return jdbc.query(sql, (rs, row) -> {
+            Document d = new Document();
+            d.setId(rs.getLong("id"));
+            d.setName(rs.getString("name"));
+            d.setFilePath(rs.getString("file_path"));
+            String rawTags = rs.getString("tags");
+            if (rawTags != null) d.setTags(List.of(rawTags.split(",")));
+            return d;
+        }, params);
+    }
+
     public List<Chunk> findCandidates(String query) {
+        return findCandidates(query, null);
+    }
+
+    public List<Chunk> findCandidates(String query, String tag) {
         List<String> terms = Arrays.stream(query.toLowerCase().split("\\s+"))
                 .filter(w -> w.length() >= 3)
                 .distinct()
                 .limit(10)
                 .toList();
 
-        if (terms.isEmpty()) return findAllChunks();
+        String tagJoin = tag != null
+            ? "JOIN document_tags dt ON c.document_id = dt.document_id JOIN tags tg ON dt.tag_id = tg.id"
+            : "";
+        String tagWhere = tag != null ? "AND tg.name = ?" : "";
+
+        if (terms.isEmpty()) {
+            if (tag == null) return findAllChunks();
+            return jdbc.query(
+                "SELECT c.* FROM chunks c " + tagJoin + " WHERE 1=1 " + tagWhere + " LIMIT 100",
+                chunkMapper, tag
+            );
+        }
 
         String conditions = terms.stream()
-                .map(t -> "lower(text) LIKE ?")
+                .map(t -> "lower(c.text) LIKE ?")
                 .collect(Collectors.joining(" OR "));
 
-        Object[] params = terms.stream().map(t -> "%" + t + "%").toArray();
-
-        return jdbc.query(
-            "SELECT * FROM chunks WHERE " + conditions + " LIMIT 100",
-            chunkMapper,
-            params
+        List<Object> params = new java.util.ArrayList<>(
+            terms.stream().map(t -> (Object) ("%" + t + "%")).toList()
         );
-    }
+        if (tag != null) params.add(tag);
 
-    public List<Document> findAllDocuments() {
         return jdbc.query(
-            "SELECT * FROM documents ORDER BY uploaded_at DESC",
-            (rs, row) -> {
-                Document d = new Document();
-                d.setId(rs.getLong("id"));
-                d.setName(rs.getString("name"));
-                d.setFilePath(rs.getString("file_path"));
-                return d;
-            }
+            "SELECT c.* FROM chunks c " + tagJoin + " WHERE (" + conditions + ") " + tagWhere + " LIMIT 100",
+            chunkMapper,
+            params.toArray()
         );
     }
 }
