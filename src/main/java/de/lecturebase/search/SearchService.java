@@ -27,7 +27,7 @@ public class SearchService {
                     WHERE lower(c.text) LIKE ? AND t.name = ?
                     ORDER BY d.name, c.page_number, c.chunk_index
                     LIMIT 20
-                    """, resultMapper(), pattern, tag);
+                    """, resultMapper(query), pattern, tag);
         }
 
         return jdbc.query("""
@@ -37,18 +37,39 @@ public class SearchService {
                 WHERE lower(c.text) LIKE ?
                 ORDER BY d.name, c.page_number, c.chunk_index
                 LIMIT 20
-                """, resultMapper(), pattern);
+                """, resultMapper(query), pattern);
     }
 
-    private org.springframework.jdbc.core.RowMapper<SearchResult> resultMapper() {
-        return (rs, row) -> new SearchResult(
-                rs.getLong("id"),
-                rs.getLong("document_id"),
-                rs.getString("document_name"),
-                rs.getInt("page_number"),
-                rs.getString("text")
-        );
+    private org.springframework.jdbc.core.RowMapper<SearchResult> resultMapper(String query) {
+        return (rs, row) -> {
+            String text       = rs.getString("text");
+            String highlighted = highlight(text, query);
+            return new SearchResult(
+                    rs.getLong("id"),
+                    rs.getLong("document_id"),
+                    rs.getString("document_name"),
+                    rs.getInt("page_number"),
+                    text,
+                    highlighted
+            );
+        };
     }
 
-    public record SearchResult(long chunkId, long documentId, String documentName, int page, String text) {}
+    /**
+     * Umschließt alle case-insensitiven Treffer der Query-Terme mit <mark>-Tags.
+     */
+    static String highlight(String text, String query) {
+        String result = text;
+        for (String term : query.split("\\s+")) {
+            if (term.length() < 2) continue;
+            result = result.replaceAll(
+                "(?i)(" + java.util.regex.Pattern.quote(term) + ")",
+                "<mark>$1</mark>"
+            );
+        }
+        return result;
+    }
+
+    public record SearchResult(long chunkId, long documentId, String documentName,
+                               int page, String text, String highlighted) {}
 }
