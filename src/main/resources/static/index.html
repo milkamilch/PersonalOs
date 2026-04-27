@@ -124,52 +124,57 @@
     }
     .tag-x:hover { opacity: 1; }
 
-    /* ── Upload zone ─────────────────────────────────────── */
+    /* ── Upload bar ──────────────────────────────────────── */
+    .upload-bar {
+      display: flex; gap: 8px; align-items: stretch; margin-bottom: 16px;
+    }
     #upload-zone {
-      border: 2px dashed var(--border-light); border-radius: var(--r-lg);
-      padding: 36px 24px; text-align: center; cursor: pointer;
-      transition: all var(--t); background: var(--surface-1); margin-bottom: 22px;
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding: 9px 16px; border: 2px dashed var(--border-light);
+      border-radius: var(--r-sm); cursor: pointer; color: var(--muted);
+      font-size: 13px; font-weight: 500; background: var(--surface-2);
+      transition: all var(--t); white-space: nowrap;
     }
     #upload-zone:hover, #upload-zone.drag-over {
-      border-color: var(--primary); background: var(--primary-glow);
+      border-color: var(--primary); color: var(--primary-lt); background: var(--primary-glow);
     }
     #upload-input { display: none; }
-    .upload-label { font-weight: 500; margin-bottom: 4px; }
-    .upload-hint  { color: var(--dim); font-size: 12px; }
-
-    /* ── Google Drive import ─────────────────────────────── */
-    .gdrive-section {
-      border: 1px solid var(--border); border-radius: var(--r-lg);
-      padding: 18px 20px; margin-bottom: 22px; background: var(--surface-1);
-    }
-    .gdrive-header {
-      display: flex; align-items: center; gap: 10px;
-      font-weight: 600; font-size: 14px; margin-bottom: 12px;
-    }
-    .gdrive-logo { width: 20px; height: 20px; flex-shrink: 0; }
-    .gdrive-row { display: flex; gap: 8px; }
-    .gdrive-input {
+    #gdrive-url {
       flex: 1; background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--r); color: var(--fg); padding: 8px 12px; font-size: 13px;
-      outline: none; transition: border-color var(--t);
+      border-radius: var(--r-sm); color: var(--text); padding: 0 12px;
+      font-size: 13px; outline: none; transition: border-color var(--t);
     }
-    .gdrive-input:focus { border-color: var(--primary); }
-    .gdrive-input::placeholder { color: var(--dim); }
-    .gdrive-hint { font-size: 11px; color: var(--dim); margin-top: 8px; }
+    #gdrive-url:focus { border-color: var(--primary); }
+    #gdrive-url::placeholder { color: var(--dim); }
+    #gdrive-import {
+      display: flex; align-items: center; gap: 7px; white-space: nowrap; flex-shrink: 0;
+    }
+    .gdrive-logo { width: 16px; height: 16px; flex-shrink: 0; }
 
-    /* ── Doc grid ────────────────────────────────────────── */
-    .doc-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(290px,1fr)); gap: 14px;
-    }
-    .doc-card {
+    /* ── Doc list ────────────────────────────────────────── */
+    .doc-list { display: flex; flex-direction: column; gap: 3px; }
+    .doc-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: var(--r-sm);
       background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--r-lg); padding: 16px; transition: border-color var(--t);
+      transition: border-color var(--t);
     }
-    .doc-card:hover { border-color: var(--border-light); }
-    .doc-name  { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-    .doc-meta  { color: var(--dim); font-size: 11px; margin-bottom: 10px; }
-    .doc-tags  { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; min-height: 20px; }
-    .doc-acts  { display: flex; gap: 5px; flex-wrap: wrap; }
+    .doc-row:hover { border-color: var(--border-light); }
+    .doc-icon  { flex-shrink: 0; color: var(--dim); }
+    .doc-info  { flex: 1; min-width: 0; }
+    .doc-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-date  { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .doc-tags-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex-shrink: 0; max-width: 220px; }
+    .doc-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+    .dab {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 6px;
+      border: 1px solid transparent; background: transparent;
+      color: var(--muted); cursor: pointer; transition: all var(--t); font-size: 13px;
+    }
+    .dab:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
+    .dab-del   { color: #ef4444; }
+    .dab-del:hover { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.25); color: #ef4444; }
 
     /* ── Chat ────────────────────────────────────────────── */
     #chat-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
@@ -244,13 +249,41 @@
       padding: 10px 18px; background: var(--surface-1); border-bottom: 1px solid var(--border);
       display: flex; gap: 10px; align-items: center; flex-shrink: 0;
     }
-    #mm-canvas{ flex: 1; position: relative; }
+    #mm-canvas{ flex: 1; position: relative; overflow: hidden; }
     #mm-canvas svg { width: 100%; height: 100%; }
     #mm-tip   {
       position: absolute; background: var(--surface-3); border: 1px solid var(--border-light);
       border-radius: var(--r); padding: 8px 12px; font-size: 12px;
-      pointer-events: none; opacity: 0; transition: opacity .12s; max-width: 180px;
+      pointer-events: none; opacity: 0; transition: opacity .12s; max-width: 200px; z-index: 5;
     }
+    /* Detail panel */
+    #mm-detail {
+      position: absolute; top: 0; right: 0; bottom: 0; width: 310px;
+      background: var(--surface-1); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 10;
+      transform: translateX(100%); transition: transform .22s ease;
+    }
+    #mm-detail.open { transform: none; }
+    .det-head {
+      padding: 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0;
+    }
+    .det-head h3  { font-size: 14px; font-weight: 700; margin-bottom: 3px; line-height: 1.3; }
+    .det-head p   { font-size: 11px; color: var(--dim); }
+    .det-docs     { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .det-close    {
+      background: none; border: none; color: var(--dim); cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 2px; flex-shrink: 0;
+    }
+    .det-close:hover { color: var(--text); }
+    .det-body     { flex: 1; overflow-y: auto; padding: 12px; }
+    .det-section  { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin: 12px 0 6px; }
+    .det-excerpt  {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 6px;
+    }
+    .det-excerpt .det-src { font-size: 11px; color: var(--primary-lt); margin-bottom: 5px; display: flex; align-items: center; gap: 4px; }
+    .det-excerpt .det-text{ font-size: 12px; line-height: 1.65; color: var(--muted); }
     .search-wrap {
       display: flex; align-items: center; gap: 7px;
       background: var(--surface-2); border: 1px solid var(--border);
@@ -379,9 +412,9 @@ const IC = {
 
 // ── State ────────────────────────────────────────────────────────────
 const S = {
-  view: 'docs', docs: [],
+  view: 'docs', docs: [], semantic: false,
   chat: { msgs: [], sid: null, docId: null, busy: false },
-  fc:   { cards: [], idx: 0, flip: false, docId: null },
+  fc:   { cards: [], idx: 0, flip: false, docId: null, learnMode: false },
   sum:  { text: null, docId: null },
 };
 
@@ -405,14 +438,21 @@ const api = {
   upload:     fd        => api.req('/api/upload', {method:'POST', body:fd}),
   ask:        b         => api.req('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(b)}),
   mm:         ()        => api.req('/api/mindmap'),
-  buildMm:    id        => api.req(`/api/mindmap/build${id?'?documentId='+id:''}`, {method:'POST'}),
+  buildMm:    (id,rb)   => api.req(`/api/mindmap/build${id?'?documentId='+id:'?'}${id?'&':''}rebuild=${!!rb}`, {method:'POST'}),
   fc:         id        => api.req(`/api/flashcards${id?'?documentId='+id:''}`),
   genFc:      id        => api.req(`/api/flashcards/generate?documentId=${id}`, {method:'POST'}),
+  rateCard:   (id,known)=> api.req(`/api/flashcards/${id}/rate?known=${known}`, {method:'POST'}),
+  resetCards: id        => api.req(`/api/flashcards/reset?documentId=${id}`, {method:'POST'}),
   sum:        id        => api.req(`/api/summaries/${id}`),
-  genSum:     id        => api.req(`/api/summaries/generate?documentId=${id}`, {method:'POST'}),
+  genSum:     (id,rb)   => api.req(`/api/summaries/generate?documentId=${id}&rebuild=${!!rb}`, {method:'POST'}),
   addTags:    (id,tags) => api.req(`/api/documents/${id}/tags`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(tags)}),
   delTag:     (id,tag)  => api.req(`/api/documents/${id}/tags/${encodeURIComponent(tag)}`, {method:'DELETE'}),
+  deleteDoc:  id        => api.req(`/api/documents/${id}`, {method:'DELETE'}),
   gdrive:     url       => api.req('/api/upload/gdrive', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})}),
+  status:     ()        => api.req('/api/status'),
+  sessions:   ()        => api.req('/api/chat/sessions'),
+  sessionMsgs:id        => api.req(`/api/chat/sessions/${id}/messages`),
+  exportFc:   id        => `/api/export/flashcards/${id}`,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -431,7 +471,11 @@ function spinner() { return `<span class="spinner"></span>`; }
 function pbar()    { return `<div class="pbar"><div class="pfill"></div></div>`; }
 
 function docOptions(selId) {
-  return S.docs.map(d=>`<option value="${d.id}"${d.id==selId?' selected':''}>${esc(d.name)}</option>`).join('');
+  return S.docs.map(d=>`<option value="${d.id}"${d.id==selId?' selected':''}>${esc(cleanName(d.name))}</option>`).join('');
+}
+
+function cleanName(raw) {
+  return (raw || '').replace(/^lb_\d+_/, '');
 }
 
 // ── Router ───────────────────────────────────────────────────────────
@@ -457,21 +501,19 @@ function draw() {
 function drawDocs(el) {
   el.innerHTML = `
     <div class="view-header">
-      <div><div class="view-title">Dokumente</div><div class="view-sub">Skripte hochladen &amp; verwalten</div></div>
+      <div>
+        <div class="view-title">Dokumente</div>
+        <div class="view-sub">${S.docs.length ? S.docs.length + ' Skript' + (S.docs.length !== 1 ? 'e' : '') : 'Noch keine Skripte'}</div>
+      </div>
     </div>
     <div class="view-body">
-      <div id="upload-zone">
-        <input type="file" id="upload-input" accept=".pdf,.docx" multiple>
-        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linecap="round"
-             style="display:block;margin:0 auto 12px"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
-             <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-        <p class="upload-label">PDF oder DOCX hierher ziehen</p>
-        <p class="upload-hint">oder klicken zum Auswählen</p>
-        <div id="up-prog" style="display:none;margin-top:14px">${pbar()}</div>
-      </div>
-
-      <div class="gdrive-section">
-        <div class="gdrive-header">
+      <div class="upload-bar">
+        <div id="upload-zone">
+          <input type="file" id="upload-input" accept=".pdf,.docx" multiple>
+          ${IC.up} PDF / DOCX hochladen
+        </div>
+        <input id="gdrive-url" type="text" placeholder="Google Drive / Docs Link…">
+        <button class="btn btn-ghost" id="gdrive-import">
           <svg class="gdrive-logo" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
             <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
             <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
@@ -480,17 +522,10 @@ function drawDocs(el) {
             <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
             <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
           </svg>
-          Von Google Drive importieren
-        </div>
-        <div class="gdrive-row">
-          <input class="gdrive-input" id="gdrive-url" type="text"
-                 placeholder="Google Drive oder Google Docs Link einfügen…">
-          <button class="btn" id="gdrive-import">Importieren</button>
-        </div>
-        <p class="gdrive-hint">Die Datei muss auf „Jeder mit Link" geteilt sein &nbsp;·&nbsp; Unterstützt: Google Docs, Slides, Sheets, PDF, DOCX</p>
-        <div id="gdrive-prog" style="display:none;margin-top:10px">${pbar()}</div>
+          Importieren
+        </button>
       </div>
-
+      <div id="up-prog" style="display:none;margin-bottom:12px">${pbar()}</div>
       <div id="doc-grid"></div>
     </div>`;
 
@@ -515,7 +550,7 @@ async function doUpload(files) {
     const fd = new FormData(); fd.append('file', f);
     try {
       const r = await api.upload(fd);
-      toast(`„${r.name}" hochgeladen · ${r.chunks} Chunks`, 'ok');
+      toast(`„${cleanName(r.name)}" hochgeladen · ${r.chunks} Chunks`, 'ok');
     } catch { toast(`Fehler: ${f.name}`, 'err'); }
   }
   if (prog) prog.style.display='none';
@@ -524,24 +559,21 @@ async function doUpload(files) {
 }
 
 async function doGdriveImport() {
-  const inp  = document.getElementById('gdrive-url');
-  const prog = document.getElementById('gdrive-prog');
-  const btn  = document.getElementById('gdrive-import');
-  const url  = inp?.value.trim();
+  const inp = document.getElementById('gdrive-url');
+  const btn = document.getElementById('gdrive-import');
+  const url = inp?.value.trim();
   if (!url) { toast('Bitte einen Google Drive Link einfügen', 'err'); return; }
-  if (prog) prog.style.display='block';
-  if (btn)  btn.disabled = true;
+  if (btn) { btn.disabled=true; btn.innerHTML=`${spinner()} Importiere…`; }
   try {
     const r = await api.gdrive(url);
-    toast(`„${r.name}" importiert · ${r.chunks} Chunks`, 'ok');
+    toast(`„${cleanName(r.name)}" importiert`, 'ok');
     if (inp) inp.value = '';
     S.docs = await api.docs().catch(()=>S.docs);
     renderDocGrid();
-  } catch(e) {
+  } catch {
     toast('Import fehlgeschlagen – Datei öffentlich geteilt?', 'err');
   } finally {
-    if (prog) prog.style.display='none';
-    if (btn)  btn.disabled = false;
+    if (btn) { btn.disabled=false; btn.innerHTML=`<svg class="gdrive-logo" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg> Importieren`; }
   }
 }
 
@@ -549,11 +581,11 @@ function renderDocGrid() {
   const grid = document.getElementById('doc-grid');
   if (!grid) return;
   if (!S.docs.length) {
-    grid.innerHTML = `<div class="empty">
-      ${IC.doc}<br><h3>Noch keine Dokumente</h3><p>Lade dein erstes Vorlesungsskript hoch</p></div>`;
+    grid.innerHTML = `<div class="empty">${IC.doc}<br><h3>Noch keine Dokumente</h3>
+      <p>PDF oder DOCX hochladen oder Google Drive Link einfügen</p></div>`;
     return;
   }
-  grid.innerHTML = `<div class="doc-grid">${S.docs.map(docCard).join('')}</div>`;
+  grid.innerHTML = `<div class="doc-list">${S.docs.map(docCard).join('')}</div>`;
 
   grid.querySelectorAll('.tag-x').forEach(btn=>btn.addEventListener('click', async e=>{
     const {id, tag} = e.currentTarget.dataset;
@@ -568,33 +600,49 @@ function renderDocGrid() {
     S.docs = await api.docs().catch(()=>S.docs); renderDocGrid();
   }));
 
-  grid.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click', e=>{
+  grid.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click', async e=>{
     const {act, id} = e.currentTarget.dataset;
-    if (act==='chat')  { S.chat.docId=+id; go('chat'); }
-    if (act==='sum')   { S.sum.docId=+id;  go('sum');  }
-    if (act==='fc')    { S.fc.docId=+id; S.fc.idx=0; S.fc.flip=false; go('fc'); }
-    if (act==='mm')    { go('mm'); setTimeout(()=>triggerBuildMM(+id), 200); }
+    if (act==='chat') { S.chat.docId=+id; go('chat'); }
+    if (act==='sum')  { S.sum.docId=+id;  go('sum');  }
+    if (act==='fc')   { S.fc.docId=+id; S.fc.idx=0; S.fc.flip=false; go('fc'); }
+    if (act==='mm')   { go('mm'); setTimeout(()=>triggerBuildMM(+id), 200); }
+    if (act==='del') {
+      const doc = S.docs.find(d=>d.id===+id);
+      if (!confirm(`„${cleanName(doc?.name||'Dokument')}" löschen?\nLernkarten und Zusammenfassungen werden ebenfalls gelöscht.`)) return;
+      try {
+        await api.deleteDoc(+id);
+        toast('Dokument gelöscht', 'ok');
+        S.docs = await api.docs().catch(()=>S.docs);
+        renderDocGrid();
+      } catch { toast('Fehler beim Löschen', 'err'); }
+    }
   }));
 }
 
 function docCard(d) {
+  const name = cleanName(d.name);
   const tags = (d.tags||[]).map(t=>
     `<span class="tag">${esc(t)}<button class="tag-x" data-id="${d.id}" data-tag="${esc(t)}">×</button></span>`
   ).join('');
-  const date = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('de') : '';
-  return `<div class="doc-card">
-    <div class="doc-name" title="${esc(d.name)}">${IC.doc} ${esc(d.name)}</div>
-    <div class="doc-meta">${date}</div>
-    <div class="doc-tags">
-      ${tags}
-      <input class="form-input tag-in" data-id="${d.id}"
-             style="padding:2px 7px;font-size:11px;width:80px" placeholder="+ Tag">
+  const date = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('de',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  return `<div class="doc-row">
+    <svg class="doc-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </svg>
+    <div class="doc-info">
+      <div class="doc-title" title="${esc(d.name)}">${esc(name)}</div>
+      ${date?`<div class="doc-date">${date}</div>`:''}
     </div>
-    <div class="doc-acts">
-      <button class="btn btn-ghost btn-sm" data-act="chat" data-id="${d.id}">${IC.chat} Chat</button>
-      <button class="btn btn-ghost btn-sm" data-act="sum"  data-id="${d.id}">${IC.txt}  Zusammenfassung</button>
-      <button class="btn btn-ghost btn-sm" data-act="fc"   data-id="${d.id}">${IC.card} Lernkarten</button>
-      <button class="btn btn-ghost btn-sm" data-act="mm"   data-id="${d.id}">${IC.net}  Mind Map</button>
+    <div class="doc-tags-row">
+      ${tags}
+      <input class="form-input tag-in" data-id="${d.id}" style="padding:2px 7px;font-size:11px;width:64px;min-width:0" placeholder="+ Tag">
+    </div>
+    <div class="doc-actions">
+      <button class="dab" data-act="chat" data-id="${d.id}" title="KI-Chat">${IC.chat}</button>
+      <button class="dab" data-act="sum"  data-id="${d.id}" title="Zusammenfassung">${IC.txt}</button>
+      <button class="dab" data-act="fc"   data-id="${d.id}" title="Lernkarten">${IC.card}</button>
+      <button class="dab" data-act="mm"   data-id="${d.id}" title="Mind Map">${IC.net}</button>
+      <button class="dab dab-del" data-act="del" data-id="${d.id}" title="Löschen">✕</button>
     </div>
   </div>`;
 }
@@ -617,7 +665,7 @@ function drawChat(el) {
         <select class="form-select" id="chat-doc" style="font-size:12px">
           <option value="">Alle</option>${docOptions(S.chat.docId)}
         </select>
-        ${S.chat.sid ? `<span style="font-size:11px;color:var(--dim);margin-left:auto">Sitzung aktiv</span>` : ''}
+        <span style="font-size:11px;padding:3px 8px;border-radius:4px;margin-left:auto;${S.semantic?'background:#7c3aed22;color:var(--primary-lt)':'background:var(--surface-3);color:var(--dim)'}">${S.semantic?'⚡ Semantische Suche':'Keyword-Suche'}</span>
       </div>
       <div id="messages">${buildMsgs()}</div>
       <div id="chat-input-area">
@@ -677,7 +725,7 @@ async function sendMsg() {
     scrollMsgs();
   }
   try {
-    const r = await api.ask({ question:text, tag:null, sessionId:S.chat.sid });
+    const r = await api.ask({ question:text, tag:null, sessionId:S.chat.sid||null });
     S.chat.sid = r.sessionId;
     S.chat.msgs.push({role:'assistant', content:r.answer, sources:r.sources});
     document.getElementById('btn-exp')?.style.removeProperty('display');
@@ -709,20 +757,34 @@ function drawMM(el) {
         <select class="form-select" id="mm-doc" style="font-size:12px">
           <option value="">Alle Dokumente</option>${docOptions(null)}
         </select>
-        <button class="btn btn-primary btn-sm" id="mm-build">${IC.net} Aufbauen</button>
-        <button class="btn btn-ghost btn-sm"   id="mm-ref"  >${IC.ref} Aktualisieren</button>
+        <button class="btn btn-primary btn-sm" id="mm-build"  >${IC.net} Aufbauen</button>
+        <button class="btn btn-ghost btn-sm"   id="mm-rebuild">${IC.ref} Neu erstellen</button>
+        <button class="btn btn-ghost btn-sm"   id="mm-ref"    >${IC.ref} Aktualisieren</button>
         <div class="search-wrap">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="mm-search" placeholder="Konzept suchen…">
         </div>
         <span id="mm-status" style="font-size:12px;color:var(--dim);margin-left:auto">–</span>
       </div>
-      <div id="mm-canvas"><svg id="mm-svg"></svg><div id="mm-tip"></div></div>
+      <div id="mm-canvas">
+        <svg id="mm-svg"></svg>
+        <div id="mm-tip"></div>
+        <div id="mm-detail">
+          <div class="det-head">
+            <div style="flex:1"><p style="color:var(--dim);font-size:12px">Auf einen Knoten klicken</p></div>
+          </div>
+          <div class="det-body"></div>
+        </div>
+      </div>
     </div>`;
 
   document.getElementById('mm-build').onclick = ()=>{
     const id = document.getElementById('mm-doc').value;
-    triggerBuildMM(id ? +id : null);
+    triggerBuildMM(id ? +id : null, false);
+  };
+  document.getElementById('mm-rebuild').onclick = ()=>{
+    const id = document.getElementById('mm-doc').value;
+    triggerBuildMM(id ? +id : null, true);
   };
   document.getElementById('mm-ref').onclick   = loadMM;
   document.getElementById('mm-search').oninput = function(){ mmHighlight(this.value); };
@@ -740,17 +802,44 @@ async function loadMM() {
   } catch { if(st) st.textContent='Fehler beim Laden'; }
 }
 
-async function triggerBuildMM(docId) {
+async function triggerBuildMM(docId, rebuild=false) {
   const btn = document.getElementById('mm-build');
+  const rb  = document.getElementById('mm-rebuild');
   const st  = document.getElementById('mm-status');
-  if (btn) { btn.disabled=true; btn.textContent='Verarbeite…'; }
-  if (st)  st.textContent='Claude extrahiert Konzepte…';
-  try {
-    const r = await api.buildMm(docId);
-    toast(`${r.processedChunks} Chunks · ${r.extractedConcepts} Konzepte`, 'ok');
+  [btn,rb].forEach(b=>b&&(b.disabled=true));
+  if (btn) btn.textContent='Verarbeite…';
+
+  const url = `/api/mindmap/build-stream?rebuild=${rebuild}${docId?'&documentId='+docId:''}`;
+  const es  = new EventSource(url);
+
+  es.addEventListener('progress', e => {
+    const d = JSON.parse(e.data);
+    if (d.totalBatches === 0) return;
+    const pct = Math.round(d.batch / d.totalBatches * 100);
+    if (st) st.innerHTML =
+      `<div style="margin-bottom:4px;font-size:12px;color:var(--dim)">Batch ${d.batch}/${d.totalBatches} · ${d.extractedConcepts} Konzepte</div>
+       <div style="height:4px;background:var(--border);border-radius:2px">
+         <div style="height:100%;width:${pct}%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div>`;
+  });
+
+  es.addEventListener('done', async e => {
+    es.close();
+    const r = JSON.parse(e.data);
+    if (st) st.textContent = '';
+    if (r.cached) toast(`Aus Cache geladen · ${r.extractedConcepts} Konzepte`, 'inf');
+    else          toast(`${r.processedChunks} Chunks · ${r.extractedConcepts} Konzepte`, 'ok');
     await loadMM();
-  } catch { toast('Fehler beim Aufbauen','err'); if(st) st.textContent='Fehler'; }
-  finally  { if(btn){btn.disabled=false; btn.innerHTML=`${IC.net} Aufbauen`;} }
+    [btn,rb].forEach(b=>b&&(b.disabled=false));
+    if (btn) btn.innerHTML=`${IC.net} Aufbauen`;
+  });
+
+  es.addEventListener('error', () => {
+    es.close();
+    toast('Fehler beim Aufbauen', 'err');
+    if (st) st.textContent = '';
+    [btn,rb].forEach(b=>b&&(b.disabled=false));
+    if (btn) btn.innerHTML=`${IC.net} Aufbauen`;
+  });
 }
 
 function drawD3(data) {
@@ -760,53 +849,94 @@ function drawD3(data) {
   svg.selectAll('*').remove();
   if (mmSim) mmSim.stop();
 
-  const w=canvas.clientWidth, h=canvas.clientHeight;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
   const cc = d3.scaleOrdinal(d3.schemeTableau10);
   const g  = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.1,6]).on('zoom',e=>g.attr('transform',e.transform)));
 
+  svg.call(d3.zoom().scaleExtent([0.08, 8]).on('zoom', e => g.attr('transform', e.transform)));
+
+  // Log scale radius: compresses extreme degree values, max ~22px
+  const r  = d => Math.min(22, 5 + Math.log1p(d.degree) * 3.8);
+  // Font: slightly larger for hubs, smaller for periphery
+  const fs = d => Math.max(9, Math.min(13, 8.5 + Math.log1p(d.degree) * 0.75));
+
+  // Links — lighter stroke, log-scaled width
   mmLinks = g.append('g').selectAll('line').data(data.links).join('line')
-    .attr('stroke','#2d3148').attr('stroke-opacity',.55)
-    .attr('stroke-width', d=>Math.max(.5, Math.sqrt(d.weight)*.75));
+    .attr('stroke', '#3d4468')
+    .attr('stroke-opacity', .45)
+    .attr('stroke-width', d => Math.max(.5, Math.log1p(d.weight) * .65));
 
+  // Node groups
   mmNodes = g.append('g').selectAll('g').data(data.nodes).join('g')
     .call(d3.drag()
-      .on('start',(e,d)=>{ if(!e.active) mmSim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
-      .on('drag', (e,d)=>{ d.fx=e.x; d.fy=e.y; })
-      .on('end',  (e,d)=>{ if(!e.active) mmSim.alphaTarget(0); d.fx=null; d.fy=null; }))
-    .on('click',(e,d)=>{
+      .on('start', (e,d) => { if (!e.active) mmSim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end',   (e,d) => { if (!e.active) mmSim.alphaTarget(0); d.fx=null; d.fy=null; }))
+    .on('click', (e,d) => {
       e.stopPropagation();
       const nb = new Set([d.id]);
-      mmLinks.each(l=>{ if(l.source.id===d.id) nb.add(l.target.id); if(l.target.id===d.id) nb.add(l.source.id); });
-      mmNodes.attr('opacity', n=>nb.has(n.id)?1:.15);
-      mmLinks.attr('stroke-opacity', l=>(l.source.id===d.id||l.target.id===d.id)?.85:.04);
+      mmLinks.each(l => { if(l.source.id===d.id) nb.add(l.target.id); if(l.target.id===d.id) nb.add(l.source.id); });
+      mmNodes.attr('opacity', n => nb.has(n.id) ? 1 : .08);
+      mmLinks.attr('stroke-opacity', l => (l.source.id===d.id||l.target.id===d.id) ? .9 : .03);
+      showConceptDetail(d);
     })
-    .on('mouseover',(e,d)=>{
-      const tip=document.getElementById('mm-tip');
-      if(tip){ tip.innerHTML=`<strong>${d.name}</strong><br>Verbindungen: ${d.degree} · Cluster ${d.clusterId}`;
-               tip.style.opacity=1; tip.style.left=(e.offsetX+14)+'px'; tip.style.top=(e.offsetY-10)+'px'; }
+    .on('mouseover', (e,d) => {
+      const tip = document.getElementById('mm-tip');
+      if (!tip) return;
+      const docs = (d.documents||[]).map(n=>cleanName(n)).join(', ');
+      tip.innerHTML = `<strong style="font-size:13px">${esc(d.name)}</strong>
+        <div style="color:var(--dim);font-size:11px;margin-top:3px">${d.degree} Verbindungen</div>
+        ${docs ? `<div style="color:var(--primary-lt);font-size:11px;margin-top:4px">${IC.doc} ${esc(docs)}</div>` : ''}`;
+      tip.style.opacity=1; tip.style.left=(e.offsetX+14)+'px'; tip.style.top=(e.offsetY-10)+'px';
     })
-    .on('mouseout',()=>{ const t=document.getElementById('mm-tip'); if(t) t.style.opacity=0; });
+    .on('mouseout', () => { const t=document.getElementById('mm-tip'); if(t) t.style.opacity=0; });
 
-  svg.on('click',()=>{ mmNodes?.attr('opacity',1); mmLinks?.attr('stroke-opacity',.55); });
+  svg.on('click', () => {
+    mmNodes?.attr('opacity',1);
+    mmLinks?.attr('stroke-opacity',.45);
+    document.getElementById('mm-detail')?.classList.remove('open');
+  });
 
+  // Circles with cluster-colored border
   mmNodes.append('circle')
-    .attr('r', d=>5+Math.sqrt(d.degree)*3.5)
-    .attr('fill', d=>cc(d.clusterId)).attr('fill-opacity',.88)
-    .attr('stroke','#0d0f17').attr('stroke-width',2).style('cursor','pointer');
+    .attr('r', r)
+    .attr('fill', d => cc(d.clusterId))
+    .attr('fill-opacity', .82)
+    .attr('stroke', d => { const c=d3.color(cc(d.clusterId)); return c ? c.darker(1.8).toString() : '#0d0f17'; })
+    .attr('stroke-width', 1.5)
+    .style('cursor', 'pointer');
 
+  // Label: dark stroke pass (legibility halo)
   mmNodes.append('text')
-    .text(d=>d.name)
-    .attr('dy', d=>-(8+Math.sqrt(d.degree)*3.5))
-    .attr('text-anchor','middle').attr('fill','#b0bad0')
-    .attr('font-size',11).attr('pointer-events','none');
+    .text(d => d.name)
+    .attr('dy', d => -(r(d) + 4))
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'none')
+    .attr('stroke', '#0a0c14')
+    .attr('stroke-width', 4)
+    .attr('stroke-linejoin', 'round')
+    .attr('font-size', fs)
+    .attr('font-family', 'inherit')
+    .attr('pointer-events', 'none');
 
+  // Label: text fill pass
+  mmNodes.append('text')
+    .text(d => d.name)
+    .attr('dy', d => -(r(d) + 4))
+    .attr('text-anchor', 'middle')
+    .attr('fill', d => d.degree > 6 ? '#e2e8f0' : '#94a3b8')
+    .attr('font-size', fs)
+    .attr('font-weight', d => d.degree > 8 ? '600' : '400')
+    .attr('font-family', 'inherit')
+    .attr('pointer-events', 'none');
+
+  // Force simulation — stronger repulsion, better spacing
   mmSim = d3.forceSimulation(data.nodes)
-    .force('link',    d3.forceLink(data.links).id(d=>d.id).distance(95).strength(.38))
-    .force('charge',  d3.forceManyBody().strength(-260))
-    .force('center',  d3.forceCenter(w/2,h/2))
-    .force('collide', d3.forceCollide(d=>13+Math.sqrt(d.degree)*4))
-    .on('tick',()=>{
+    .force('link',    d3.forceLink(data.links).id(d=>d.id).distance(110).strength(.22))
+    .force('charge',  d3.forceManyBody().strength(-520).distanceMax(400))
+    .force('center',  d3.forceCenter(w/2, h/2))
+    .force('collide', d3.forceCollide(d => r(d) + 20).strength(.9))
+    .on('tick', () => {
       mmLinks.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
              .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
       mmNodes.attr('transform',d=>`translate(${d.x},${d.y})`);
@@ -817,6 +947,77 @@ function mmHighlight(q) {
   if (!mmNodes) return;
   const t = q.toLowerCase();
   mmNodes.attr('opacity', d=>!t||d.name.toLowerCase().includes(t)?1:.12);
+}
+
+function closeDetail() {
+  document.getElementById('mm-detail')?.classList.remove('open');
+  mmNodes?.attr('opacity',1);
+  mmLinks?.attr('stroke-opacity',.45);
+}
+
+async function showConceptDetail(node) {
+  const panel = document.getElementById('mm-detail');
+  if (!panel) return;
+
+  const docs = (node.documents||[]);
+  const docBadges = docs.map(n =>
+    `<span class="src-chip">${IC.doc} ${esc(cleanName(n))}</span>`
+  ).join('');
+
+  panel.innerHTML = `
+    <div class="det-head">
+      <div style="flex:1">
+        <h3>${esc(node.name)}</h3>
+        <p>${node.degree} Verbindungen · Cluster ${node.clusterId}</p>
+        ${docBadges ? `<div class="det-docs">${docBadges}</div>` : ''}
+      </div>
+      <button class="det-close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="det-body">
+      <div class="det-section">KI-Erklärung</div>
+      <div id="det-ai" style="margin-bottom:10px">
+        <button class="btn btn-ghost btn-sm" id="det-explain-btn" style="width:100%">
+          ${IC.star} Von Claude erklären lassen
+        </button>
+      </div>
+      <div class="det-section">Textstellen aus deinen Skripten</div>
+      <div id="det-excerpts" style="color:var(--dim);font-size:12px">${spinner()} Suche…</div>
+    </div>`;
+  panel.classList.add('open');
+
+  document.getElementById('det-explain-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = `${spinner()} Claude erklärt…`;
+    try {
+      const res = await fetch(`/api/mindmap/explain?concept=${encodeURIComponent(node.name)}`, {method:'POST'}).then(r=>r.json());
+      document.getElementById('det-ai').innerHTML =
+        `<div style="font-size:13px;line-height:1.55;color:var(--fg);background:var(--surface2);border-radius:8px;padding:10px 12px">${esc(res.explanation||'')}</div>`;
+    } catch {
+      btn.disabled = false;
+      btn.innerHTML = `${IC.star} Von Claude erklären lassen`;
+    }
+  });
+
+  try {
+    const results = await fetch(`/api/search?q=${encodeURIComponent(node.name)}`).then(r=>r.json());
+    const box = document.getElementById('det-excerpts');
+    if (!box) return;
+    if (!results.length) {
+      box.innerHTML = `<div style="color:var(--dim);font-size:12px;padding:8px 0">Keine Textstellen gefunden.</div>`;
+      return;
+    }
+    box.innerHTML = results.slice(0,6).map(r => {
+      const snippet = (r.text||'').substring(0,220).replace(/\n/g,' ');
+      return `<div class="det-excerpt">
+        <div class="det-src">${IC.doc} ${esc(cleanName(r.documentName||''))} &nbsp;·&nbsp; Seite ${r.page||'?'}</div>
+        <div class="det-text">${esc(snippet)}…</div>
+      </div>`;
+    }).join('');
+  } catch {
+    const box = document.getElementById('det-excerpts');
+    if (box) box.innerHTML = `<div style="color:var(--dim);font-size:12px">Fehler beim Laden.</div>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -831,6 +1032,9 @@ async function drawFC(el) {
           <option value="">Dokument wählen…</option>${docOptions(S.fc.docId)}
         </select>
         <button class="btn btn-primary btn-sm" id="fc-gen">${IC.star} Generieren</button>
+        <button class="btn btn-ghost btn-sm" id="fc-learn" title="Nur unbekannte Karten anzeigen">Lernmodus</button>
+        <button class="btn btn-ghost btn-sm" id="fc-reset" title="Bewertungen zurücksetzen">Reset</button>
+        <button class="btn btn-ghost btn-sm" id="fc-exp" title="Als Markdown exportieren">${IC.exp} Export</button>
       </div>
     </div>
     <div class="view-body" style="display:flex;justify-content:center">
@@ -839,22 +1043,48 @@ async function drawFC(el) {
 
   document.getElementById('fc-doc').onchange = async e=>{
     S.fc.docId = e.target.value ? +e.target.value : null;
-    S.fc.idx=0; S.fc.flip=false;
+    S.fc.idx=0; S.fc.flip=false; S.fc.learnMode=false;
     if (S.fc.docId) { S.fc.cards = await api.fc(S.fc.docId).catch(()=>[]); }
     else S.fc.cards=[];
     drawFCBody();
   };
 
-  document.getElementById('fc-gen').onclick = async()=>{
+  document.getElementById('fc-gen').onclick = ()=>{
     if (!S.fc.docId) { toast('Bitte erst ein Dokument wählen','inf'); return; }
-    const btn = document.getElementById('fc-gen');
-    btn.disabled=true; btn.innerHTML=`${spinner()} Generiert…`;
-    try {
-      const r = await api.genFc(S.fc.docId);
-      toast(`${r.createdCards} Lernkarten erstellt`, 'ok');
-      S.fc.cards = await api.fc(S.fc.docId); S.fc.idx=0; S.fc.flip=false; drawFCBody();
-    } catch { toast('Fehler beim Generieren','err'); }
-    finally { btn.disabled=false; btn.innerHTML=`${IC.star} Generieren`; }
+    triggerGenFC(S.fc.docId);
+  };
+
+  document.getElementById('fc-learn').onclick = ()=>{
+    if (!S.fc.cards.length) { toast('Keine Lernkarten geladen','inf'); return; }
+    S.fc.learnMode = !S.fc.learnMode;
+    document.getElementById('fc-learn').style.color = S.fc.learnMode ? 'var(--primary-lt)' : '';
+    document.getElementById('fc-learn').style.borderColor = S.fc.learnMode ? 'var(--primary-lt)' : '';
+    if (S.fc.learnMode) {
+      // Sort: unknown/unrated first, known last
+      S.fc.cards = [...S.fc.cards].sort((a,b)=>{
+        const va = a.known===true ? 2 : a.known===false ? 0 : 1;
+        const vb = b.known===true ? 2 : b.known===false ? 0 : 1;
+        return va - vb;
+      });
+      toast('Lernmodus: Unbekannte Karten zuerst', 'inf');
+    } else {
+      S.fc.cards = [...S.fc.cards].sort((a,b)=>a.id-b.id);
+    }
+    S.fc.idx=0; S.fc.flip=false; drawFCBody();
+  };
+
+  document.getElementById('fc-reset').onclick = async ()=>{
+    if (!S.fc.docId) { toast('Kein Dokument gewählt','inf'); return; }
+    await api.resetCards(S.fc.docId).catch(()=>{});
+    S.fc.cards = await api.fc(S.fc.docId).catch(()=>[]);
+    S.fc.idx=0; S.fc.flip=false; S.fc.learnMode=false;
+    toast('Bewertungen zurückgesetzt', 'ok');
+    drawFCBody();
+  };
+
+  document.getElementById('fc-exp').onclick = ()=>{
+    if (!S.fc.docId) { toast('Kein Dokument gewählt','inf'); return; }
+    window.open(`/api/export/flashcards/${S.fc.docId}`, '_blank');
   };
 
   if (S.fc.docId) { S.fc.cards = await api.fc(S.fc.docId).catch(()=>[]); }
@@ -869,6 +1099,56 @@ async function drawFC(el) {
   };
 }
 
+function triggerGenFC(docId) {
+  const btn = document.getElementById('fc-gen');
+  const body = document.getElementById('fc-body');
+  if (btn) { btn.disabled=true; btn.innerHTML=`${spinner()} Generiert…`; }
+  if (body) body.innerHTML=`<div class="empty">${spinner()}<p style="margin-top:12px;color:var(--dim)">Lernkarten werden erstellt…</p></div>`;
+
+  const es = new EventSource(`/api/flashcards/generate-stream?documentId=${docId}`);
+
+  es.addEventListener('progress', e => {
+    const d = JSON.parse(e.data);
+    const pct = Math.round(d.chunk / d.totalChunks * 100);
+    if (body) body.innerHTML=`<div class="empty">
+      <p style="color:var(--dim);margin-bottom:8px">Chunk ${d.chunk}/${d.totalChunks} · ${d.createdCards} Karten</p>
+      <div style="width:240px;height:4px;background:var(--border);border-radius:2px;margin:0 auto">
+        <div style="height:100%;width:${pct}%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div>
+    </div>`;
+  });
+
+  es.addEventListener('done', async e => {
+    es.close();
+    const r = JSON.parse(e.data);
+    toast(`${r.createdCards} Lernkarten erstellt`, 'ok');
+    S.fc.cards = await api.fc(docId).catch(()=>[]);
+    S.fc.idx=0; S.fc.flip=false;
+    drawFCBody();
+    if (btn) { btn.disabled=false; btn.innerHTML=`${IC.star} Generieren`; }
+  });
+
+  es.addEventListener('error', () => {
+    es.close();
+    toast('Fehler beim Generieren', 'err');
+    if (btn) { btn.disabled=false; btn.innerHTML=`${IC.star} Generieren`; }
+    drawFCBody();
+  });
+}
+
+function fcRatingBar(cards) {
+  const known   = cards.filter(c=>c.known===true).length;
+  const unknown = cards.filter(c=>c.known===false).length;
+  const total   = cards.length;
+  if (!total) return '';
+  return `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--dim)">
+    <span style="color:#22c55e">✓ ${known}</span>
+    <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div style="height:100%;width:${Math.round(known/total*100)}%;background:#22c55e;border-radius:2px"></div>
+    </div>
+    <span>${known}/${total} gewusst</span>
+  </div>`;
+}
+
 function drawFCBody() {
   const body = document.getElementById('fc-body');
   if (!body) return;
@@ -879,12 +1159,14 @@ function drawFCBody() {
     return;
   }
   const i=S.fc.idx, c=cards[i];
+  const knownCls = c.known===true ? ' style="border-color:#22c55e"' : c.known===false ? ' style="border-color:#ef4444"' : '';
   body.innerHTML=`
-    <div style="display:flex;flex-direction:column;align-items:center;gap:22px;padding-top:8px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:8px">
+      ${fcRatingBar(cards)}
       <div class="fc-scene">
-        <div class="fc-card${S.fc.flip?' flipped':''}" id="fc-el">
+        <div class="fc-card${S.fc.flip?' flipped':''}" id="fc-el"${knownCls}>
           <div class="fc-face fc-front">
-            <div class="fc-label">Frage</div>
+            <div class="fc-label">Frage ${i+1}/${cards.length}</div>
             <div class="fc-text">${esc(c.question)}</div>
             <div class="fc-hint">Klicken oder Leertaste zum Umdrehen</div>
           </div>
@@ -894,17 +1176,36 @@ function drawFCBody() {
           </div>
         </div>
       </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <button class="btn btn-sm" id="fc-no"  style="background:#ef444420;color:#ef4444;border-color:#ef4444">✕ Nicht gewusst</button>
+        <button class="btn btn-sm" id="fc-yes" style="background:#22c55e20;color:#22c55e;border-color:#22c55e">✓ Gewusst</button>
+      </div>
       <div class="fc-nav">
         <button class="btn btn-ghost btn-sm" id="fc-prev"${i===0?' disabled':''}>← Zurück</button>
         <span class="fc-count">${i+1} / ${cards.length}</span>
         <button class="btn btn-ghost btn-sm" id="fc-next"${i===cards.length-1?' disabled':''}>Weiter →</button>
       </div>
-      <div class="fc-dots">${cards.map((_,j)=>`<div class="fc-dot${j===i?' on':''}"></div>`).join('')}</div>
+      <div class="fc-dots">${cards.map((_,j)=>{
+        const dot = cards[j].known===true?'#22c55e':cards[j].known===false?'#ef4444':'var(--border)';
+        return `<div class="fc-dot${j===i?' on':''}" style="${j===i?'':'background:'+dot}"></div>`;
+      }).join('')}</div>
     </div>`;
 
   document.getElementById('fc-el').onclick  = ()=>{ S.fc.flip=!S.fc.flip; drawFCBody(); };
   document.getElementById('fc-prev')?.addEventListener('click', ()=>{ S.fc.idx--; S.fc.flip=false; drawFCBody(); });
   document.getElementById('fc-next')?.addEventListener('click', ()=>{ S.fc.idx++; S.fc.flip=false; drawFCBody(); });
+  document.getElementById('fc-yes')?.addEventListener('click', async ()=>{
+    await api.rateCard(c.id, true).catch(()=>{});
+    S.fc.cards[i].known = true;
+    if (i < cards.length-1) { S.fc.idx++; S.fc.flip=false; }
+    drawFCBody();
+  });
+  document.getElementById('fc-no')?.addEventListener('click', async ()=>{
+    await api.rateCard(c.id, false).catch(()=>{});
+    S.fc.cards[i].known = false;
+    if (i < cards.length-1) { S.fc.idx++; S.fc.flip=false; }
+    drawFCBody();
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -918,7 +1219,9 @@ async function drawSum(el) {
         <select class="form-select" id="sum-doc">
           <option value="">Dokument wählen…</option>${docOptions(S.sum.docId)}
         </select>
-        <button class="btn btn-primary btn-sm" id="sum-gen">${IC.star} Generieren</button>
+        <button class="btn btn-primary btn-sm" id="sum-gen"    >${IC.star} Generieren</button>
+        <button class="btn btn-ghost btn-sm"   id="sum-rebuild">${IC.ref} Neu erstellen</button>
+        <button class="btn btn-ghost btn-sm"   id="sum-exp"    >${IC.exp} Export</button>
       </div>
     </div>
     <div class="view-body">
@@ -932,19 +1235,30 @@ async function drawSum(el) {
     else drawSumBody();
   };
 
-  document.getElementById('sum-gen').onclick = async()=>{
+  const runGenSum = async (rebuild) => {
     if (!S.sum.docId) { toast('Bitte erst ein Dokument wählen','inf'); return; }
-    const btn=document.getElementById('sum-gen');
-    btn.disabled=true; btn.innerHTML=`${spinner()} Generiert…`;
+    const btn    = document.getElementById(rebuild ? 'sum-rebuild' : 'sum-gen');
+    const other  = document.getElementById(rebuild ? 'sum-gen' : 'sum-rebuild');
+    btn.disabled=true; btn.innerHTML=`${spinner()} ${rebuild?'Neu erstellt…':'Generiert…'}`;
+    if (other) other.disabled=true;
     const body=document.getElementById('sum-body');
-    if(body) body.innerHTML=`<div style="color:var(--dim);font-size:13px">Zusammenfassung wird erstellt…${pbar()}</div>`;
+    if(body && rebuild) body.innerHTML=`<div style="color:var(--dim);font-size:13px">Zusammenfassung wird erstellt…${pbar()}</div>`;
     try {
-      const r = await api.genSum(S.sum.docId);
+      const r = await api.genSum(S.sum.docId, rebuild);
       S.sum.text = r.summary;
       drawSumBody();
-      toast('Zusammenfassung erstellt','ok');
+      toast(r.generated ? 'Zusammenfassung erstellt' : 'Aus Cache geladen', r.generated ? 'ok' : 'inf');
     } catch { toast('Fehler beim Generieren','err'); drawSumBody(); }
-    finally { btn.disabled=false; btn.innerHTML=`${IC.star} Generieren`; }
+    finally {
+      btn.disabled=false; btn.innerHTML=rebuild ? `${IC.ref} Neu erstellen` : `${IC.star} Generieren`;
+      if (other) other.disabled=false;
+    }
+  };
+  document.getElementById('sum-gen').onclick     = ()=>runGenSum(false);
+  document.getElementById('sum-rebuild').onclick = ()=>runGenSum(true);
+  document.getElementById('sum-exp').onclick     = ()=>{
+    if (!S.sum.docId) { toast('Kein Dokument gewählt','inf'); return; }
+    window.open(`/api/export/summary/${S.sum.docId}`, '_blank');
   };
 
   if (S.sum.docId) await loadSum(); else drawSumBody();
@@ -988,6 +1302,29 @@ function drawSumBody() {
 // ── Init ─────────────────────────────────────────────────────────────
 async function init() {
   try { S.docs = await api.docs(); } catch {}
+  try {
+    const st = await api.status();
+    S.semantic = !!st.semantic;
+  } catch {}
+  try {
+    const ids = await api.sessions();
+    if (ids && ids.length) {
+      const lastId = ids[0];
+      const msgs   = await api.sessionMsgs(lastId);
+      if (msgs && msgs.length) {
+        S.chat.sid  = lastId;
+        S.chat.msgs = msgs
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({
+            role:    m.role,
+            content: m.role === 'user' ? (m.content.includes('\n\nFrage: ')
+              ? m.content.substring(m.content.lastIndexOf('\n\nFrage: ') + 9)
+              : m.content) : m.content,
+            sources: []
+          }));
+      }
+    }
+  } catch {}
   go('docs');
 }
 document.addEventListener('DOMContentLoaded', init);

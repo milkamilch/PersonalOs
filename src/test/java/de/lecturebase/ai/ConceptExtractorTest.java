@@ -11,62 +11,68 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ConceptExtractorTest {
 
-    @Mock  GeminiClient  claudeClient;
-    @Spy   ObjectMapper  objectMapper = new ObjectMapper();
+    @Mock  AiClient     claudeClient;
+    @Spy   ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks ConceptExtractor extractor;
 
     @Test
-    void extrahiertKonzepteAusClaudeAntwort() {
-        when(claudeClient.ask(anyString(), anyString()))
+    void extrahiertKonzepteAusBatch() {
+        when(claudeClient.ask(anyString(), anyString(), anyInt()))
                 .thenReturn("""
-                        ["Quicksort", "Rekursion", "Divide-and-Conquer"]
+                        [["Quicksort", "Rekursion"], ["Stack", "Heap"]]
                         """);
 
-        List<String> result = extractor.extract("Ein Text über Sortieralgorithmen");
+        List<List<String>> result = extractor.extractBatch(List.of("Sortierung", "Speicher"));
 
-        assertThat(result).containsExactly("Quicksort", "Rekursion", "Divide-and-Conquer");
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0)).containsExactly("Quicksort", "Rekursion");
+        assertThat(result.get(1)).containsExactly("Stack", "Heap");
     }
 
     @Test
     void tolerriertBegleittext() {
-        when(claudeClient.ask(anyString(), anyString()))
-                .thenReturn("Hier sind die Konzepte: [\"Stack\", \"Heap\"] – Ende.");
+        when(claudeClient.ask(anyString(), anyString(), anyInt()))
+                .thenReturn("Hier: [[\"Stack\", \"Heap\"]] – Ende.");
 
-        List<String> result = extractor.extract("Speicherverwaltung");
+        List<List<String>> result = extractor.extractBatch(List.of("Speicher"));
 
-        assertThat(result).containsExactly("Stack", "Heap");
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).containsExactly("Stack", "Heap");
     }
 
     @Test
     void liefertLeereListeBeiUngueltigemJSON() {
-        when(claudeClient.ask(anyString(), anyString()))
+        when(claudeClient.ask(anyString(), anyString(), anyInt()))
                 .thenReturn("Ich konnte keine Konzepte extrahieren.");
 
-        List<String> result = extractor.extract("Leerer Text");
+        List<List<String>> result = extractor.extractBatch(List.of("Text"));
 
         assertThat(result).isEmpty();
     }
 
     @Test
-    void parseJsonArrayMitLeeremArray() {
-        assertThat(extractor.parseJsonArray("[]")).isEmpty();
+    void parseNestedJsonArrayMitLeeremArray() {
+        assertThat(extractor.parseNestedJsonArray("[]")).isEmpty();
     }
 
     @Test
-    void parseJsonArrayOhneKlammernGibtLeereListeZurueck() {
-        assertThat(extractor.parseJsonArray("kein array hier")).isEmpty();
+    void parseNestedJsonArrayOhneKlammernGibtLeereListeZurueck() {
+        assertThat(extractor.parseNestedJsonArray("kein array hier")).isEmpty();
     }
 
     @Test
-    void parseJsonArrayExtrahiertAusTextMitPrefix() {
-        List<String> result = extractor.parseJsonArray("Ergebnis: [\"A\", \"B\", \"C\"]");
-        assertThat(result).containsExactly("A", "B", "C");
+    void parseNestedJsonArrayExtrahiertKorrekt() {
+        List<List<String>> result = extractor.parseNestedJsonArray("[[\"A\", \"B\"],[\"C\"]]");
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0)).containsExactly("A", "B");
+        assertThat(result.get(1)).containsExactly("C");
     }
 }

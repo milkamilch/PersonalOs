@@ -9,6 +9,8 @@ import de.lecturebase.storage.FlashcardRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 @Service
 public class FlashcardGenerator {
@@ -22,12 +24,12 @@ public class FlashcardGenerator {
             - Kein Begleittext, nur das JSON-Array
             """;
 
-    private final GeminiClient        claudeClient;
+    private final AiClient            claudeClient;
     private final ChunkRepository     chunkRepository;
     private final FlashcardRepository flashcardRepository;
     private final ObjectMapper        objectMapper;
 
-    public FlashcardGenerator(GeminiClient claudeClient,
+    public FlashcardGenerator(AiClient claudeClient,
                                ChunkRepository chunkRepository,
                                FlashcardRepository flashcardRepository,
                                ObjectMapper objectMapper) {
@@ -37,12 +39,16 @@ public class FlashcardGenerator {
         this.objectMapper        = objectMapper;
     }
 
-    /** Generiert Flashcards für alle Chunks eines Dokuments und speichert sie. */
     public GenerateResult generateForDocument(long documentId) {
+        return generateForDocument(documentId, null);
+    }
+
+    public GenerateResult generateForDocument(long documentId, Consumer<Map<String, Object>> onProgress) {
         List<Chunk> chunks = chunkRepository.findChunksByDocument(documentId);
         int created = 0;
 
-        for (Chunk chunk : chunks) {
+        for (int i = 0; i < chunks.size(); i++) {
+            Chunk chunk = chunks.get(i);
             List<RawCard> cards = extractCards(chunk.getText());
             for (RawCard card : cards) {
                 Flashcard fc = new Flashcard();
@@ -52,6 +58,11 @@ public class FlashcardGenerator {
                 fc.setAnswer(card.answer());
                 flashcardRepository.save(fc);
                 created++;
+            }
+            if (onProgress != null) {
+                onProgress.accept(Map.of(
+                    "chunk", i + 1, "totalChunks", chunks.size(), "createdCards", created
+                ));
             }
         }
         return new GenerateResult(chunks.size(), created);

@@ -1,5 +1,6 @@
 package de.lecturebase.api;
 
+import de.lecturebase.ai.SemanticSearchService;
 import de.lecturebase.ingestion.IngestionService;
 import de.lecturebase.model.Document;
 import de.lecturebase.storage.ChunkRepository;
@@ -18,16 +19,19 @@ import java.util.Map;
 @RequestMapping("/api")
 public class IngestionController {
 
-    private final IngestionService ingestionService;
-    private final ChunkRepository  chunkRepository;
-    private final TagRepository    tagRepository;
+    private final IngestionService    ingestionService;
+    private final ChunkRepository     chunkRepository;
+    private final TagRepository       tagRepository;
+    private final SemanticSearchService semanticSearch;
 
     public IngestionController(IngestionService ingestionService,
                                ChunkRepository chunkRepository,
-                               TagRepository tagRepository) {
+                               TagRepository tagRepository,
+                               SemanticSearchService semanticSearch) {
         this.ingestionService = ingestionService;
         this.chunkRepository  = chunkRepository;
         this.tagRepository    = tagRepository;
+        this.semanticSearch   = semanticSearch;
     }
 
     @PostMapping("/upload")
@@ -52,12 +56,24 @@ public class IngestionController {
             "documentId", result.documentId(),
             "name",       result.name(),
             "pages",      result.pages(),
-            "chunks",     result.chunks()
+            "chunks",     result.chunks(),
+            "semantic",   semanticSearch.isAvailable()
         ));
     }
 
     @GetMapping("/documents")
     public List<Document> listDocuments(@RequestParam(required = false) String tag) {
         return tag != null ? chunkRepository.findByTag(tag) : chunkRepository.findAllDocuments();
+    }
+
+    @DeleteMapping("/documents/{id}")
+    public ResponseEntity<Map<String, String>> deleteDocument(@PathVariable long id) {
+        chunkRepository.deleteDocument(id);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
+    }
+
+    @GetMapping("/status")
+    public Map<String, Object> status() {
+        return Map.of("semantic", semanticSearch.isAvailable());
     }
 }

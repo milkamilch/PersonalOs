@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,8 +25,8 @@ class MindMapControllerTest {
 
     @Test
     void buildGibtVerarbeitungsstatistikZurueck() throws Exception {
-        when(mindMapService.build(any()))
-                .thenReturn(new MindMapService.BuildResult(12, 48));
+        when(mindMapService.build(any(), anyBoolean()))
+                .thenReturn(new MindMapService.BuildResult(12, 48, false));
 
         mvc.perform(post("/api/mindmap/build"))
                 .andExpect(status().isOk())
@@ -35,8 +36,8 @@ class MindMapControllerTest {
 
     @Test
     void buildMitDokumentIdWirdWeitergegeben() throws Exception {
-        when(mindMapService.build(5L))
-                .thenReturn(new MindMapService.BuildResult(3, 10));
+        when(mindMapService.build(any(), anyBoolean()))
+                .thenReturn(new MindMapService.BuildResult(3, 10, false));
 
         mvc.perform(post("/api/mindmap/build").param("documentId", "5"))
                 .andExpect(status().isOk())
@@ -45,7 +46,7 @@ class MindMapControllerTest {
 
     @Test
     void getGraphGibtKnotenUndKantenZurueck() throws Exception {
-        MindMapService.NodeDto node = new MindMapService.NodeDto(1L, "Quicksort", 3, 0);
+        MindMapService.NodeDto node = new MindMapService.NodeDto(1L, "Quicksort", 3, 0, List.of());
         MindMapService.LinkDto link = new MindMapService.LinkDto(1L, 2L, 2.0);
         when(mindMapService.getGraphData())
                 .thenReturn(new MindMapService.GraphData(List.of(node), List.of(link)));

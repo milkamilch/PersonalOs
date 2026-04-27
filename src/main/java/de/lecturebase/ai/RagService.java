@@ -21,12 +21,12 @@ public class RagService {
 
     private final ChunkRepository       repository;
     private final ChunkScorer           scorer;
-    private final GeminiClient          claudeClient;
+    private final AiClient              claudeClient;
     private final ChatSessionStore      sessionStore;
     private final SemanticSearchService semanticSearch;
 
     public RagService(ChunkRepository repository, ChunkScorer scorer,
-                      GeminiClient claudeClient, ChatSessionStore sessionStore,
+                      AiClient claudeClient, ChatSessionStore sessionStore,
                       SemanticSearchService semanticSearch) {
         this.repository     = repository;
         this.scorer         = scorer;
@@ -59,8 +59,8 @@ public class RagService {
         String userMessage = "Kontext:\n" + context + "\n\nFrage: " + question;
         String answer      = claudeClient.askWithHistory(SYSTEM_PROMPT, session.getHistory(), userMessage);
 
-        session.add("user",      userMessage);
-        session.add("assistant", answer);
+        sessionStore.addMessage(session.getSessionId(), "user",      userMessage);
+        sessionStore.addMessage(session.getSessionId(), "assistant", answer);
 
         List<Source> sources = topChunks.stream()
                 .map(c -> new Source(c.getDocumentId(), c.getPageNumber(), 1.0))

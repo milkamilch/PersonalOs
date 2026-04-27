@@ -110,6 +110,16 @@ public class ChunkRepository {
         }, params);
     }
 
+    public void deleteDocument(long documentId) {
+        jdbc.update("DELETE FROM chunk_embeddings WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)", documentId);
+        jdbc.update("DELETE FROM chunks        WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM flashcards    WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM summaries     WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM mindmap_status WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM document_tags  WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM documents      WHERE id = ?", documentId);
+    }
+
     public List<Chunk> findCandidates(String query) {
         return findCandidates(query, null);
     }

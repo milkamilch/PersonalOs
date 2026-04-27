@@ -9,35 +9,25 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-04-27T09:47:42.158+02:00  INFO 15026 --- [           main] de.lecturebase.LectureBaseApplication    : Starting LectureBaseApplication v1.0.0-SNAPSHOT using Java 25.0.3 with PID 15026 (/Users/larswenner/JP26/target/lecturebase-1.0.0-SNAPSHOT.jar started by larswenner in /Users/larswenner/JP26)
-2026-04-27T09:47:42.159+02:00  INFO 15026 --- [           main] de.lecturebase.LectureBaseApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-04-27T22:37:50.140+02:00  INFO 50479 --- [           main] de.lecturebase.LectureBaseApplication    : Starting LectureBaseApplication v1.0.0-SNAPSHOT using Java 25.0.3 with PID 50479 (/Users/larswenner/JP26/target/lecturebase-1.0.0-SNAPSHOT.jar started by larswenner in /Users/larswenner/JP26)
+2026-04-27T22:37:50.142+02:00  INFO 50479 --- [           main] de.lecturebase.LectureBaseApplication    : No active profile set, falling back to 1 default profile: "default"
 WARNING: A restricted method in java.lang.System has been called
 WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (jar:nested:/Users/larswenner/JP26/target/lecturebase-1.0.0-SNAPSHOT.jar/!BOOT-INF/lib/tomcat-embed-core-10.1.31.jar!/)
 WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
 WARNING: Restricted methods will be blocked in a future release unless native access is enabled
 
-2026-04-27T09:47:42.696+02:00  INFO 15026 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
-2026-04-27T09:47:42.704+02:00  INFO 15026 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-27T09:47:42.705+02:00  INFO 15026 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.31]
-2026-04-27T09:47:42.721+02:00  INFO 15026 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-27T09:47:42.721+02:00  INFO 15026 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 536 ms
+2026-04-27T22:37:50.657+02:00  INFO 50479 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-04-27T22:37:50.665+02:00  INFO 50479 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-27T22:37:50.665+02:00  INFO 50479 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-04-27T22:37:50.681+02:00  INFO 50479 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-27T22:37:50.681+02:00  INFO 50479 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 515 ms
 Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
-2026-04-27T09:47:42.961+02:00  INFO 15026 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
-2026-04-27T09:47:43.092+02:00  WARN 15026 --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
-2026-04-27T09:47:43.100+02:00  INFO 15026 --- [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
-
-Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2026-04-27T09:47:43.108+02:00 ERROR 15026 --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
-
-***************************
-APPLICATION FAILED TO START
-***************************
-
-Description:
-
-Web server failed to start. Port 8080 was already in use.
-
-Action:
-
-Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
-
+2026-04-27T22:37:50.915+02:00  INFO 50479 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
+2026-04-27T22:37:51.045+02:00  INFO 50479 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-04-27T22:37:51.056+02:00  INFO 50479 --- [           main] de.lecturebase.LectureBaseApplication    : Started LectureBaseApplication in 1.091 seconds (process running for 1.322)
+2026-04-27T22:37:51.059+02:00  INFO 50479 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-27T22:37:51.308+02:00  INFO 50479 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.sqlite.jdbc4.JDBC4Connection@5af5d76f
+2026-04-27T22:37:51.309+02:00  INFO 50479 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-27T22:37:51.797+02:00  INFO 50479 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-27T22:37:51.798+02:00  INFO 50479 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-27T22:37:51.798+02:00  INFO 50479 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms

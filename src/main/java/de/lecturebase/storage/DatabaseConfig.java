@@ -94,6 +94,46 @@ public class DatabaseConfig {
                     FOREIGN KEY (document_id) REFERENCES documents(id)
                 )
             """);
+
+            // Migration: known-Spalte für Lernkarten-Tracking
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN known INTEGER DEFAULT NULL"); }
+            catch (Exception ignored) {} // Spalte existiert bereits
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS mindmap_status (
+                    document_id INTEGER PRIMARY KEY,
+                    built_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS concept_documents (
+                    concept_id  INTEGER NOT NULL,
+                    document_id INTEGER NOT NULL,
+                    PRIMARY KEY (concept_id, document_id),
+                    FOREIGN KEY (concept_id)  REFERENCES concepts(id),
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    id         TEXT PRIMARY KEY,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT    NOT NULL,
+                    role       TEXT    NOT NULL,
+                    content    TEXT    NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+                )
+            """);
         };
     }
 }

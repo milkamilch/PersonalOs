@@ -20,11 +20,11 @@ public class SummaryService {
 
     static final int MAX_CHUNKS = 15;
 
-    private final GeminiClient      claudeClient;
+    private final AiClient          claudeClient;
     private final ChunkRepository   chunkRepository;
     private final SummaryRepository summaryRepository;
 
-    public SummaryService(GeminiClient claudeClient,
+    public SummaryService(AiClient claudeClient,
                           ChunkRepository chunkRepository,
                           SummaryRepository summaryRepository) {
         this.claudeClient      = claudeClient;
@@ -32,7 +32,16 @@ public class SummaryService {
         this.summaryRepository = summaryRepository;
     }
 
-    public SummaryResult generateForDocument(long documentId) {
+    public SummaryResult generateForDocument(long documentId, boolean rebuild) {
+        if (!rebuild) {
+            return summaryRepository.findByDocument(documentId)
+                    .map(cached -> new SummaryResult(documentId, cached, false))
+                    .orElseGet(() -> generate(documentId));
+        }
+        return generate(documentId);
+    }
+
+    private SummaryResult generate(long documentId) {
         List<Chunk> chunks = chunkRepository.findChunksByDocument(documentId);
         if (chunks.isEmpty()) return new SummaryResult(documentId, "", false);
 

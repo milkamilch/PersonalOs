@@ -7,13 +7,15 @@ MVN="/Users/larswenner/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib
 LOG="$SCRIPT_DIR/app.log"
 PID_FILE="$SCRIPT_DIR/.app.pid"
 
+# .env laden falls vorhanden
+[[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+
 # ── Kill old process ─────────────────────────────────────────────────
 if [[ -f "$PID_FILE" ]]; then
   OLD_PID=$(cat "$PID_FILE")
   if kill -0 "$OLD_PID" 2>/dev/null; then
     echo "Stoppe alten Prozess (PID $OLD_PID)..."
     kill "$OLD_PID"
-    # Warte bis der Prozess wirklich beendet ist (max 10s)
     for i in {1..20}; do
       kill -0 "$OLD_PID" 2>/dev/null || break
       sleep 0.5
@@ -23,16 +25,20 @@ if [[ -f "$PID_FILE" ]]; then
   rm -f "$PID_FILE"
 fi
 
-# Fallback: alle laufenden Instanzen des Jars killen
-pkill -f "lecturebase.*\.jar" 2>/dev/null || true
+# Alle Java-Prozesse killen die LectureBase laufen lassen (JAR oder IntelliJ-Classpath)
+pkill -f "LectureBaseApplication" 2>/dev/null || true
+pkill -f "lecturebase.*\.jar"     2>/dev/null || true
+# Warte kurz damit der Port freigegeben wird
+sleep 1
 
 # ── Build ────────────────────────────────────────────────────────────
 echo "Baue Projekt..."
-"$MVN" -f "$SCRIPT_DIR/pom.xml" package -q -DskipTests
+"$MVN" -f "$SCRIPT_DIR/pom.xml" package -q -Dmaven.test.skip=true
 
 # ── Start ────────────────────────────────────────────────────────────
 echo "Starte LectureBase..."
 nohup java \
+  -DCLAUDE_API_KEY="${CLAUDE_API_KEY:-}" \
   -DGEMINI_API_KEY="${GEMINI_API_KEY:-}" \
   -DVOYAGE_API_KEY="${VOYAGE_API_KEY:-}" \
   -jar "$JAR" \

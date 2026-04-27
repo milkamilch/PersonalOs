@@ -19,6 +19,8 @@ public class FlashcardRepository {
         fc.setChunkId(rs.getLong("chunk_id"));
         fc.setQuestion(rs.getString("question"));
         fc.setAnswer(rs.getString("answer"));
+        Object known = rs.getObject("known");
+        if (known != null) fc.setKnown(((Number) known).intValue() == 1);
         return fc;
     };
 
@@ -46,5 +48,13 @@ public class FlashcardRepository {
 
     public void deleteByDocument(long documentId) {
         jdbc.update("DELETE FROM flashcards WHERE document_id = ?", documentId);
+    }
+
+    public void rate(long id, boolean known) {
+        jdbc.update("UPDATE flashcards SET known = ? WHERE id = ?", known ? 1 : 0, id);
+    }
+
+    public void resetRatings(long documentId) {
+        jdbc.update("UPDATE flashcards SET known = NULL WHERE document_id = ?", documentId);
     }
 }

@@ -1,11 +1,12 @@
 package de.lecturebase.model;
 
 public class Flashcard {
-    private Long   id;
-    private Long   documentId;
-    private Long   chunkId;
-    private String question;
-    private String answer;
+    private Long    id;
+    private Long    documentId;
+    private Long    chunkId;
+    private String  question;
+    private String  answer;
+    private Boolean known;  // null=unbewertet, true=gewusst, false=nicht gewusst
 
     public Long   getId()         { return id; }
     public void   setId(Long id)  { this.id = id; }
@@ -19,6 +20,9 @@ public class Flashcard {
     public String getQuestion()               { return question; }
     public void   setQuestion(String q)       { this.question = q; }
 
-    public String getAnswer()                 { return answer; }
-    public void   setAnswer(String a)         { this.answer = a; }
+    public String  getAnswer()                  { return answer; }
+    public void    setAnswer(String a)          { this.answer = a; }
+
+    public Boolean getKnown()                   { return known; }
+    public void    setKnown(Boolean known)      { this.known = known; }
 }

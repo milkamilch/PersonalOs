@@ -1,13 +1,10 @@
 package de.lecturebase.storage;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class ConceptRepository {
@@ -64,9 +61,55 @@ public class ConceptRepository {
         );
     }
 
+    public boolean hasBuilt(long documentId) {
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM mindmap_status WHERE document_id = ?", Integer.class, documentId);
+        return count != null && count > 0;
+    }
+
+    public void markBuilt(long documentId) {
+        jdbc.update("""
+            INSERT INTO mindmap_status (document_id) VALUES (?)
+            ON CONFLICT(document_id) DO UPDATE SET built_at = CURRENT_TIMESTAMP
+            """, documentId);
+    }
+
+    public long countConceptsForDocument(long documentId) {
+        // concepts are global – return total as proxy for "already has data"
+        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM concepts", Long.class);
+        return count != null ? count : 0;
+    }
+
+    public void linkToDocument(long conceptId, long documentId) {
+        jdbc.update(
+            "INSERT OR IGNORE INTO concept_documents (concept_id, document_id) VALUES (?, ?)",
+            conceptId, documentId
+        );
+    }
+
+    public void clearDocumentLinks(long documentId) {
+        jdbc.update("DELETE FROM concept_documents WHERE document_id = ?", documentId);
+    }
+
+    public Map<Long, List<String>> findDocumentNamesForAllConcepts() {
+        Map<Long, List<String>> result = new java.util.HashMap<>();
+        jdbc.query("""
+            SELECT cd.concept_id, d.name
+            FROM concept_documents cd
+            JOIN documents d ON d.id = cd.document_id
+            """, rs -> {
+            long conceptId = rs.getLong("concept_id");
+            result.computeIfAbsent(conceptId, k -> new java.util.ArrayList<>())
+                  .add(rs.getString("name"));
+        });
+        return result;
+    }
+
     public void deleteAll() {
+        jdbc.update("DELETE FROM concept_documents");
         jdbc.update("DELETE FROM concept_links");
         jdbc.update("DELETE FROM concepts");
+        jdbc.update("DELETE FROM mindmap_status");
     }
 
     public record ConceptNode(long id, String name) {}

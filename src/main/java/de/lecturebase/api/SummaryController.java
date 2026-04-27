@@ -19,8 +19,10 @@ public class SummaryController {
 
     /** Generiert eine Zusammenfassung für ein Dokument und speichert sie. */
     @PostMapping("/generate")
-    public SummaryService.SummaryResult generate(@RequestParam long documentId) {
-        return summaryService.generateForDocument(documentId);
+    public SummaryService.SummaryResult generate(
+            @RequestParam long documentId,
+            @RequestParam(defaultValue = "false") boolean rebuild) {
+        return summaryService.generateForDocument(documentId, rebuild);
     }
 
     @GetMapping("/{documentId}")

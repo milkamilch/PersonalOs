@@ -32,7 +32,7 @@ class SummaryServiceTest {
         when(chunkRepository.findChunksByDocument(10L)).thenReturn(List.of(chunk));
         when(claudeClient.ask(anyString(), anyString())).thenReturn("Zusammenfassung des Texts.");
 
-        SummaryService.SummaryResult result = summaryService.generateForDocument(10L);
+        SummaryService.SummaryResult result = summaryService.generateForDocument(10L, false);
 
         assertThat(result.generated()).isTrue();
         assertThat(result.summary()).isEqualTo("Zusammenfassung des Texts.");
@@ -44,7 +44,7 @@ class SummaryServiceTest {
     void generateOhneChunksGibtLeeresResultZurueck() {
         when(chunkRepository.findChunksByDocument(99L)).thenReturn(Collections.emptyList());
 
-        SummaryService.SummaryResult result = summaryService.generateForDocument(99L);
+        SummaryService.SummaryResult result = summaryService.generateForDocument(99L, false);
 
         assertThat(result.generated()).isFalse();
         assertThat(result.summary()).isEmpty();
@@ -60,7 +60,7 @@ class SummaryServiceTest {
         when(chunkRepository.findChunksByDocument(5L)).thenReturn(chunks);
         when(claudeClient.ask(anyString(), anyString())).thenReturn("Summary");
 
-        summaryService.generateForDocument(5L);
+        summaryService.generateForDocument(5L, false);
 
         verify(claudeClient).ask(anyString(), argThat(ctx ->
                 ctx.contains("Text 15") && !ctx.contains("Text 16")));
@@ -73,7 +73,7 @@ class SummaryServiceTest {
         when(chunkRepository.findChunksByDocument(7L)).thenReturn(List.of(c1, c2));
         when(claudeClient.ask(anyString(), anyString())).thenReturn("OK");
 
-        summaryService.generateForDocument(7L);
+        summaryService.generateForDocument(7L, false);
 
         verify(claudeClient).ask(anyString(), argThat(ctx ->
                 ctx.contains("Erster Abschnitt.") &&
