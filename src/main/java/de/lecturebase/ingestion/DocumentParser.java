@@ -1,5 +1,6 @@
 package de.lecturebase.ingestion;
 
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -16,7 +17,7 @@ public class DocumentParser {
 
     public List<PageContent> parsePdf(File file) throws IOException {
         List<PageContent> pages = new ArrayList<>();
-        try (PDDocument doc = PDDocument.load(file)) {
+        try (PDDocument doc = Loader.loadPDF(file)) {
             PDFTextStripper stripper = new PDFTextStripper();
             int totalPages = doc.getNumberOfPages();
             for (int i = 1; i <= totalPages; i++) {

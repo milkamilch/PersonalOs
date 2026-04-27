@@ -69,10 +69,14 @@ public class MindMapService {
 
         SimpleWeightedGraph<Long, DefaultWeightedEdge> graph =
                 graphBuilder.build(nodes, links);
-        Map<Long, Integer> degrees = graphBuilder.computeDegrees(graph);
+        Map<Long, Integer> degrees  = graphBuilder.computeDegrees(graph);
+        Map<Long, Integer> clusters = graphBuilder.computeClusters(graph);
 
         List<NodeDto> nodeDtos = nodes.stream()
-                .map(n -> new NodeDto(n.id(), n.name(), degrees.getOrDefault(n.id(), 0)))
+                .map(n -> new NodeDto(
+                        n.id(), n.name(),
+                        degrees.getOrDefault(n.id(), 0),
+                        clusters.getOrDefault(n.id(), 0)))
                 .filter(n -> n.degree() > 0) // isolierte Knoten ausblenden
                 .toList();
 
@@ -85,6 +89,6 @@ public class MindMapService {
 
     public record BuildResult(int processedChunks, int extractedConcepts) {}
     public record GraphData(List<NodeDto> nodes, List<LinkDto> links) {}
-    public record NodeDto(long id, String name, int degree) {}
+    public record NodeDto(long id, String name, int degree, int clusterId) {}
     public record LinkDto(long source, long target, double weight) {}
 }

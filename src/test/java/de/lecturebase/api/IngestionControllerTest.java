@@ -3,6 +3,7 @@ package de.lecturebase.api;
 import de.lecturebase.ingestion.IngestionService;
 import de.lecturebase.model.Document;
 import de.lecturebase.storage.ChunkRepository;
+import de.lecturebase.storage.TagRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,7 +25,8 @@ class IngestionControllerTest {
 
     @Autowired MockMvc mvc;
     @MockBean IngestionService ingestionService;
-    @MockBean ChunkRepository chunkRepository;
+    @MockBean ChunkRepository  chunkRepository;
+    @MockBean TagRepository    tagRepository;
 
     @Test
     void uploadGibtIngestionResultZurueck() throws Exception {

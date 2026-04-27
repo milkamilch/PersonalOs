@@ -126,12 +126,11 @@ const statusEl = document.getElementById("status");
 let simulation, linkSel, nodeSel;
 
 // ── Farben nach Grad-Dezil ────────────────────────────────────────────────���───
-const color = d3.scaleSequential()
-  .interpolator(d3.interpolateViridis)
-  .domain([0, 1]);
+// Farben nach Cluster-ID (bis zu 10 Cluster via Tableau10)
+const clusterColor = d3.scaleOrdinal(d3.schemeTableau10);
 
-function nodeColor(d, maxDeg) {
-  return color(d.degree / (maxDeg || 1));
+function nodeColor(d) {
+  return clusterColor(d.clusterId);
 }
 
 // ── Graph laden ───────────────────────────────────────────────────────────────
@@ -176,7 +175,6 @@ function render(data) {
 
   const width  = svg.node().clientWidth;
   const height = svg.node().clientHeight;
-  const maxDeg = d3.max(data.nodes, d => d.degree) || 1;
 
   // Zoom
   const g = svg.append("g");
@@ -203,7 +201,7 @@ function render(data) {
 
   nodeSel.append("circle")
     .attr("r", d => 5 + Math.sqrt(d.degree) * 3)
-    .attr("fill", d => nodeColor(d, maxDeg))
+    .attr("fill", d => nodeColor(d))
     .attr("stroke", "#1e293b");
 
   nodeSel.append("text")
@@ -261,7 +259,7 @@ document.getElementById("search").addEventListener("input", function () {
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 function showTooltip(event, d) {
-  tooltip.innerHTML = `<strong>${d.name}</strong><br>Verbindungen: ${d.degree}`;
+  tooltip.innerHTML = `<strong>${d.name}</strong><br>Verbindungen: ${d.degree}<br>Cluster: ${d.clusterId}`;
   tooltip.style.opacity = 1;
   tooltip.style.left = (event.offsetX + 14) + "px";
   tooltip.style.top  = (event.offsetY - 10) + "px";

@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,8 +26,8 @@ class AskControllerTest {
     @Test
     void askGibtAntwortUndQuellenZurueck() throws Exception {
         RagService.Source source = new RagService.Source(1L, 5, 0.9);
-        when(ragService.ask(anyString()))
-                .thenReturn(new RagService.AskResponse("Quicksort ist ein Algorithmus.", List.of(source)));
+        when(ragService.ask(anyString(), any(), any()))
+                .thenReturn(new RagService.AskResponse("Quicksort ist ein Algorithmus.", List.of(source), "session-1"));
 
         mvc.perform(post("/api/ask")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -41,10 +42,10 @@ class AskControllerTest {
 
     @Test
     void askOhneErgebnisseLiefertLeereQuellen() throws Exception {
-        when(ragService.ask(anyString()))
+        when(ragService.ask(anyString(), any(), any()))
                 .thenReturn(new RagService.AskResponse(
                         "Diese Information befindet sich nicht in deinen Vorlesungsskripten.",
-                        List.of()
+                        List.of(), "session-2"
                 ));
 
         mvc.perform(post("/api/ask")

@@ -45,7 +45,7 @@ class MindMapControllerTest {
 
     @Test
     void getGraphGibtKnotenUndKantenZurueck() throws Exception {
-        MindMapService.NodeDto node = new MindMapService.NodeDto(1L, "Quicksort", 3);
+        MindMapService.NodeDto node = new MindMapService.NodeDto(1L, "Quicksort", 3, 0);
         MindMapService.LinkDto link = new MindMapService.LinkDto(1L, 2L, 2.0);
         when(mindMapService.getGraphData())
                 .thenReturn(new MindMapService.GraphData(List.of(node), List.of(link)));

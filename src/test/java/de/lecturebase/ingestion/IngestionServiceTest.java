@@ -1,7 +1,9 @@
 package de.lecturebase.ingestion;
 
+import de.lecturebase.ai.EmbeddingClient;
 import de.lecturebase.model.Chunk;
 import de.lecturebase.storage.ChunkRepository;
+import de.lecturebase.storage.EmbeddingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -25,9 +27,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class IngestionServiceTest {
 
-    @Mock DocumentParser parser;
-    @Mock TextChunker chunker;
-    @Mock ChunkRepository repository;
+    @Mock DocumentParser       parser;
+    @Mock TextChunker          chunker;
+    @Mock ChunkRepository      repository;
+    @Mock EmbeddingClient      embeddingClient;
+    @Mock EmbeddingRepository  embeddingRepository;
 
     @InjectMocks IngestionService service;
 
