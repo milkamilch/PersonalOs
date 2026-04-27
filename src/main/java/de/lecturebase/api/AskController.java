@@ -18,8 +18,8 @@ public class AskController {
 
     @PostMapping("/ask")
     public RagService.AskResponse ask(@RequestBody AskRequest request) {
-        return ragService.ask(request.question(), request.tag(), request.sessionId());
+        return ragService.ask(request.question(), request.tag());
     }
 
-    public record AskRequest(String question, String tag, String sessionId) {}
+    public record AskRequest(String question, String tag) {}
 }
