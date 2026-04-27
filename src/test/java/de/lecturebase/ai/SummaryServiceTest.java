@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SummaryServiceTest {
 
-    @Mock ClaudeClient      claudeClient;
+    @Mock GeminiClient      claudeClient;
     @Mock ChunkRepository   chunkRepository;
     @Mock SummaryRepository summaryRepository;
 

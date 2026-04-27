@@ -22,12 +22,12 @@ public class FlashcardGenerator {
             - Kein Begleittext, nur das JSON-Array
             """;
 
-    private final ClaudeClient        claudeClient;
+    private final GeminiClient        claudeClient;
     private final ChunkRepository     chunkRepository;
     private final FlashcardRepository flashcardRepository;
     private final ObjectMapper        objectMapper;
 
-    public FlashcardGenerator(ClaudeClient claudeClient,
+    public FlashcardGenerator(GeminiClient claudeClient,
                                ChunkRepository chunkRepository,
                                FlashcardRepository flashcardRepository,
                                ObjectMapper objectMapper) {

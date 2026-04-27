@@ -20,11 +20,11 @@ public class SummaryService {
 
     static final int MAX_CHUNKS = 15;
 
-    private final ClaudeClient      claudeClient;
+    private final GeminiClient      claudeClient;
     private final ChunkRepository   chunkRepository;
     private final SummaryRepository summaryRepository;
 
-    public SummaryService(ClaudeClient claudeClient,
+    public SummaryService(GeminiClient claudeClient,
                           ChunkRepository chunkRepository,
                           SummaryRepository summaryRepository) {
         this.claudeClient      = claudeClient;

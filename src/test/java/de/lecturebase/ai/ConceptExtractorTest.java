@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ConceptExtractorTest {
 
-    @Mock  ClaudeClient  claudeClient;
+    @Mock  GeminiClient  claudeClient;
     @Spy   ObjectMapper  objectMapper = new ObjectMapper();
 
     @InjectMocks ConceptExtractor extractor;

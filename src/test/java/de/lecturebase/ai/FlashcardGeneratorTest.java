@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class FlashcardGeneratorTest {
 
-    @Mock  ClaudeClient        claudeClient;
+    @Mock  GeminiClient        claudeClient;
     @Mock  ChunkRepository     chunkRepository;
     @Mock  FlashcardRepository flashcardRepository;
     @Spy   ObjectMapper        objectMapper = new ObjectMapper();

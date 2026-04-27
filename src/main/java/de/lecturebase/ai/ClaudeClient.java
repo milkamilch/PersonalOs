@@ -7,7 +7,6 @@ import org.springframework.web.client.RestClient;
 import java.util.List;
 import java.util.Map;
 
-@Component
 public class ClaudeClient {
 
     private static final String MODEL      = "claude-haiku-4-5-20251001";

@@ -18,10 +18,10 @@ public class ConceptExtractor {
             - Kein Begleittext, nur das JSON-Array
             """;
 
-    private final ClaudeClient claudeClient;
+    private final GeminiClient claudeClient;
     private final ObjectMapper objectMapper;
 
-    public ConceptExtractor(ClaudeClient claudeClient, ObjectMapper objectMapper) {
+    public ConceptExtractor(GeminiClient claudeClient, ObjectMapper objectMapper) {
         this.claudeClient = claudeClient;
         this.objectMapper = objectMapper;
     }

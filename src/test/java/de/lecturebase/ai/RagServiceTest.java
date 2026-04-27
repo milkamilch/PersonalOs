@@ -24,7 +24,7 @@ class RagServiceTest {
 
     @Mock ChunkRepository       repository;
     @Mock ChunkScorer           scorer;
-    @Mock ClaudeClient          claudeClient;
+    @Mock GeminiClient          claudeClient;
     @Mock SemanticSearchService semanticSearch;
     @Mock ChatSessionStore      sessionStore;
 

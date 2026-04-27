@@ -21,12 +21,12 @@ public class RagService {
 
     private final ChunkRepository       repository;
     private final ChunkScorer           scorer;
-    private final ClaudeClient          claudeClient;
+    private final GeminiClient          claudeClient;
     private final ChatSessionStore      sessionStore;
     private final SemanticSearchService semanticSearch;
 
     public RagService(ChunkRepository repository, ChunkScorer scorer,
-                      ClaudeClient claudeClient, ChatSessionStore sessionStore,
+                      GeminiClient claudeClient, ChatSessionStore sessionStore,
                       SemanticSearchService semanticSearch) {
         this.repository     = repository;
         this.scorer         = scorer;
