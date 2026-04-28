@@ -35,17 +35,37 @@ public class ChunkRepository {
     }
 
     public long saveDocument(String name, String filePath) {
+        return saveDocument(name, filePath, null);
+    }
+
+    public long saveDocument(String name, String filePath, String fileHash) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO documents (name, file_path) VALUES (?, ?)",
+                "INSERT INTO documents (name, file_path, file_hash) VALUES (?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS
             );
             ps.setString(1, name);
             ps.setString(2, filePath);
+            ps.setString(3, fileHash);
             return ps;
         }, keyHolder);
         return keyHolder.getKey().longValue();
+    }
+
+    public Optional<Document> findByHash(String hash) {
+        if (hash == null) return Optional.empty();
+        List<Document> result = jdbc.query(
+            "SELECT d.id, d.name, d.file_path FROM documents d WHERE d.file_hash = ? LIMIT 1",
+            (rs, row) -> {
+                Document d = new Document();
+                d.setId(rs.getLong("id"));
+                d.setName(rs.getString("name"));
+                d.setFilePath(rs.getString("file_path"));
+                return d;
+            }, hash
+        );
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 
     public void saveChunks(List<Chunk> chunks) {

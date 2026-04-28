@@ -14,12 +14,19 @@ import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.util.List;
 
+import de.lecturebase.ai.OcrService;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DocumentParserTest {
 
-    private final DocumentParser parser = new DocumentParser();
+    private final OcrService ocrService = mock(OcrService.class);
+    {
+        when(ocrService.isAvailable()).thenReturn(false);
+    }
+    private final DocumentParser parser = new DocumentParser(ocrService);
 
     @TempDir
     Path tempDir;

@@ -95,9 +95,26 @@ public class DatabaseConfig {
                 )
             """);
 
-            // Migration: known-Spalte für Lernkarten-Tracking
-            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN known INTEGER DEFAULT NULL"); }
-            catch (Exception ignored) {} // Spalte existiert bereits
+            // Migrations: Lernkarten-Tracking + SM-2 Spaced Repetition
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN known INTEGER DEFAULT NULL"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN easiness REAL DEFAULT 2.5"); }    catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN repetitions INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN interval_days INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN next_review TEXT DEFAULT NULL"); }  catch (Exception ignored) {}
+
+            // Migration: Duplikat-Erkennung
+            try { jdbc.execute("ALTER TABLE documents ADD COLUMN file_hash TEXT DEFAULT NULL"); } catch (Exception ignored) {}
+            // Migration: Lernaktivität tracken (für Dashboard/Streak)
+            try { jdbc.execute("ALTER TABLE flashcards ADD COLUMN rated_at TEXT DEFAULT NULL"); } catch (Exception ignored) {}
+
+            // Migration: Prüfungsdaten
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS exam_dates (
+                    document_id INTEGER PRIMARY KEY,
+                    exam_date   TEXT NOT NULL,
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
 
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS mindmap_status (
@@ -139,6 +156,44 @@ public class DatabaseConfig {
                     content    TEXT    NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+                )
+            """);
+
+            // Projekte (#10) + Todos (#11)
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT    NOT NULL,
+                    description TEXT    DEFAULT '',
+                    color       TEXT    DEFAULT '#7c3aed',
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS project_documents (
+                    project_id  INTEGER NOT NULL,
+                    document_id INTEGER NOT NULL,
+                    PRIMARY KEY (project_id, document_id),
+                    FOREIGN KEY (project_id)  REFERENCES projects(id),
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS project_notes (
+                    project_id  INTEGER PRIMARY KEY,
+                    content     TEXT    NOT NULL DEFAULT '',
+                    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
+                )
+            """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS todos (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id  INTEGER,
+                    text        TEXT    NOT NULL,
+                    done        INTEGER NOT NULL DEFAULT 0,
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
                 )
             """);
         };

@@ -32,6 +32,10 @@ public class IngestionService {
     }
 
     public IngestionResult ingest(File file) throws IOException {
+        return ingest(file, null);
+    }
+
+    public IngestionResult ingest(File file, String fileHash) throws IOException {
         String name = file.getName().toLowerCase();
 
         List<DocumentParser.PageContent> pages;
@@ -43,7 +47,7 @@ public class IngestionService {
             throw new IllegalArgumentException("Nicht unterstütztes Format: " + file.getName());
         }
 
-        long documentId = repository.saveDocument(file.getName(), file.getAbsolutePath());
+        long documentId = repository.saveDocument(file.getName(), file.getAbsolutePath(), fileHash);
 
         List<Chunk> allChunks = new ArrayList<>();
         for (DocumentParser.PageContent page : pages) {

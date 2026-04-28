@@ -71,10 +71,20 @@ public class FlashcardController {
         return documentId != null ? repository.findByDocument(documentId) : repository.findAll();
     }
 
+    @GetMapping("/due")
+    public List<Flashcard> due(@RequestParam long documentId) {
+        return repository.findDueByDocument(documentId);
+    }
+
+    @GetMapping("/due-counts")
+    public Map<Long, Integer> dueCounts() {
+        return repository.findDueCountsPerDocument();
+    }
+
     @PostMapping("/{id}/rate")
-    public ResponseEntity<Void> rate(@PathVariable long id, @RequestParam boolean known) {
-        repository.rate(id, known);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<de.lecturebase.model.Flashcard> rate(@PathVariable long id, @RequestParam boolean known) {
+        de.lecturebase.model.Flashcard updated = repository.rate(id, known);
+        return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
     }
 
     @PostMapping("/reset")

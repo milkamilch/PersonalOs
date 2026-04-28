@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +44,18 @@ public class IngestionController {
         File temp = Files.createTempFile("lb_", "_" + file.getOriginalFilename()).toFile();
         file.transferTo(temp);
 
-        IngestionService.IngestionResult result = ingestionService.ingest(temp);
+        String hash = sha256(temp);
+        java.util.Optional<Document> existing = chunkRepository.findByHash(hash);
+        if (existing.isPresent()) {
+            temp.delete();
+            return ResponseEntity.status(409).body(Map.of(
+                "duplicate",    true,
+                "existingId",   existing.get().getId(),
+                "existingName", existing.get().getName()
+            ));
+        }
+
+        IngestionService.IngestionResult result = ingestionService.ingest(temp, hash);
         temp.delete();
 
         if (tags != null && !tags.isBlank()) {
@@ -75,5 +88,15 @@ public class IngestionController {
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of("semantic", semanticSearch.isAvailable());
+    }
+
+    private static String sha256(File file) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(Files.readAllBytes(file.toPath()));
+            return HexFormat.of().formatHex(md.digest());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

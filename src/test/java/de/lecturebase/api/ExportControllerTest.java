@@ -1,10 +1,12 @@
 package de.lecturebase.api;
 
+import de.lecturebase.ai.AiClient;
 import de.lecturebase.ai.ChatSession;
 import de.lecturebase.ai.ChatSessionStore;
 import de.lecturebase.model.Document;
 import de.lecturebase.model.Flashcard;
 import de.lecturebase.storage.ChunkRepository;
+import de.lecturebase.storage.ConceptRepository;
 import de.lecturebase.storage.FlashcardRepository;
 import de.lecturebase.storage.SummaryRepository;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,8 @@ class ExportControllerTest {
     @MockBean FlashcardRepository flashcardRepository;
     @MockBean SummaryRepository   summaryRepository;
     @MockBean ChunkRepository     chunkRepository;
+    @MockBean ConceptRepository   conceptRepository;
+    @MockBean AiClient            aiClient;
 
     // ── Chat export ──────────────────────────────────────────────────
 

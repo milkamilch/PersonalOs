@@ -127,6 +127,15 @@ public class ConceptRepository {
         jdbc.update("DELETE FROM concept_chunk_done");
     }
 
+    public List<String> findNamesByDocument(long documentId) {
+        return jdbc.queryForList("""
+            SELECT c.name FROM concepts c
+            JOIN concept_documents cd ON cd.concept_id = c.id
+            WHERE cd.document_id = ?
+            ORDER BY c.name
+            """, String.class, documentId);
+    }
+
     public void deleteAll() {
         jdbc.update("DELETE FROM concept_documents");
         jdbc.update("DELETE FROM concept_chunk_done");

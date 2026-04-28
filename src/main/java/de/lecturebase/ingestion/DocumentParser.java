@@ -1,5 +1,6 @@
 package de.lecturebase.ingestion;
 
+import de.lecturebase.ai.OcrService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -15,6 +16,14 @@ import java.util.List;
 @Component
 public class DocumentParser {
 
+    private static final int MIN_TEXT_LENGTH = 50;
+
+    private final OcrService ocrService;
+
+    public DocumentParser(OcrService ocrService) {
+        this.ocrService = ocrService;
+    }
+
     public List<PageContent> parsePdf(File file) throws IOException {
         List<PageContent> pages = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(file)) {
@@ -24,6 +33,13 @@ public class DocumentParser {
                 stripper.setStartPage(i);
                 stripper.setEndPage(i);
                 String text = stripper.getText(doc).trim();
+
+                if (text.length() < MIN_TEXT_LENGTH && ocrService.isAvailable()) {
+                    // Gescannte Seite — OCR via Claude Vision
+                    String ocr = ocrService.transcribePage(file, i - 1);
+                    if (!ocr.isBlank()) text = ocr;
+                }
+
                 if (!text.isBlank()) {
                     pages.add(new PageContent(i, text));
                 }

@@ -42,7 +42,7 @@ class IngestionServiceTest {
         File pdf = createFile("skript.pdf");
         var page = new DocumentParser.PageContent(1, "Informatik Grundlagen");
         when(parser.parsePdf(pdf)).thenReturn(List.of(page));
-        when(repository.saveDocument(anyString(), anyString())).thenReturn(1L);
+        when(repository.saveDocument(anyString(), anyString(), any())).thenReturn(1L);
         when(chunker.chunk(anyLong(), any(int.class), anyString())).thenReturn(List.of(new Chunk()));
 
         IngestionService.IngestionResult result = service.ingest(pdf);
@@ -58,7 +58,7 @@ class IngestionServiceTest {
         File docx = createFile("vorlesung.docx");
         var page = new DocumentParser.PageContent(1, "Datenstrukturen");
         when(parser.parseDocx(docx)).thenReturn(List.of(page));
-        when(repository.saveDocument(anyString(), anyString())).thenReturn(2L);
+        when(repository.saveDocument(anyString(), anyString(), any())).thenReturn(2L);
         when(chunker.chunk(anyLong(), any(int.class), anyString())).thenReturn(List.of(new Chunk()));
 
         IngestionService.IngestionResult result = service.ingest(docx);
@@ -73,7 +73,7 @@ class IngestionServiceTest {
         Chunk c1 = new Chunk();
         Chunk c2 = new Chunk();
         when(parser.parsePdf(pdf)).thenReturn(List.of(page));
-        when(repository.saveDocument(anyString(), anyString())).thenReturn(1L);
+        when(repository.saveDocument(anyString(), anyString(), any())).thenReturn(1L);
         when(chunker.chunk(anyLong(), any(int.class), anyString())).thenReturn(List.of(c1, c2));
 
         IngestionService.IngestionResult result = service.ingest(pdf);
@@ -96,7 +96,7 @@ class IngestionServiceTest {
         var p1 = new DocumentParser.PageContent(1, "Seite eins");
         var p2 = new DocumentParser.PageContent(2, "Seite zwei");
         when(parser.parsePdf(pdf)).thenReturn(List.of(p1, p2));
-        when(repository.saveDocument(anyString(), anyString())).thenReturn(1L);
+        when(repository.saveDocument(anyString(), anyString(), any())).thenReturn(1L);
         when(chunker.chunk(anyLong(), any(int.class), anyString())).thenReturn(List.of(new Chunk()));
 
         IngestionService.IngestionResult result = service.ingest(pdf);
