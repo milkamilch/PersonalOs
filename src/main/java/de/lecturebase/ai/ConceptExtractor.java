@@ -10,7 +10,7 @@ import java.util.List;
 @Component
 public class ConceptExtractor {
 
-    static final int BATCH_SIZE = 4;
+    static final int BATCH_SIZE = 8;
 
     private static final String SYSTEM_PROMPT = """
             Du erhältst mehrere Textabschnitte, getrennt durch "=== ABSCHNITT N ===".

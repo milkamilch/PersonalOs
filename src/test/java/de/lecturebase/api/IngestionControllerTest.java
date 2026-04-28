@@ -2,6 +2,7 @@ package de.lecturebase.api;
 
 import de.lecturebase.ingestion.IngestionService;
 import de.lecturebase.model.Document;
+import de.lecturebase.ai.SemanticSearchService;
 import de.lecturebase.storage.ChunkRepository;
 import de.lecturebase.storage.TagRepository;
 import org.junit.jupiter.api.Test;
@@ -24,9 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class IngestionControllerTest {
 
     @Autowired MockMvc mvc;
-    @MockBean IngestionService ingestionService;
-    @MockBean ChunkRepository  chunkRepository;
-    @MockBean TagRepository    tagRepository;
+    @MockBean IngestionService      ingestionService;
+    @MockBean ChunkRepository       chunkRepository;
+    @MockBean TagRepository         tagRepository;
+    @MockBean SemanticSearchService semanticSearch;
 
     @Test
     void uploadGibtIngestionResultZurueck() throws Exception {

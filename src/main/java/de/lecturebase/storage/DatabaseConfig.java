@@ -118,6 +118,13 @@ public class DatabaseConfig {
             """);
 
             jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS concept_chunk_done (
+                    chunk_id INTEGER PRIMARY KEY,
+                    FOREIGN KEY (chunk_id) REFERENCES chunks(id)
+                )
+            """);
+
+            jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
                     id         TEXT PRIMARY KEY,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP

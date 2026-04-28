@@ -39,9 +39,21 @@ public class MindMapService {
             return new BuildResult(0, (int) concepts, true);
         }
 
-        List<Chunk> chunks = documentId != null
+        // Clear chunk-level cache on explicit rebuild
+        if (rebuild) {
+            if (documentId != null) conceptRepository.clearProcessedChunksForDocument(documentId);
+            else                    conceptRepository.clearAllProcessedChunks();
+        }
+
+        List<Chunk> allChunks = documentId != null
                 ? chunkRepository.findChunksByDocument(documentId)
                 : chunkRepository.findAllChunks();
+
+        // Skip chunks already processed in a previous build
+        java.util.Set<Long> done = conceptRepository.findProcessedChunkIds();
+        List<Chunk> chunks = allChunks.stream()
+                .filter(c -> !done.contains(c.getId()))
+                .toList();
 
         int processedChunks   = 0;
         int extractedConcepts = 0;
@@ -55,6 +67,9 @@ public class MindMapService {
             List<List<String>> batchResults = conceptExtractor.extractBatch(texts);
 
             for (int j = 0; j < batch.size(); j++) {
+                Chunk chunk = batch.get(j);
+                conceptRepository.markChunkProcessed(chunk.getId());
+
                 List<String> concepts = j < batchResults.size() ? batchResults.get(j) : List.of();
                 if (concepts.isEmpty()) continue;
 
@@ -62,7 +77,7 @@ public class MindMapService {
                         .map(conceptRepository::getOrCreate)
                         .toList();
 
-                long chunkDocId = batch.get(j).getDocumentId();
+                long chunkDocId = chunk.getDocumentId();
                 for (Long conceptId : ids) {
                     conceptRepository.linkToDocument(conceptId, chunkDocId);
                 }

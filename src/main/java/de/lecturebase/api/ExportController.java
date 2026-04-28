@@ -59,7 +59,7 @@ public class ExportController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
                 .body(content.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -129,7 +129,7 @@ public class ExportController {
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
                 .body(sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -154,7 +154,7 @@ public class ExportController {
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
                 .body(sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 

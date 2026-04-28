@@ -2,12 +2,21 @@ package de.lecturebase.api;
 
 import de.lecturebase.ai.ChatSession;
 import de.lecturebase.ai.ChatSessionStore;
+import de.lecturebase.model.Document;
+import de.lecturebase.model.Flashcard;
+import de.lecturebase.storage.ChunkRepository;
+import de.lecturebase.storage.FlashcardRepository;
+import de.lecturebase.storage.SummaryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.Optional;
+
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -16,7 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ExportControllerTest {
 
     @Autowired MockMvc mvc;
-    @MockBean ChatSessionStore sessionStore;
+    @MockBean ChatSessionStore    sessionStore;
+    @MockBean FlashcardRepository flashcardRepository;
+    @MockBean SummaryRepository   summaryRepository;
+    @MockBean ChunkRepository     chunkRepository;
+
+    // ── Chat export ──────────────────────────────────────────────────
 
     @Test
     void exportMarkdownEnthältFrageUndAntwort() throws Exception {
@@ -27,9 +41,9 @@ class ExportControllerTest {
 
         mvc.perform(get("/api/export/test-session?format=markdown"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".md")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Was ist Quicksort?")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Quicksort ist ein effizienter")));
+                .andExpect(header().string("Content-Disposition", containsString(".md")))
+                .andExpect(content().string(containsString("Was ist Quicksort?")))
+                .andExpect(content().string(containsString("Quicksort ist ein effizienter")));
     }
 
     @Test
@@ -41,9 +55,9 @@ class ExportControllerTest {
 
         mvc.perform(get("/api/export/s2?format=txt"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".txt")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("FRAGE:")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("ANTWORT:")));
+                .andExpect(header().string("Content-Disposition", containsString(".txt")))
+                .andExpect(content().string(containsString("FRAGE:")))
+                .andExpect(content().string(containsString("ANTWORT:")));
     }
 
     @Test
@@ -53,7 +67,7 @@ class ExportControllerTest {
 
         mvc.perform(get("/api/export/s3"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".md")));
+                .andExpect(header().string("Content-Disposition", containsString(".md")));
     }
 
     @Test
@@ -63,6 +77,68 @@ class ExportControllerTest {
 
         mvc.perform(get("/api/export/leer"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("UniMind")));
+                .andExpect(content().string(containsString("UniMind")));
+    }
+
+    // ── Flashcard export ─────────────────────────────────────────────
+
+    @Test
+    void flashcardExportEnthältFrageUndAntwort() throws Exception {
+        Document doc = new Document();
+        doc.setId(1L);
+        doc.setName("Algorithmen");
+        when(chunkRepository.findAllDocuments()).thenReturn(List.of(doc));
+
+        Flashcard fc = new Flashcard();
+        fc.setId(1L);
+        fc.setQuestion("Was ist Quicksort?");
+        fc.setAnswer("Ein Divide-and-Conquer-Sortieralgorithmus.");
+        fc.setKnown(true);
+        when(flashcardRepository.findByDocument(1L)).thenReturn(List.of(fc));
+
+        mvc.perform(get("/api/export/flashcards/1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("lernkarten")))
+                .andExpect(content().string(containsString("Was ist Quicksort?")))
+                .andExpect(content().string(containsString("Ein Divide-and-Conquer")))
+                .andExpect(content().string(containsString("Algorithmen")));
+    }
+
+    @Test
+    void flashcardExportMitLeeremDokumentFunktioniert() throws Exception {
+        when(chunkRepository.findAllDocuments()).thenReturn(List.of());
+        when(flashcardRepository.findByDocument(99L)).thenReturn(List.of());
+
+        mvc.perform(get("/api/export/flashcards/99"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Dokument 99")));
+    }
+
+    // ── Summary export ───────────────────────────────────────────────
+
+    @Test
+    void summaryExportEnthältZusammenfassung() throws Exception {
+        Document doc = new Document();
+        doc.setId(2L);
+        doc.setName("Datenstrukturen");
+        when(chunkRepository.findAllDocuments()).thenReturn(List.of(doc));
+        when(summaryRepository.findByDocument(2L))
+                .thenReturn(Optional.of("Eine Zusammenfassung über Bäume und Graphen."));
+
+        mvc.perform(get("/api/export/summary/2"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("zusammenfassung")))
+                .andExpect(content().string(containsString("Datenstrukturen")))
+                .andExpect(content().string(containsString("Bäume und Graphen")));
+    }
+
+    @Test
+    void summaryExportOhneZusammenfassungGibtPlatzhalterZurueck() throws Exception {
+        when(chunkRepository.findAllDocuments()).thenReturn(List.of());
+        when(summaryRepository.findByDocument(5L)).thenReturn(Optional.empty());
+
+        mvc.perform(get("/api/export/summary/5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Keine Zusammenfassung vorhanden")));
     }
 }

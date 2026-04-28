@@ -48,7 +48,9 @@ class SummaryServiceTest {
 
         assertThat(result.generated()).isFalse();
         assertThat(result.summary()).isEmpty();
-        verifyNoInteractions(claudeClient, summaryRepository);
+        verifyNoInteractions(claudeClient);
+        verify(summaryRepository).findByDocument(99L);
+        verifyNoMoreInteractions(summaryRepository);
     }
 
     @Test

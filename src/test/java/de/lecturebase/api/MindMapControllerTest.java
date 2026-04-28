@@ -1,5 +1,6 @@
 package de.lecturebase.api;
 
+import de.lecturebase.ai.AiClient;
 import de.lecturebase.ai.MindMapService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,6 +24,7 @@ class MindMapControllerTest {
 
     @Autowired MockMvc mvc;
     @MockBean MindMapService mindMapService;
+    @MockBean AiClient       aiClient;
 
     @Test
     void buildGibtVerarbeitungsstatistikZurueck() throws Exception {
@@ -68,5 +71,15 @@ class MindMapControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nodes").isEmpty())
                 .andExpect(jsonPath("$.links").isEmpty());
+    }
+
+    @Test
+    void explainGibtKiErklaerungZurueck() throws Exception {
+        when(aiClient.ask(any(), eq("Erkläre das Konzept: Quicksort")))
+                .thenReturn("Quicksort ist ein effizienter Divide-and-Conquer-Algorithmus.");
+
+        mvc.perform(post("/api/mindmap/explain").param("concept", "Quicksort"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.explanation").value("Quicksort ist ein effizienter Divide-and-Conquer-Algorithmus."));
     }
 }

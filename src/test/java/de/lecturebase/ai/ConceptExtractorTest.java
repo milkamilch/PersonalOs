@@ -55,7 +55,8 @@ class ConceptExtractorTest {
 
         List<List<String>> result = extractor.extractBatch(List.of("Text"));
 
-        assertThat(result).isEmpty();
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).isEmpty();
     }
 
     @Test

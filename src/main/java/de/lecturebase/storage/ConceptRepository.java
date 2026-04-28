@@ -3,8 +3,10 @@ package de.lecturebase.storage;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Repository
 public class ConceptRepository {
@@ -105,8 +107,29 @@ public class ConceptRepository {
         return result;
     }
 
+    public Set<Long> findProcessedChunkIds() {
+        return new HashSet<>(
+            jdbc.queryForList("SELECT chunk_id FROM concept_chunk_done", Long.class));
+    }
+
+    public void markChunkProcessed(long chunkId) {
+        jdbc.update("INSERT OR IGNORE INTO concept_chunk_done (chunk_id) VALUES (?)", chunkId);
+    }
+
+    public void clearProcessedChunksForDocument(long documentId) {
+        jdbc.update("""
+            DELETE FROM concept_chunk_done
+            WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)
+            """, documentId);
+    }
+
+    public void clearAllProcessedChunks() {
+        jdbc.update("DELETE FROM concept_chunk_done");
+    }
+
     public void deleteAll() {
         jdbc.update("DELETE FROM concept_documents");
+        jdbc.update("DELETE FROM concept_chunk_done");
         jdbc.update("DELETE FROM concept_links");
         jdbc.update("DELETE FROM concepts");
         jdbc.update("DELETE FROM mindmap_status");
