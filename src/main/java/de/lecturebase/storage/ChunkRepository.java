@@ -85,6 +85,12 @@ public class ChunkRepository {
         );
     }
 
+    public List<Chunk> findByDocument(long documentId, int limit) {
+        return jdbc.query(
+            "SELECT * FROM chunks WHERE document_id = ? ORDER BY RANDOM() LIMIT ?",
+            chunkMapper, documentId, limit);
+    }
+
     public List<Chunk> findAllChunks() {
         return jdbc.query(
             "SELECT * FROM chunks ORDER BY document_id, page_number, chunk_index",

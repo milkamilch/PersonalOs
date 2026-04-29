@@ -36,6 +36,10 @@ public class IngestionService {
     }
 
     public IngestionResult ingest(File file, String fileHash) throws IOException {
+        return ingest(file, fileHash, file.getName());
+    }
+
+    public IngestionResult ingest(File file, String fileHash, String displayName) throws IOException {
         String name = file.getName().toLowerCase();
 
         List<DocumentParser.PageContent> pages;
@@ -47,7 +51,7 @@ public class IngestionService {
             throw new IllegalArgumentException("Nicht unterstütztes Format: " + file.getName());
         }
 
-        long documentId = repository.saveDocument(file.getName(), file.getAbsolutePath(), fileHash);
+        long documentId = repository.saveDocument(displayName, file.getAbsolutePath(), fileHash);
 
         List<Chunk> allChunks = new ArrayList<>();
         for (DocumentParser.PageContent page : pages) {
@@ -60,7 +64,7 @@ public class IngestionService {
             generateEmbeddings(allChunks);
         }
 
-        return new IngestionResult(documentId, file.getName(), pages.size(), allChunks.size());
+        return new IngestionResult(documentId, displayName, pages.size(), allChunks.size());
     }
 
     private void generateEmbeddings(List<Chunk> chunks) {
@@ -69,6 +73,17 @@ public class IngestionService {
         for (int i = 0; i < chunks.size(); i++) {
             embeddingRepository.save(chunks.get(i).getId(), embeddings.get(i));
         }
+    }
+
+    /** Ingest plain text (e.g. from audio transcription) as a virtual document. */
+    public IngestionResult ingestText(String text, String documentName) {
+        long documentId = repository.saveDocument(documentName, "audio://" + documentName, null);
+        List<Chunk> allChunks = chunker.chunk(documentId, 1, text);
+        repository.saveChunks(allChunks);
+        if (embeddingClient.isEnabled()) {
+            generateEmbeddings(allChunks);
+        }
+        return new IngestionResult(documentId, documentName, 1, allChunks.size());
     }
 
     public record IngestionResult(long documentId, String name, int pages, int chunks) {}

@@ -196,6 +196,29 @@ public class DatabaseConfig {
                     FOREIGN KEY (project_id) REFERENCES projects(id)
                 )
             """);
+
+            // Lernplaner (#F3)
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS study_plans (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    document_id INTEGER NOT NULL,
+                    exam_date   TEXT    NOT NULL,
+                    total_pages INTEGER NOT NULL DEFAULT 0,
+                    pages_done  INTEGER NOT NULL DEFAULT 0,
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (document_id) REFERENCES documents(id)
+                )
+            """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS study_log (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plan_id    INTEGER NOT NULL,
+                    log_date   TEXT    NOT NULL DEFAULT (DATE('now')),
+                    pages_done INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE(plan_id, log_date),
+                    FOREIGN KEY (plan_id) REFERENCES study_plans(id)
+                )
+            """);
         };
     }
 }

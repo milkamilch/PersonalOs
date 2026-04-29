@@ -3,7 +3,10 @@ package de.lecturebase.api;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.lecturebase.ai.AiClient;
+import de.lecturebase.ai.ChatSession;
 import de.lecturebase.ai.MindMapService;
+import de.lecturebase.model.Chunk;
+import de.lecturebase.storage.ChunkRepository;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,21 +16,25 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/mindmap")
 public class MindMapController {
 
-    private final MindMapService mindMapService;
-    private final ObjectMapper   objectMapper;
-    private final AiClient       aiClient;
+    private final MindMapService  mindMapService;
+    private final ObjectMapper    objectMapper;
+    private final AiClient        aiClient;
+    private final ChunkRepository chunkRepo;
 
     public MindMapController(MindMapService mindMapService,
                              ObjectMapper objectMapper,
-                             AiClient aiClient) {
+                             AiClient aiClient,
+                             ChunkRepository chunkRepo) {
         this.mindMapService = mindMapService;
         this.objectMapper   = objectMapper;
         this.aiClient       = aiClient;
+        this.chunkRepo      = chunkRepo;
     }
 
     @PostMapping("/build")
@@ -94,6 +101,34 @@ public class MindMapController {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
+
+    /** Chat with the context of a specific concept node */
+    @PostMapping("/chat")
+    public ResponseEntity<Map<String, String>> nodeChat(@RequestBody NodeChatRequest req) {
+        // Find chunks that mention the concept
+        List<Chunk> relevant = chunkRepo.findCandidates(req.concept())
+                .stream().limit(5).collect(Collectors.toList());
+
+        String context = relevant.isEmpty()
+                ? "Kein spezifischer Kontext gefunden."
+                : relevant.stream().map(Chunk::getText).collect(Collectors.joining("\n---\n"));
+
+        String system = "Du bist ein präziser Lernassistent. Beantworte Fragen nur auf Basis " +
+                "des folgenden Kontexts zum Konzept \"" + req.concept() + "\".\n\n" +
+                "Kontext:\n" + context + "\n\n" +
+                "Antworte auf Deutsch. Wenn die Antwort nicht im Kontext steht, sag das klar.";
+
+        String reply = req.history() == null || req.history().isEmpty()
+                ? aiClient.ask(system, req.message())
+                : aiClient.askWithHistory(system, req.history(), req.message());
+
+        return ResponseEntity.ok(Map.of("content", reply));
+    }
+
+    public record NodeChatRequest(
+            String concept,
+            String message,
+            List<ChatSession.Message> history) {}
 
     @PostMapping("/explain")
     public Map<String, String> explain(@RequestParam String concept) {

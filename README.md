@@ -1,15 +1,46 @@
-# UniMind
+# LectureBase
 
-A Java-based knowledge management system for university lecture scripts. Upload your PDFs and DOCX files, ask questions in natural language, and explore your knowledge as an interactive mind map.
+A full-stack AI study assistant for university students. Upload lecture PDFs, ask questions, generate flashcards, build mind maps, track your progress — all in one dark-mode SPA.
 
 ---
 
 ## Features
 
-- **Document Ingestion** — Upload PDF and DOCX lecture scripts; text is extracted and split into overlapping chunks
-- **Keyword Search** — Fast full-text search across all uploaded documents with page and document references
-- **AI-Powered Q&A** — Ask questions in natural language; relevant chunks are retrieved and Claude answers based solely on your scripts
-- **Mind Map** — Claude extracts key concepts from each chunk and builds an interactive, force-directed concept graph in the browser
+### Documents
+- **Upload** PDF and DOCX files — text is extracted, chunked with overlap, and stored in SQLite
+- **Duplicate detection** via SHA-256 hash — re-uploading the same file is rejected with a 409
+- **Tag system** — assign tags at upload time, filter documents by tag
+- **PDF Viewer** — view any uploaded PDF directly in the browser via a built-in inline viewer
+
+### Search & Q&A
+- **Keyword search** — fast full-text SQL search across all chunks with document/page references
+- **Semantic search** — optional vector search via Voyage AI embeddings (requires `VOYAGE_API_KEY`)
+- **RAG chat** — ask questions in natural language; Claude answers using only your uploaded scripts
+
+### AI Learning Tools
+- **Flashcard generator** — AI creates question/answer pairs from each chunk; exportable
+- **Spaced repetition (SM-2)** — rate cards as known/unknown; due dates calculated per the SM-2 algorithm
+- **Summaries** — one-click document summary, generated and cached per document
+- **Probeklausur (Exam mode)** — AI generates open-ended exam questions from your scripts; you answer freely; Claude scores and gives feedback with a model answer
+- **Mind Map** — extracts key concepts per chunk, builds a hierarchical tree; click any node to open a concept-focused chat panel
+- **Mind Map Quiz** — generate a multiple-choice quiz from the concepts in the current mind map
+- **Glossary export** — download a Markdown glossary of all concepts for a document
+
+### Planning & Organisation
+- **Lernplaner (Study Planner)** — create a plan with exam date and total pages; tracks daily progress, remaining pages, days left, and daily goal
+- **Projects** — group documents together with notes and a color label
+- **Todos** — task list, optionally linked to a project
+
+### Audio
+- **Whisper transcription** — upload an audio recording (MP3, WAV, M4A, WebM, …); OpenAI Whisper transcribes it and the result is saved as a searchable document (requires `OPENAI_API_KEY`)
+
+### Dashboard & Integrations
+- **Dashboard** — bento-grid overview with stats, server status, todos, GitHub activity, and a live news feed
+- **JArvis** — conversational AI assistant with voice input (Web Speech API) and TTS output
+- **GitHub integration** — proxied view of your repos and open issues (requires `GITHUB_TOKEN` + `GITHUB_USERNAME`)
+- **Server monitoring** — ping check against a configured host with response time
+- **News feed** — RSS proxy for Tagesschau, BBC World, and custom feeds
+- **Google Drive import** — browse and import files from Google Drive (requires `GOOGLE_DRIVE_API_KEY`)
 
 ---
 
@@ -17,13 +48,16 @@ A Java-based knowledge management system for university lecture scripts. Upload 
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 21, Spring Boot 3.3 |
-| Database | SQLite (via JDBC) |
+| Backend | Java 25, Spring Boot 3 |
+| Database | SQLite (JDBC, single-file) |
 | PDF parsing | Apache PDFBox 3 |
 | DOCX parsing | Apache POI 5 |
-| Graph algorithms | JGraphT |
-| AI | Anthropic Claude API (Haiku) |
-| Frontend | D3.js v7 |
+| Primary AI | Anthropic Claude API |
+| Fallback AI | Google Gemini API |
+| Embeddings | Voyage AI |
+| Audio | OpenAI Whisper API |
+| Frontend | Vite · React 19 · TypeScript · Tailwind v4 |
+| State/data | TanStack Query v5 · React Router v7 |
 
 ---
 
@@ -32,27 +66,29 @@ A Java-based knowledge management system for university lecture scripts. Upload 
 ```
 src/main/java/de/lecturebase/
 ├── ingestion/       # DocumentParser, TextChunker, IngestionService
-├── storage/         # ChunkRepository, ConceptRepository, DatabaseConfig
-├── ai/              # ClaudeClient, ChunkScorer, RagService
-│                    # ConceptExtractor, GraphBuilder, MindMapService
-└── api/             # REST controllers
-src/main/resources/
-└── static/index.html  # D3.js mind map visualization
+├── storage/         # ChunkRepository, EmbeddingRepository, DatabaseConfig
+├── ai/              # AiClient (Claude + Gemini), EmbeddingClient (Voyage),
+│                    # RagService, MindMapService, QuizService, ChatSession
+└── api/             # REST controllers (one per feature area)
+
+frontend/src/
+├── api/             # client.ts (axios), types.ts
+├── components/      # Sidebar, PageHeader, JArvisOrb (canvas animation)
+└── pages/           # One page component per route
 ```
 
 ---
 
 ## Requirements
 
-- Java 21
+- Java 21+ (tested on Java 25)
 - Maven 3.x
-- An Anthropic API key → [console.anthropic.com](https://console.anthropic.com)
+- Node.js 20+ (for the frontend dev server)
+- At minimum one AI API key (Claude or Gemini)
 
 **Install on macOS:**
 ```bash
-brew install openjdk@21 maven
-echo 'export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+brew install openjdk maven node
 ```
 
 ---
@@ -61,114 +97,136 @@ source ~/.zshrc
 
 ```bash
 # 1. Clone
-git clone https://github.com/milkamilch/UniMind.git
-cd UniMind
+git clone <repo-url>
+cd JP26
 
-# 2. Set API key
+# 2. Set required API key (Claude or Gemini — at least one)
 export CLAUDE_API_KEY=sk-ant-...
+# export GEMINI_API_KEY=AIza...   # alternative / fallback
 
-# 3. Build & run
+# 3. Optional integrations
+# export VOYAGE_API_KEY=pa-...      # semantic search
+# export OPENAI_API_KEY=sk-...      # audio transcription
+# export GITHUB_TOKEN=ghp_...
+# export GITHUB_USERNAME=yourname
+# export SERVER_HOST=1.2.3.4        # server ping widget
+# export GOOGLE_DRIVE_API_KEY=AIza...
+
+# 4. Build & run the backend
 mvn spring-boot:run
+
+# 5. In a second terminal — run the frontend dev server
+cd frontend
+npm install
+npm run dev
 ```
 
-The app starts on **http://localhost:8080**
+| Service | URL |
+|---|---|
+| Frontend (dev) | http://localhost:5173 |
+| Backend API | http://localhost:8080/api |
+
+For production, `npm run build` outputs to `frontend/dist/` which is served statically by Spring Boot from `src/main/resources/static/`.
 
 ---
 
-## API Reference
+## API Reference (key endpoints)
 
-### Upload a document
-```bash
-POST /api/upload
-Content-Type: multipart/form-data
-
-curl -X POST http://localhost:8080/api/upload -F "file=@lecture.pdf"
+### Documents
 ```
-```json
-{ "documentId": 1, "name": "lecture.pdf", "pages": 42, "chunks": 87 }
+POST   /api/upload              multipart/form-data  file + optional tags
+GET    /api/documents           list all documents
+DELETE /api/documents/{id}      delete document + all chunks
+GET    /api/documents/{id}/file serve the original file (PDF viewer)
 ```
 
-### List documents
-```bash
-GET /api/documents
+### Search & Q&A
+```
+GET  /api/search?q=...          keyword search
+POST /api/ask                   { "question": "..." } → RAG answer
 ```
 
-### Keyword search
-```bash
-GET /api/search?q=quicksort
+### Flashcards
+```
+GET  /api/flashcards?documentId=1    list cards for a document
+POST /api/flashcards/{id}/rate?known=true   SM-2 rating
+GET  /api/flashcards/due              cards due for review today
 ```
 
-### Ask a question (RAG)
-```bash
-POST /api/ask
-Content-Type: application/json
-
-curl -X POST http://localhost:8080/api/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the difference between Quicksort and Mergesort?"}'
+### Mind Map
 ```
-```json
-{
-  "answer": "Quicksort uses a pivot element...",
-  "sources": [
-    { "documentId": 1, "page": 14, "relevance": 0.85 }
-  ]
-}
+POST /api/mindmap/build?documentId=1   build/rebuild concept tree
+GET  /api/mindmap?documentId=1         fetch tree JSON
+POST /api/mindmap/chat                 { concept, message, history }
+POST /api/mindmap/quiz                 [ "concept1", "concept2", ... ]
+GET  /api/export/glossary?documentId=1 download Markdown glossary
 ```
 
-### Build mind map
-```bash
-# All documents
-POST /api/mindmap/build
-
-# Specific document
-POST /api/mindmap/build?documentId=1
+### Study Planner
+```
+GET    /api/planner                           list all plans
+POST   /api/planner?documentId=&examDate=&totalPages=   create plan
+DELETE /api/planner/{id}                      delete plan
+POST   /api/planner/{id}/log?pages=N          log pages studied today
+GET    /api/planner/{id}/history              14-day log
 ```
 
-### Get graph data (used by frontend)
-```bash
-GET /api/mindmap
+### Exam
+```
+GET  /api/quiz/generate?documentId=1&count=5   generate open questions
+POST /api/quiz/evaluate                         { question, chunkContext, userAnswer }
 ```
 
----
-
-## How It Works
-
-### RAG Pipeline (Q&A)
+### Audio
 ```
-Question → findCandidates() [SQL LIKE pre-filter]
-         → ChunkScorer [keyword overlap ranking]
-         → Top 5 chunks → Claude Haiku
-         → Answer + source references
+POST /api/audio/transcribe   multipart/form-data  file → transcript + optional document ingest
 ```
 
-### Mind Map Pipeline
+### Other
 ```
-Chunks → Claude extracts 3–7 key concepts per chunk
-       → Concepts stored in SQLite (nodes)
-       → Co-occurring concepts linked (edges, weight = frequency)
-       → D3.js renders interactive force-directed graph
+GET  /api/summaries?documentId=1
+GET  /api/stats
+GET  /api/news?feed=de|world|bvb|vikings
+GET  /api/github/repos
+GET  /api/github/issues?repo=owner/name
+GET  /api/server/status
+POST /api/jarvis/chat
 ```
 
 ---
 
-## Running Tests
+## Navigation (sidebar routes)
 
-```bash
-mvn test
-```
-
-Tests use an in-memory SQLite database and Mockito for Claude API mocking — no API key required.
+| Route | Page |
+|---|---|
+| `/dashboard` | Bento overview (stats, news, todos, GitHub, server) |
+| `/study` | Upload documents, manage library |
+| `/flashcards` | Study flashcards with spaced repetition |
+| `/mindmap` | Interactive concept tree + quiz + node chat |
+| `/search` | Keyword + semantic search |
+| `/exam` | AI-generated open exam questions |
+| `/planner` | Study planner with exam countdown |
+| `/audio` | Audio upload → Whisper transcription |
+| `/pdf` | Inline PDF viewer |
+| `/projects` | Project workspace with notes and todos |
+| `/todos` | Global todo list |
+| `/jarvis` | JArvis AI assistant with voice |
+| `/github` | GitHub repo and issue viewer |
+| `/server` | Server ping status |
 
 ---
 
 ## Configuration
 
-`src/main/resources/application.properties`
+All secrets are read from environment variables; the properties file only contains the `${VAR:}` references (empty default = feature disabled).
 
-| Property | Default | Description |
+| Variable | Required | Purpose |
 |---|---|---|
-| `CLAUDE_API_KEY` | *(required)* | Anthropic API key (env variable) |
-| `claude.api.base-url` | `https://api.anthropic.com` | Override for testing |
-| `server.port` | `8080` | HTTP port |
-| `spring.servlet.multipart.max-file-size` | `100MB` | Max upload size |
+| `CLAUDE_API_KEY` | one of these two | Anthropic Claude — primary AI |
+| `GEMINI_API_KEY` | one of these two | Google Gemini — AI fallback |
+| `VOYAGE_API_KEY` | optional | Semantic vector search |
+| `OPENAI_API_KEY` | optional | Whisper audio transcription |
+| `GITHUB_TOKEN` | optional | GitHub integration |
+| `GITHUB_USERNAME` | optional | GitHub integration |
+| `SERVER_HOST` | optional | Server ping widget |
+| `GOOGLE_DRIVE_API_KEY` | optional | Google Drive import |

@@ -151,6 +151,34 @@
     }
     .gdrive-logo { width: 16px; height: 16px; flex-shrink: 0; }
 
+    /* ── Projects ───────────────────────────────────────── */
+    .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .proj-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 18px; cursor: pointer;
+      transition: border-color var(--t), transform var(--t);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .proj-card:hover { border-color: var(--border-light); transform: translateY(-1px); }
+    .proj-stripe { height: 4px; border-radius: 2px; margin-bottom: 2px; }
+    .proj-name { font-size: 14px; font-weight: 600; }
+    .proj-desc { font-size: 12px; color: var(--dim); line-height: 1.5; }
+    .proj-stats { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: auto; }
+    .proj-detail-section { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 14px; }
+    .proj-detail-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+    /* Todos */
+    .todo-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-light); appearance: none; cursor: pointer; flex-shrink: 0; }
+    .todo-check:checked { background: var(--primary); border-color: var(--primary); }
+    .todo-text { flex: 1; font-size: 13px; }
+    .todo-text.done { text-decoration: line-through; color: var(--dim); }
+    .todo-del { color: var(--dim); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+    .todo-del:hover { color: var(--error); }
+    /* Notes */
+    .notes-ta { width: 100%; min-height: 140px; background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); padding: 10px; font-size: 13px; line-height: 1.6; resize: vertical; font-family: inherit; }
+    .notes-ta:focus { outline: none; border-color: var(--primary); }
+
     /* ── Doc list ────────────────────────────────────────── */
     .doc-list { display: flex; flex-direction: column; gap: 3px; }
     .doc-row {
@@ -367,7 +395,13 @@
     <span class="brand-name">Lecture<span>Base</span></span>
   </div>
 
-  <div class="nav-item active" onclick="go('docs')"  id="nav-docs">
+  <div class="nav-item active" onclick="go('projects')" id="nav-projects">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>Projekte
+  </div>
+
+  <div class="nav-item" onclick="go('docs')" id="nav-docs">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
     </svg>Dokumente
@@ -441,7 +475,8 @@ const S = {
   fc:   { cards: [], idx: 0, flip: false, docId: null, learnMode: false, session: null },
   sum:  { text: null, docId: null },
   mm:   { activeCluster: null, explanations: {}, excerpts: {}, clusterNodes: {} },
-  dash: { stats: null },
+  dash:     { stats: null },
+  projects: { list: [], active: null },
 };
 
 // ── API ──────────────────────────────────────────────────────────────
@@ -486,6 +521,19 @@ const api = {
   setExam:    (id,date) => api.req(`/api/exam-dates?documentId=${id}&date=${date}`, {method:'POST'}),
   delExam:    id        => api.req(`/api/exam-dates/${id}`, {method:'DELETE'}),
   stats:      ()        => api.req('/api/stats'),
+  projects:   ()        => api.req('/api/projects'),
+  createProj: (n,d,c)  => api.req(`/api/projects`, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(n)}&description=${encodeURIComponent(d||'')}&color=${encodeURIComponent(c||'#7c3aed')}`}),
+  updateProj: (id,n,d,c)=> api.req(`/api/projects/${id}`, {method:'PUT', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(n)}&description=${encodeURIComponent(d||'')}&color=${encodeURIComponent(c||'#7c3aed')}`}),
+  deleteProj: id        => api.req(`/api/projects/${id}`, {method:'DELETE'}),
+  projDocs:   id        => api.req(`/api/projects/${id}/documents`),
+  addProjDoc: (pid,did) => api.req(`/api/projects/${pid}/documents?documentId=${did}`, {method:'POST'}),
+  remProjDoc: (pid,did) => api.req(`/api/projects/${pid}/documents/${did}`, {method:'DELETE'}),
+  projNotes:  id        => api.req(`/api/projects/${id}/notes`),
+  saveProjNotes:(id,c)  => api.req(`/api/projects/${id}/notes`, {method:'POST', headers:{'Content-Type':'text/plain'}, body:c}),
+  todos:      pid       => api.req(`/api/todos${pid!=null?'?projectId='+pid:''}`),
+  createTodo: (pid,txt) => api.req(`/api/todos?text=${encodeURIComponent(txt)}${pid!=null?'&projectId='+pid:''}`, {method:'POST'}),
+  doneTodo:   (id,done) => api.req(`/api/todos/${id}/done?done=${done}`, {method:'POST'}),
+  deleteTodo: id        => api.req(`/api/todos/${id}`, {method:'DELETE'}),
   quiz:       concepts  => api.req('/api/mindmap/quiz', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(concepts)}),
   glossary:   id        => `/api/export/glossary${id?'?documentId='+id:''}`,
 };
@@ -532,7 +580,8 @@ function draw() {
   else if (S.view==='mm')   drawMM(el);
   else if (S.view==='fc')   drawFC(el);
   else if (S.view==='sum')  drawSum(el);
-  else if (S.view==='dash') drawDashboard(el);
+  else if (S.view==='dash')     drawDashboard(el);
+  else if (S.view==='projects') drawProjects(el);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1727,7 +1776,9 @@ function drawSumBody() {
 
 // ── Init ─────────────────────────────────────────────────────────────
 async function init() {
-  try { S.docs = await api.docs(); } catch {}
+  try { [S.docs, S.projects.list] = await Promise.all([api.docs(), api.projects()]); } catch {
+    try { S.docs = await api.docs(); } catch {}
+  }
   try {
     const st = await api.status();
     S.semantic = !!st.semantic;
@@ -1756,9 +1807,236 @@ async function init() {
     S.dueCounts = counts || {};
     S.examDates = Object.fromEntries((exams||[]).map(e => [e.documentId, e]));
   } catch {}
-  go('docs');
+  go('projects');
 }
 document.addEventListener('DOMContentLoaded', init);
+
+// ═══════════════════════════════════════════════════════════════════
+// VIEW: PROJEKTE (#10 + #11 + #12)
+// ═══════════════════════════════════════════════════════════════════
+const PROJ_COLORS = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d'];
+
+async function drawProjects(el) {
+  if (S.projects.active != null) { drawProjectDetail(el); return; }
+
+  const reload = async () => {
+    try { S.projects.list = await api.projects(); } catch {}
+    drawProjects(el);
+  };
+
+  el.innerHTML = `
+    <div class="view-header">
+      <div><div class="view-title">Projekte</div>
+           <div class="view-sub">${S.projects.list.length ? S.projects.list.length + ' Projekt' + (S.projects.list.length !== 1 ? 'e' : '') : 'Noch keine Projekte'}</div>
+      </div>
+      <div class="view-actions">
+        <button class="btn btn-primary btn-sm" id="proj-new">+ Neues Projekt</button>
+      </div>
+    </div>
+    <div class="view-body">
+      ${S.projects.list.length === 0 ? `
+        <div class="empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <h3>Noch keine Projekte</h3>
+          <p>Erstelle dein erstes Projekt um Skripte, Notizen und Todos zu bündeln</p>
+          <button class="btn btn-primary btn-sm" id="proj-new-empty" style="margin-top:8px">+ Erstes Projekt erstellen</button>
+        </div>` : `
+      <div class="proj-grid" id="proj-grid">
+        ${S.projects.list.map(p => `
+          <div class="proj-card" data-pid="${p.id}">
+            <div class="proj-stripe" style="background:${esc(p.color)}"></div>
+            <div class="proj-name">${esc(p.name)}</div>
+            ${p.description ? `<div class="proj-desc">${esc(p.description)}</div>` : ''}
+            <div class="proj-stats">
+              <span>${IC.doc} ${p.docCount} Dok.</span>
+              <span>${IC.card} ${p.openTodoCount > 0 ? `<b style="color:#f59e0b">${p.openTodoCount} offen</b>` : p.todoCount + ' Todos'}</span>
+            </div>
+          </div>`).join('')}
+      </div>`}
+    </div>`;
+
+  el.querySelectorAll('.proj-card').forEach(card => {
+    card.addEventListener('click', () => {
+      S.projects.active = +card.dataset.pid;
+      drawProjects(el);
+    });
+  });
+
+  const openNewDialog = () => {
+    const color = PROJ_COLORS[S.projects.list.length % PROJ_COLORS.length];
+    const name = prompt('Projektname:');
+    if (!name?.trim()) return;
+    const desc = prompt('Kurzbeschreibung (optional):') || '';
+    api.createProj(name.trim(), desc.trim(), color)
+      .then(() => reload())
+      .catch(() => toast('Fehler beim Erstellen', 'err'));
+  };
+  document.getElementById('proj-new')?.addEventListener('click', openNewDialog);
+  document.getElementById('proj-new-empty')?.addEventListener('click', openNewDialog);
+}
+
+async function drawProjectDetail(el) {
+  const pid = S.projects.active;
+  const proj = S.projects.list.find(p => p.id === pid);
+  if (!proj) { S.projects.active = null; drawProjects(el); return; }
+
+  const [docs, notesData, todos] = await Promise.all([
+    api.projDocs(pid).catch(() => []),
+    api.projNotes(pid).catch(() => ({ content: '' })),
+    api.todos(pid).catch(() => []),
+  ]);
+
+  const notes = notesData.content || '';
+
+  const renderTodos = (list) => list.length === 0
+    ? `<p style="color:var(--dim);font-size:13px">Noch keine Todos</p>`
+    : list.map(t => `
+      <div class="todo-item" data-tid="${t.id}">
+        <input type="checkbox" class="todo-check" ${t.done ? 'checked' : ''}>
+        <span class="todo-text${t.done ? ' done' : ''}">${esc(t.text)}</span>
+        <span class="todo-del" data-tid="${t.id}">×</span>
+      </div>`).join('');
+
+  const availableDocs = S.docs.filter(d => !docs.some(pd => pd.id === d.id));
+
+  el.innerHTML = `
+    <div class="view-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost btn-sm" id="proj-back">← Zurück</button>
+        <div class="proj-stripe" style="background:${esc(proj.color)};width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block"></div>
+        <div>
+          <div class="view-title">${esc(proj.name)}</div>
+          ${proj.description ? `<div class="view-sub">${esc(proj.description)}</div>` : ''}
+        </div>
+      </div>
+      <div class="view-actions">
+        <button class="btn btn-ghost btn-sm" id="proj-edit">Bearbeiten</button>
+        <button class="btn btn-ghost btn-sm" id="proj-del" style="color:var(--error)">Löschen</button>
+      </div>
+    </div>
+    <div class="view-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+      <div>
+        <div class="proj-detail-section">
+          <div class="proj-detail-title">${IC.doc} Dokumente (${docs.length})</div>
+          ${docs.length === 0 ? `<p style="color:var(--dim);font-size:13px">Noch keine Dokumente</p>` :
+            `<div style="display:flex;flex-direction:column;gap:6px">${docs.map(d => `
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+                <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(cleanName(d.name))}</span>
+                <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px" data-rid="${d.id}">×</button>
+              </div>`).join('')}</div>`}
+          ${availableDocs.length > 0 ? `
+            <div style="margin-top:10px;display:flex;gap:8px">
+              <select class="form-select" id="proj-doc-sel" style="flex:1;font-size:12px">
+                <option value="">Dokument hinzufügen…</option>
+                ${availableDocs.map(d => `<option value="${d.id}">${esc(cleanName(d.name))}</option>`).join('')}
+              </select>
+              <button class="btn btn-ghost btn-sm" id="proj-doc-add">+</button>
+            </div>` : ''}
+        </div>
+
+        <div class="proj-detail-section">
+          <div class="proj-detail-title">Notizen</div>
+          <textarea class="notes-ta" id="proj-notes-ta" placeholder="Notizen, Links, Ideen…">${esc(notes)}</textarea>
+          <button class="btn btn-ghost btn-sm" id="proj-notes-save" style="margin-top:8px;width:100%">Speichern</button>
+        </div>
+      </div>
+
+      <div class="proj-detail-section">
+        <div class="proj-detail-title" style="display:flex;align-items:center;gap:8px">
+          Todos
+          <span style="background:var(--surface-3);padding:1px 7px;border-radius:10px;font-size:11px;color:var(--dim)">${todos.filter(t=>!t.done).length} offen</span>
+        </div>
+        <div id="todo-list">${renderTodos(todos)}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <input class="form-input" id="todo-inp" placeholder="Neue Aufgabe…" style="flex:1;font-size:13px">
+          <button class="btn btn-primary btn-sm" id="todo-add">+</button>
+        </div>
+      </div>
+
+    </div>`;
+
+  // Back / Edit / Delete
+  document.getElementById('proj-back').onclick = () => { S.projects.active = null; drawProjects(el); };
+
+  document.getElementById('proj-edit').onclick = () => {
+    const name = prompt('Projektname:', proj.name);
+    if (!name?.trim()) return;
+    const desc = prompt('Beschreibung:', proj.description || '') || '';
+    api.updateProj(pid, name.trim(), desc.trim(), proj.color)
+      .then(async () => { S.projects.list = await api.projects().catch(()=>S.projects.list); drawProjectDetail(el); })
+      .catch(() => toast('Fehler', 'err'));
+  };
+
+  document.getElementById('proj-del').onclick = () => {
+    if (!confirm(`Projekt „${proj.name}" wirklich löschen?`)) return;
+    api.deleteProj(pid).then(() => {
+      S.projects.active = null;
+      api.projects().then(l => { S.projects.list = l; drawProjects(el); });
+    }).catch(() => toast('Fehler', 'err'));
+  };
+
+  // Remove doc from project
+  el.querySelectorAll('[data-rid]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await api.remProjDoc(pid, +btn.dataset.rid).catch(() => {});
+      drawProjectDetail(el);
+    });
+  });
+
+  // Add doc to project
+  document.getElementById('proj-doc-add')?.addEventListener('click', async () => {
+    const sel = document.getElementById('proj-doc-sel');
+    if (!sel?.value) return;
+    await api.addProjDoc(pid, +sel.value).catch(() => {});
+    drawProjectDetail(el);
+  });
+
+  // Notes save
+  document.getElementById('proj-notes-save').onclick = async () => {
+    const content = document.getElementById('proj-notes-ta')?.value || '';
+    await api.saveProjNotes(pid, content).catch(() => {});
+    toast('Notizen gespeichert', 'ok');
+  };
+
+  // Todos
+  const reloadTodos = async () => {
+    const fresh = await api.todos(pid).catch(() => []);
+    const list  = document.getElementById('todo-list');
+    if (list) list.innerHTML = renderTodos(fresh);
+    wireTodos();
+  };
+
+  const wireTodos = () => {
+    el.querySelectorAll('.todo-check').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const tid = +cb.closest('.todo-item').dataset.tid;
+        await api.doneTodo(tid, cb.checked).catch(() => {});
+        await reloadTodos();
+      });
+    });
+    el.querySelectorAll('.todo-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await api.deleteTodo(+btn.dataset.tid).catch(() => {});
+        await reloadTodos();
+      });
+    });
+  };
+
+  const addTodo = async () => {
+    const inp = document.getElementById('todo-inp');
+    const text = inp?.value.trim();
+    if (!text) return;
+    inp.value = '';
+    await api.createTodo(pid, text).catch(() => toast('Fehler', 'err'));
+    await reloadTodos();
+  };
+
+  document.getElementById('todo-add').onclick = addTodo;
+  document.getElementById('todo-inp').addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+
+  wireTodos();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: DASHBOARD

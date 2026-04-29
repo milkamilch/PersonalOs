@@ -41,6 +41,9 @@ nohup java \
   -DCLAUDE_API_KEY="${CLAUDE_API_KEY:-}" \
   -DGEMINI_API_KEY="${GEMINI_API_KEY:-}" \
   -DVOYAGE_API_KEY="${VOYAGE_API_KEY:-}" \
+  -DGITHUB_TOKEN="${GITHUB_TOKEN:-}" \
+  -DGITHUB_USERNAME="${GITHUB_USERNAME:-}" \
+  -DSERVER_HOST="${SERVER_HOST:-}" \
   -jar "$JAR" \
   > "$LOG" 2>&1 &
 
