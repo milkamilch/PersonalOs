@@ -1,31 +1,179 @@
 @import "tailwindcss";
 
+/* SF Pro → Inter → system-ui fallback chain */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    background: #080b14;
-    color: #f0f6fc;
-    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 15px;
+    line-height: 1.5;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
+  :root {
+    /* ── Surfaces (macOS dark) */
+    --bg-base:       #141415;
+    --bg-surface:    #1c1c1e;
+    --bg-elevated:   #2c2c2e;
+    --bg-input:      rgba(255,255,255,0.06);
+
+    /* ── Borders */
+    --border-subtle:  rgba(255,255,255,0.06);
+    --border-default: rgba(255,255,255,0.10);
+    --border-strong:  rgba(255,255,255,0.18);
+
+    /* ── Text */
+    --text-primary:   rgba(255,255,255,0.92);
+    --text-secondary: rgba(255,255,255,0.60);
+    --text-muted:     rgba(255,255,255,0.35);
+    --text-placeholder: rgba(255,255,255,0.25);
+
+    /* ── Accent — iOS Blue */
+    --accent:        #0a84ff;
+    --accent-hover:  #409cff;
+    --accent-soft:   rgba(10,132,255,0.14);
+    --accent-border: rgba(10,132,255,0.35);
+    --accent-fg:     #409cff;
+
+    /* ── Semantic colors (iOS dark palette) */
+    --green-soft:   rgba(48,209,88,0.12);
+    --green-border: rgba(48,209,88,0.28);
+    --green-fg:     #30d158;
+
+    --red-soft:     rgba(255,69,58,0.12);
+    --red-border:   rgba(255,69,58,0.28);
+    --red-fg:       #ff453a;
+
+    --yellow-soft:  rgba(255,214,10,0.12);
+    --yellow-border:rgba(255,214,10,0.28);
+    --yellow-fg:    #ffd60a;
+
+    --blue-soft:    rgba(10,132,255,0.12);
+    --blue-border:  rgba(10,132,255,0.28);
+    --blue-fg:      #409cff;
+
+    --orange-soft:  rgba(255,159,10,0.12);
+    --orange-fg:    #ff9f0a;
+
+    /* ── Shadows */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.28);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.35);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.45);
+
+    /* ── Sidebar */
+    --sidebar-bg:     #1c1c1e;
+    --sidebar-width:  240px;
+    --sidebar-collapsed: 58px;
+
+    /* ── Surface alias for components */
+    --surface: var(--bg-surface);
   }
-  ::-webkit-scrollbar-track {
-    background: #111827;
+
+  /* ── Scrollbars */
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+  #root { display: flex; min-height: 100vh; }
+
+  /* ── Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
-  ::-webkit-scrollbar-thumb {
-    background: #374151;
+
+  ::selection {
+    background: rgba(10,132,255,0.3);
+    color: #fff;
+  }
+
+  /* ── Range input */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255,255,255,0.1);
+    height: 4px;
     border-radius: 9999px;
   }
-
-  #root {
-    display: flex;
-    min-height: 100vh;
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--shadow-xs);
   }
 }
+
+/* ── Card primitives */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xs);
+}
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Flashcard 3-D flip */
+.flip-scene { perspective: 1000px; }
+.flip-card {
+  transform-style: preserve-3d;
+  transition: transform 450ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.flip-card.flipped { transform: rotateY(180deg); }
+.flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip-face-back {
+  transform: rotateY(180deg);
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease infinite;
+  border-radius: 8px;
+}
+
+/* ── Utility: glass vibrancy */
+.glass {
+  background: rgba(28,28,30,0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Page layout helpers */
+.page-root {
+  min-height: 100%;
+  padding: 28px 32px 48px;
+}
+.page-narrow  { max-width: 680px;  margin: 0 auto; }
+.page-medium  { max-width: 900px;  margin: 0 auto; }
+.page-wide    { max-width: 1140px; margin: 0 auto; }

@@ -1,102 +1,133 @@
 import { NavLink } from 'react-router-dom'
+import QuickAdd from './QuickAdd'
 import {
   BookOpen, Brain, Map, Search, LayoutDashboard,
-  FolderKanban, CheckSquare, GitBranch, Server, Bot,
-  GraduationCap, CalendarDays, Mic, FileText
+  FolderKanban, CheckSquare, GitBranch, Server,
+  GraduationCap, CalendarDays, Mic, FileText,
+  Repeat2, Wallet, Dumbbell, Clapperboard, Target, NotebookPen, Timer, Calendar, StickyNote, Clock, Users, Sparkles
 } from 'lucide-react'
 
 const nav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/projects', icon: FolderKanban, label: 'Projekte' },
-  { to: '/study', icon: BookOpen, label: 'Lernen' },
-  { to: '/flashcards', icon: Brain, label: 'Karteikarten' },
-  { to: '/mindmap', icon: Map, label: 'Mind Map' },
-  { to: '/search', icon: Search, label: 'Suche' },
-  { to: '/exam', icon: GraduationCap, label: 'Prüfung' },
-  { to: '/planner', icon: CalendarDays, label: 'Lernplaner' },
-  { to: '/audio', icon: Mic, label: 'Audio' },
-  { to: '/pdf', icon: FileText, label: 'PDF Viewer' },
-  { to: '/todos', icon: CheckSquare, label: 'Todos' },
-  { to: '/github', icon: GitBranch, label: 'GitHub' },
-  { to: '/server', icon: Server, label: 'Server' },
-  { to: '/jarvis', icon: Bot, label: 'JArvis' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',    group: 'main'  },
+  { to: '/goals',     icon: Target,          label: 'Ziele',        group: 'life'  },
+  { to: '/contacts',  icon: Users,           label: 'Kontakte',     group: 'life'  },
+  { to: '/habits',    icon: Repeat2,         label: 'Gewohnheiten', group: 'life'  },
+  { to: '/finance',   icon: Wallet,          label: 'Finanzen',     group: 'life'  },
+  { to: '/fitness',   icon: Dumbbell,        label: 'Fitness',      group: 'life'  },
+  { to: '/journal',   icon: NotebookPen,     label: 'Journal',      group: 'life'  },
+  { to: '/media',     icon: Clapperboard,    label: 'Medien',       group: 'life'  },
+  { to: '/reading',   icon: BookOpen,        label: 'Lesen',        group: 'life'  },
+  { to: '/calendar',  icon: Calendar,        label: 'Kalender',     group: 'work'  },
+  { to: '/planner-week', icon: Sparkles,    label: 'Wochenplaner', group: 'work'  },
+  { to: '/focus',     icon: Timer,           label: 'Fokus',        group: 'work'  },
+  { to: '/time',      icon: Clock,           label: 'Zeiterfassung',group: 'work'  },
+  { to: '/notes',     icon: StickyNote,      label: 'Notizen',      group: 'work'  },
+  { to: '/todos',     icon: CheckSquare,     label: 'Todos',        group: 'work'  },
+  { to: '/projects',  icon: FolderKanban,    label: 'Projekte',     group: 'work'  },
+  { to: '/github',    icon: GitBranch,       label: 'GitHub',       group: 'work'  },
+  { to: '/server',    icon: Server,          label: 'Server',       group: 'work'  },
+  { to: '/study',     icon: BookOpen,        label: 'Lernen',       group: 'learn' },
+  { to: '/flashcards',icon: Brain,           label: 'Karteikarten', group: 'learn' },
+  { to: '/mindmap',   icon: Map,             label: 'Mind Map',     group: 'learn' },
+  { to: '/search',    icon: Search,          label: 'Suche',        group: 'learn' },
+  { to: '/exam',      icon: GraduationCap,   label: 'Prüfung',      group: 'learn' },
+  { to: '/planner',   icon: CalendarDays,    label: 'Lernplaner',   group: 'learn' },
+  { to: '/audio',     icon: Mic,             label: 'Audio',        group: 'learn' },
+  { to: '/pdf',       icon: FileText,        label: 'PDF',          group: 'learn' },
+]
+
+const groups = [
+  { key: 'main',  label: null       },
+  { key: 'life',  label: 'Leben'    },
+  { key: 'work',  label: 'Arbeit'   },
+  { key: 'learn', label: 'Studium'  },
 ]
 
 export default function Sidebar() {
   return (
-    <aside
-      className="group/sb flex-shrink-0 flex flex-col min-h-screen overflow-hidden"
+    <aside className="group/sb flex-shrink-0 flex flex-col"
       style={{
-        width: 60,
-        transition: 'width 280ms cubic-bezier(0.4,0,0.2,1)',
-        background: '#0d1117',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        width: 'var(--sidebar-collapsed)',
+        minHeight: '100vh',
+        background: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--border-subtle)',
+        transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
       }}
-      onMouseEnter={e => (e.currentTarget.style.width = '220px')}
-      onMouseLeave={e => (e.currentTarget.style.width = '60px')}
+      onMouseEnter={e => (e.currentTarget.style.width = 'var(--sidebar-width)')}
+      onMouseLeave={e => (e.currentTarget.style.width = 'var(--sidebar-collapsed)')}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-3.5 py-4 flex-shrink-0"
-           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', minHeight: 56 }}>
-        <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
-             style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>
-          LB
+      <div className="flex items-center gap-3 px-[17px] flex-shrink-0"
+           style={{ height: 52, borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="w-[22px] h-[22px] rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+             style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(10,132,255,0.35)' }}>
+          L
         </div>
-        <span className="font-semibold text-sm whitespace-nowrap overflow-hidden transition-opacity duration-200"
-              style={{ opacity: 0, transition: 'opacity 180ms ease 80ms' }}
-              ref={el => {
-                if (!el) return
-                const aside = el.closest('aside')!
-                const show = () => { el.style.opacity = '1' }
-                const hide = () => { el.style.opacity = '0' }
-                aside.addEventListener('mouseenter', show)
-                aside.addEventListener('mouseleave', hide)
-              }}>
-          LectureBase
+        <span className="text-[13px] font-semibold whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-100 delay-[60ms]"
+              style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+          PersonalOS
         </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5 overflow-hidden">
-        {nav.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-2.5 py-2.5 rounded-xl transition-all duration-150 ${
-                isActive
-                  ? 'text-violet-400'
-                  : 'text-gray-500 hover:text-gray-200'
-              }`
-            }
-            style={({ isActive }) => ({
-              background: isActive ? 'rgba(124,58,237,0.12)' : 'transparent',
-            })}
-          >
-            <Icon size={18} className="flex-shrink-0" style={{ minWidth: 18 }} />
-            <FadeLabel label={label} />
-          </NavLink>
-        ))}
+      <nav className="flex-1 px-2 py-2 overflow-y-auto overflow-x-hidden">
+        {groups.map(({ key, label }) => {
+          const items = nav.filter(n => n.group === key)
+          return (
+            <div key={key} className={key !== 'main' ? 'mt-1' : ''}>
+              {label && (
+                <div className="px-2.5 pb-1 pt-3 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-100 delay-[60ms]">
+                  <span className="text-[10px] font-semibold tracking-[0.1em] uppercase"
+                        style={{ color: 'var(--text-muted)' }}>
+                    {label}
+                  </span>
+                </div>
+              )}
+              {items.map(({ to, icon: Icon, label: itemLabel }) => (
+                <NavLink key={to} to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-2.5 py-[7px] rounded-[10px] transition-all duration-100 my-[1px]
+                    ${isActive
+                      ? 'bg-[--accent-soft]'
+                      : 'hover:bg-[rgba(255,255,255,0.05)]'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon size={16} className="flex-shrink-0"
+                            style={{ color: isActive ? 'var(--accent-fg)' : 'var(--text-muted)' }} />
+                      <span className="text-[13px] whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-100 delay-[60ms]"
+                            style={{ color: isActive ? 'var(--accent-fg)' : 'var(--text-secondary)',
+                                     fontWeight: isActive ? 500 : 400 }}>
+                        {itemLabel}
+                      </span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          )
+        })}
       </nav>
-    </aside>
-  )
-}
 
-function FadeLabel({ label }: { label: string }) {
-  return (
-    <span
-      className="text-sm whitespace-nowrap overflow-hidden"
-      style={{ opacity: 0, transition: 'opacity 180ms ease 80ms', minWidth: 0 }}
-      ref={el => {
-        if (!el) return
-        const aside = el.closest('aside')!
-        const show = () => { el.style.opacity = '1' }
-        const hide = () => { el.style.opacity = '0' }
-        aside.addEventListener('mouseenter', show)
-        aside.addEventListener('mouseleave', hide)
-      }}
-    >
-      {label}
-    </span>
+      {/* Footer */}
+      <div className="flex-shrink-0 px-2 py-3 space-y-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="flex items-center gap-2 overflow-hidden">
+          <QuickAdd />
+        </div>
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="w-[22px] h-[22px] rounded-full flex-shrink-0 flex items-center justify-center text-[10px]"
+               style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+            L
+          </div>
+          <span className="text-xs whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-100 delay-[60ms]"
+                style={{ color: 'var(--text-muted)' }}>
+            Lars
+          </span>
+        </div>
+      </div>
+    </aside>
   )
 }

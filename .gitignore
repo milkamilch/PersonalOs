@@ -6,3 +6,6 @@ target/
 *.iml
 .DS_Store
 .env
+env.sh
+app.log
+app.jar

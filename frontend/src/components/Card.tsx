@@ -1,16 +1,18 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, CSSProperties } from 'react'
 
-interface Props {
+interface CardProps {
   children: ReactNode
   className?: string
+  style?: CSSProperties
   onClick?: () => void
 }
 
-export default function Card({ children, className = '', onClick }: Props) {
+export default function Card({ children, className = '', style, onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
-      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-gray-700 transition-colors' : ''} ${className}`}
+      className={`rounded-2xl p-4 ${onClick ? 'cursor-pointer transition-colors' : ''} ${className}`}
+      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', ...style }}
     >
       {children}
     </div>

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,6 +94,17 @@ public class GeminiClient implements AiClient {
             }
         }
         throw new RateLimitException("Gemini Rate-Limit: Zu viele Anfragen.", 60);
+    }
+
+    @Override
+    public void streamWithHistory(String systemPrompt,
+                                  List<ChatSession.Message> history,
+                                  String userMessage,
+                                  Consumer<String> onToken,
+                                  Runnable onDone) {
+        String result = askWithHistory(systemPrompt, history, userMessage);
+        onToken.accept(result);
+        onDone.run();
     }
 
     private List<Map<String, Object>> buildContents(List<ChatSession.Message> history, String userMessage) {

@@ -4,6 +4,7 @@ import { Brain, RotateCcw, Check, X, Calendar } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { Document, Flashcard } from '../api/types'
 import PageHeader from '../components/PageHeader'
+import { Button, Badge, Spinner, EmptyState } from '../components/ui'
 
 export default function FlashcardsPage() {
   const qc = useQueryClient()
@@ -35,45 +36,48 @@ export default function FlashcardsPage() {
   })
 
   const current = cards[index]
-  const done = index >= cards.length
+  const done    = index >= cards.length && cards.length > 0
 
   const nextReviewLabel = (card: Flashcard) => {
     if (!card.nextReview) return null
-    const d = new Date(card.nextReview)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const diff = Math.floor((d.getTime() - today.getTime()) / 86400000)
-    if (diff <= 0) return { text: 'Fällig', color: 'text-red-400' }
-    if (diff === 1) return { text: 'Morgen', color: 'text-yellow-400' }
-    return { text: `in ${diff} Tagen`, color: 'text-green-400' }
+    const d    = new Date(card.nextReview)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const diff  = Math.floor((d.getTime() - today.getTime()) / 86400000)
+    if (diff <= 0) return { text: 'Heute fällig', variant: 'red' as const }
+    if (diff === 1) return { text: 'Morgen',       variant: 'yellow' as const }
+    return           { text: `in ${diff} Tagen`,  variant: 'green' as const }
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-2xl">
       <PageHeader
         title="Karteikarten"
         actions={
-          <button
+          <Button
+            variant="secondary" size="sm" icon={<Calendar size={13} />}
             onClick={() => { setDueMode(true); setSelectedDoc(null); setIndex(0); setFlipped(false) }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-sm transition-colors"
           >
-            <Calendar size={14} />
             Fällige Karten
-          </button>
+          </Button>
         }
       />
 
       {/* Doc selector */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-8">
         {docs.map(d => (
           <button
             key={d.id}
             onClick={() => { setSelectedDoc(d.id); setDueMode(false); setIndex(0); setFlipped(false) }}
-            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-              selectedDoc === d.id && !dueMode
-                ? 'bg-violet-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-            }`}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border"
+            style={selectedDoc === d.id && !dueMode ? {
+              background: 'var(--accent-soft)',
+              borderColor: 'var(--accent-border)',
+              color: 'var(--accent-fg)',
+            } : {
+              background: 'rgba(255,255,255,0.03)',
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-muted)',
+            }}
           >
             {d.name}
           </button>
@@ -81,81 +85,152 @@ export default function FlashcardsPage() {
       </div>
 
       {!selectedDoc && !dueMode && (
-        <div className="text-center text-gray-600 py-16">
-          <Brain size={48} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Wähle ein Dokument oder starte mit fälligen Karten.</p>
-        </div>
+        <EmptyState
+          icon={<Brain size={24} />}
+          title="Kein Dokument gewählt"
+          description="Wähle ein Dokument oder starte mit fälligen Karten."
+          action={
+            <Button
+              variant="secondary" size="sm" icon={<Calendar size={13} />}
+              onClick={() => { setDueMode(true); setIndex(0); setFlipped(false) }}
+            >
+              Fällige Karten starten
+            </Button>
+          }
+        />
       )}
 
       {(selectedDoc || dueMode) && isLoading && (
-        <div className="text-center py-16">
-          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
+        <div className="flex justify-center py-20"><Spinner size={28} /></div>
       )}
 
-      {(selectedDoc || dueMode) && !isLoading && (
+      {(selectedDoc || dueMode) && !isLoading && cards.length === 0 && (
+        <EmptyState
+          icon={<Check size={24} />}
+          title="Keine Karten vorhanden"
+          description="Für dieses Dokument wurden noch keine Karten generiert."
+        />
+      )}
+
+      {(selectedDoc || dueMode) && !isLoading && cards.length > 0 && (
         <>
-          <div className="text-sm text-gray-500 mb-4">
-            {done ? `Alle ${cards.length} Karten bearbeitet` : `Karte ${index + 1} von ${cards.length}`}
+          {/* Progress */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+                 style={{ background: 'rgba(255,255,255,0.06)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${done ? 100 : (index / cards.length) * 100}%`,
+                  background: 'linear-gradient(90deg, var(--accent), #4f46e5)',
+                }}
+              />
+            </div>
+            <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+              {done ? `✓ ${cards.length}` : `${index + 1} / ${cards.length}`}
+            </span>
           </div>
 
           {done ? (
-            <div className="text-center py-16 bg-gray-900 border border-gray-800 rounded-2xl">
-              <Check size={48} className="mx-auto text-green-400 mb-3" />
-              <p className="text-lg font-semibold text-gray-200">Session abgeschlossen!</p>
-              <button
+            <div className="rounded-2xl p-10 text-center"
+                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-default)' }}>
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                   style={{ background: 'var(--green-soft)', border: '1px solid var(--green-border)' }}>
+                <Check size={28} style={{ color: 'var(--green-fg)' }} />
+              </div>
+              <p className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                Session abgeschlossen!
+              </p>
+              <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+                {cards.length} Karten bearbeitet
+              </p>
+              <Button
+                variant="ghost" size="sm" icon={<RotateCcw size={13} />}
                 onClick={() => { setIndex(0); setFlipped(false) }}
-                className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors"
               >
-                <RotateCcw size={14} />
                 Nochmal
-              </button>
+              </Button>
             </div>
           ) : current && (
-            <div
-              onClick={() => setFlipped(f => !f)}
-              className="min-h-64 bg-gray-900 border border-gray-800 rounded-2xl p-8 cursor-pointer hover:border-gray-700 transition-all"
-            >
-              <div className="text-xs text-gray-600 mb-4 uppercase tracking-wider">
-                {flipped ? 'Antwort' : 'Frage'}
-              </div>
-              <p className="text-gray-100 text-lg leading-relaxed whitespace-pre-wrap">
-                {flipped ? current.back : current.front}
-              </p>
-
-              {flipped && (() => {
-                const label = nextReviewLabel(current)
-                return label ? (
-                  <div className={`mt-4 text-xs flex items-center gap-1 ${label.color}`}>
-                    <Calendar size={12} />
-                    Nächste Wiederholung: {label.text}
+            <>
+              {/* 3-D Flip card */}
+              <div
+                className="flip-scene cursor-pointer mb-4"
+                style={{ height: 260 }}
+                onClick={() => setFlipped(f => !f)}
+              >
+                <div className={`flip-card w-full h-full ${flipped ? 'flipped' : ''}`}>
+                  {/* Front */}
+                  <div className="flip-face w-full h-full rounded-2xl p-8 flex flex-col"
+                       style={{
+                         background: 'rgba(255,255,255,0.02)',
+                         border: '1px solid var(--border-default)',
+                       }}>
+                    <span className="text-xs font-medium uppercase tracking-widest mb-4"
+                          style={{ color: 'var(--accent-fg)' }}>
+                      Frage
+                    </span>
+                    <p className="text-base leading-relaxed flex-1"
+                       style={{ color: 'var(--text-primary)' }}>
+                      {current.front}
+                    </p>
+                    <p className="text-xs mt-4 text-center" style={{ color: 'var(--text-muted)' }}>
+                      Tippen zum Umdrehen
+                    </p>
                   </div>
-                ) : null
-              })()}
-            </div>
-          )}
 
-          {!done && flipped && (
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => rateCard.mutate({ id: current.id, known: false })}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-900/30 hover:bg-red-900/50 border border-red-800 rounded-xl text-red-400 transition-colors"
-              >
-                <X size={18} />
-                Nicht gewusst
-              </button>
-              <button
-                onClick={() => rateCard.mutate({ id: current.id, known: true })}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-900/30 hover:bg-green-900/50 border border-green-800 rounded-xl text-green-400 transition-colors"
-              >
-                <Check size={18} />
-                Gewusst
-              </button>
-            </div>
-          )}
+                  {/* Back */}
+                  <div className="flip-face flip-face-back w-full h-full rounded-2xl p-8 flex flex-col"
+                       style={{
+                         background: 'rgba(124,58,237,0.06)',
+                         border: '1px solid var(--accent-border)',
+                       }}>
+                    <span className="text-xs font-medium uppercase tracking-widest mb-4"
+                          style={{ color: 'var(--accent-fg)' }}>
+                      Antwort
+                    </span>
+                    <p className="text-base leading-relaxed flex-1 whitespace-pre-wrap"
+                       style={{ color: 'var(--text-primary)' }}>
+                      {current.back}
+                    </p>
+                    {(() => {
+                      const label = nextReviewLabel(current)
+                      return label ? (
+                        <div className="flex justify-end mt-3">
+                          <Badge variant={label.variant}>
+                            <Calendar size={10} /> {label.text}
+                          </Badge>
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
+                </div>
+              </div>
 
-          {!done && !flipped && (
-            <p className="text-center text-xs text-gray-600 mt-4">Klicken zum Umdrehen</p>
+              {/* Rating buttons */}
+              {flipped && (
+                <div className="flex gap-3">
+                  <Button
+                    variant="danger" size="lg"
+                    className="flex-1"
+                    icon={<X size={16} />}
+                    onClick={() => rateCard.mutate({ id: current.id, known: false })}
+                    loading={rateCard.isPending}
+                  >
+                    Nicht gewusst
+                  </Button>
+                  <Button
+                    variant="success" size="lg"
+                    className="flex-1"
+                    icon={<Check size={16} />}
+                    onClick={() => rateCard.mutate({ id: current.id, known: true })}
+                    loading={rateCard.isPending}
+                  >
+                    Gewusst
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
