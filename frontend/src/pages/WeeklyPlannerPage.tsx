@@ -5,27 +5,28 @@ import PageHeader from '../components/PageHeader'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type EventType = 'sleep' | 'routine' | 'food' | 'run' | 'strength' | 'recovery_sport' |
-  'uni' | 'coding' | 'reading' | 'free' | 'recovery' | 'appointment'
+  'uni' | 'coding' | 'reading' | 'free' | 'recovery' | 'appointment' | 'travel' | 'haushalt'
 
 interface FixedAppointment {
   id: string
-  dayIndex: number  // 0=Mon … 6=Sun
+  dayIndex: number
   title: string
   startMin: number
   durationMin: number
+  travelMin: number   // one-way travel time; 0 = no travel
 }
 
 interface PlanEvent {
   title: string
   emoji: string
-  start: number   // minutes from midnight
+  start: number
   end: number
   type: EventType
   desc: string
 }
 
 interface DayPlan {
-  dayIndex: number  // 0=Mon
+  dayIndex: number
   date: Date
   events: PlanEvent[]
 }
@@ -34,13 +35,18 @@ interface PlanConfig {
   weekStart: Date
   phase: 1 | 2 | 3
   phaseWeek: 1 | 2 | 3 | 4
-  wakeMin: number       // minutes from midnight, e.g. 435 = 7:15
-  routineMin: number    // 30
+  wakeMin: number
+  routineMin: number
   programmingMin: number
   readingMin: number
-  uniStart: number      // minutes
+  uniStart: number
   uniEnd: number
-  bedMin: number        // 1440 = 00:00 next day
+  travelUniMin: number    // one-way travel time to uni (minutes)
+  travelGymMin: number    // one-way travel time to gym (minutes)
+  haushaltMin: number     // 0 = disabled
+  haushaltDay: number     // 0=Mon … 6=Sun
+  haushaltStart: number   // minutes from midnight
+  bedMin: number
 }
 
 // ── Training data ──────────────────────────────────────────────────────────
@@ -51,10 +57,9 @@ interface TrainSession {
   dur: number
   desc: string
   type: 'run' | 'strength' | 'recovery_sport'
-  fixedStart?: number  // override start (minutes). e.g. Saturday afternoon = 15*60
+  fixedStart?: number
 }
 
-// Phase 1: one entry per weekday (0=Mon … 6=Sun)
 const P1: Array<{ morning?: TrainSession; afternoon?: TrainSession; evening?: TrainSession }> = [
   { // Mon
     morning: { title: 'Lauf – Intervall-Grundlage', emoji: '🏃', dur: 80, type: 'run',
@@ -74,13 +79,13 @@ const P1: Array<{ morning?: TrainSession; afternoon?: TrainSession; evening?: Tr
     evening: { title: 'Testdisziplinen + Gleichgewicht', emoji: '🎯', dur: 60, type: 'strength',
       desc: 'CKCU-Test 6 Durchgänge · 6×200m Sprint-Pace · Rucksack 6kg: 5×200m tragen · Einbeinstand 4×45s' },
   },
-  { // Thu — Uni day, morning training shifted to afternoon
+  { // Thu
     afternoon: { title: 'Lauf – Schwellenläufe', emoji: '🏃', dur: 75, type: 'run',
       desc: '2km einlaufen · 3×2000m @Laktatschwelle (90s Pause) · 2km auslaufen · ~10km gesamt' },
     evening: { title: 'Kraft – Ganzkörper Komplex', emoji: '💀', dur: 75, type: 'strength',
       desc: 'Kreuzheben 5×5 · Weighted Pull-Ups 5×6 · Supersatz 4×: 20 Liegestütze + 15 Dips · Russian Twists 5×30 · L-Sit 6×20s · 50 Burpees Finisher' },
   },
-  { // Fri — Uni day, morning training shifted to afternoon
+  { // Fri
     afternoon: { title: '3.000m Testlauf + Kraft-Nachbrenner', emoji: '⏱️', dur: 50, type: 'run',
       desc: '10min Aufwärmen · 3000m VOLLGAS (Ziel Phase 1: <13:00) · 3× [10 Klimmzüge + 20 Liegestütze] direkt danach' },
     evening: { title: 'Testdisziplinen + Kondition', emoji: '🎯', dur: 60, type: 'strength',
@@ -100,11 +105,34 @@ const P1: Array<{ morning?: TrainSession; afternoon?: TrainSession; evening?: Tr
   },
 ]
 
-const TRAINING_BY_PHASE: Record<number, typeof P1> = { 1: P1, 2: P1, 3: P1 }  // extend later
+const TRAINING_BY_PHASE: Record<number, typeof P1> = { 1: P1, 2: P1, 3: P1 }
 
 // ── Schedule generation ────────────────────────────────────────────────────
 
-const UNI_DAYS = new Set([3, 4])  // Thu, Fri
+const UNI_DAYS = new Set([3, 4])
+
+function addTraining(
+  ev: (e: PlanEvent) => void,
+  cursor: number,
+  session: TrainSession,
+  travelGymMin: number,
+  fixedStart?: number,
+): number {
+  let c = fixedStart ?? cursor
+  if (travelGymMin > 0) {
+    ev({ title: 'Weg zum Training', emoji: '🚶', start: c, end: c + travelGymMin, type: 'travel',
+      desc: `${travelGymMin}min Anfahrt` })
+    c += travelGymMin
+  }
+  ev({ title: session.title, emoji: session.emoji, start: c, end: c + session.dur, type: session.type, desc: session.desc })
+  c += session.dur
+  const recoveryDur = 30 + travelGymMin
+  ev({ title: travelGymMin > 0 ? 'Dusche & Weg nach Hause' : 'Recovery & Dusche', emoji: '🚿',
+    start: c, end: c + recoveryDur, type: 'recovery',
+    desc: travelGymMin > 0 ? `Duschen · dehnen · ${travelGymMin}min Heimweg` : 'Kaltdusche · dehnen · Protein-Shake' })
+  c += recoveryDur
+  return c
+}
 
 function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): DayPlan[] {
   const training = TRAINING_BY_PHASE[cfg.phase] ?? P1
@@ -118,14 +146,12 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
     const isUni = UNI_DAYS.has(d)
     const isSunday = d === 6
 
-    // Helper: add event
     const ev = (e: PlanEvent) => events.push(e)
     const T = (start: number, dur: number) => ({ start, end: start + dur })
 
-    // ── Sleep (previous night) ──
-    ev({ title: 'Schlafen', emoji: '😴', ...T(0, cfg.wakeMin), type: 'sleep', desc: `${Math.round(cfg.wakeMin / 60)}h Schlaf` })
+    ev({ title: 'Schlafen', emoji: '😴', ...T(0, cfg.wakeMin), type: 'sleep',
+      desc: `${Math.round(cfg.wakeMin / 60)}h Schlaf` })
 
-    // ── Wake up & morning routine ──
     const routineEnd = cfg.wakeMin + cfg.routineMin
     ev({ title: isSunday ? 'Ausschlafen & Morgenroutine' : 'Morgenroutine & Frühstück', emoji: '☀️',
       ...T(cfg.wakeMin, cfg.routineMin), type: 'routine',
@@ -133,63 +159,80 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
 
     let cursor = routineEnd
 
+    // ── Haushalt block ──────────────────────────────────────────────────────
+    if (cfg.haushaltMin > 0 && d === cfg.haushaltDay) {
+      ev({ title: 'Haushalt & Aufräumen', emoji: '🏠',
+        start: cfg.haushaltStart, end: cfg.haushaltStart + cfg.haushaltMin,
+        type: 'haushalt', desc: 'Aufräumen · Putzen · Wäsche · Einkaufen' })
+    }
+
     if (isSunday) {
-      // Sunday: light start
       const morTrain = day.morning
       if (morTrain) {
-        ev({ title: morTrain.title, emoji: morTrain.emoji, ...T(cursor, morTrain.dur), type: morTrain.type, desc: morTrain.desc })
-        cursor += morTrain.dur + 20
+        cursor = addTraining(ev, cursor, morTrain, cfg.travelGymMin)
       }
-      ev({ title: 'Freie Zeit & Erholung', emoji: '🎯', ...T(cursor, cfg.bedMin - cursor - 30), type: 'free',
-        desc: 'Entspannen · Freunde / Familie · keine Pflichten' })
-      // Reading in the afternoon
       const readStart = Math.min(12 * 60, cfg.bedMin - cfg.readingMin - 120)
+      ev({ title: 'Freie Zeit & Erholung', emoji: '🎯', ...T(cursor, readStart - cursor), type: 'free',
+        desc: 'Entspannen · Freunde / Familie · keine Pflichten' })
       ev({ title: 'Lesen', emoji: '📚', ...T(readStart, cfg.readingMin), type: 'reading',
         desc: `${cfg.readingMin}min Lesen – ruhige Stimmung, kein Bildschirm danach` })
       const aftTrain = day.afternoon
       if (aftTrain) {
         const s = aftTrain.fixedStart ?? 11 * 60
-        ev({ title: aftTrain.title, emoji: aftTrain.emoji, ...T(s, aftTrain.dur), type: aftTrain.type, desc: aftTrain.desc })
+        addTraining(ev, s, aftTrain, cfg.travelGymMin, s)
       }
       ev({ title: 'Wind-down & Abendroutine', emoji: '🌙', ...T(cfg.bedMin - 30, 30), type: 'routine',
         desc: 'Licht dimmen · kein Handy · früh schlafen → 9h Ziel' })
+
     } else if (isUni) {
-      // Uni days: no morning training (not enough time), training after lunch
+      // Travel to uni
+      if (cfg.travelUniMin > 0) {
+        const deptTime = cfg.uniStart - cfg.travelUniMin
+        ev({ title: 'Weg zur Uni', emoji: '🚶', ...T(deptTime, cfg.travelUniMin), type: 'travel',
+          desc: `${cfg.travelUniMin}min Anfahrt zur Uni` })
+      }
       ev({ title: 'Uni', emoji: '🎓', ...T(cfg.uniStart, cfg.uniEnd - cfg.uniStart), type: 'uni',
         desc: 'Vorlesungen & Übungen' })
       cursor = cfg.uniEnd
 
-      // Lunch
-      ev({ title: 'Mittagessen & Pause', emoji: '🍽️', ...T(cursor, 60), type: 'food', desc: 'Mittagessen – gut essen, Energie tanken' })
-      cursor += 60
-
-      // Afternoon training (shifted from morning)
-      const aftTrain = day.afternoon
-      if (aftTrain) {
-        ev({ title: aftTrain.title, emoji: aftTrain.emoji, ...T(cursor, aftTrain.dur), type: aftTrain.type, desc: aftTrain.desc })
-        cursor += aftTrain.dur + 30  // 30min recovery/shower
-        ev({ title: 'Recovery & Dusche', emoji: '🚿', ...T(cursor - 30, 30), type: 'recovery',
-          desc: 'Duschen · stretchen · Protein-Shake' })
+      // Travel from uni
+      if (cfg.travelUniMin > 0) {
+        ev({ title: 'Weg nach Hause', emoji: '🚶', ...T(cursor, cfg.travelUniMin), type: 'travel',
+          desc: `${cfg.travelUniMin}min Heimweg von der Uni` })
+        cursor += cfg.travelUniMin
       }
 
-      // Reading
+      ev({ title: 'Mittagessen & Pause', emoji: '🍽️', ...T(cursor, 60), type: 'food',
+        desc: 'Mittagessen – gut essen, Energie tanken' })
+      cursor += 60
+
+      const aftTrain = day.afternoon
+      if (aftTrain) {
+        cursor = addTraining(ev, cursor, aftTrain, cfg.travelGymMin)
+      }
+
       ev({ title: 'Lesen', emoji: '📚', ...T(cursor, cfg.readingMin), type: 'reading',
         desc: `${cfg.readingMin}min Lesen` })
       cursor += cfg.readingMin + 15
 
-      // Some free time before evening training
       const eveningTrainStart = 18 * 60
-      if (cursor < eveningTrainStart - 30) {
-        ev({ title: 'Freie Zeit', emoji: '🎯', ...T(cursor, eveningTrainStart - 30 - cursor), type: 'free',
+      const travelBuffer = cfg.travelGymMin > 0 ? cfg.travelGymMin : 15
+      if (cursor < eveningTrainStart - travelBuffer) {
+        ev({ title: 'Freie Zeit', emoji: '🎯', ...T(cursor, eveningTrainStart - travelBuffer - cursor), type: 'free',
           desc: 'Entspannen · Spazieren · keine Pflichten' })
       }
 
-      // Evening training
       const evTrain = day.evening
       if (evTrain) {
+        const afterTrain = eveningTrainStart + cfg.travelGymMin + evTrain.dur + 30 + cfg.travelGymMin
+        if (cfg.travelGymMin > 0) {
+          ev({ title: 'Weg zum Training', emoji: '🚶', ...T(eveningTrainStart - cfg.travelGymMin, cfg.travelGymMin),
+            type: 'travel', desc: `${cfg.travelGymMin}min Anfahrt` })
+        }
         ev({ title: evTrain.title, emoji: evTrain.emoji, ...T(eveningTrainStart, evTrain.dur), type: evTrain.type, desc: evTrain.desc })
-        const afterTrain = eveningTrainStart + evTrain.dur + 30
-        ev({ title: 'Recovery & Abendessen', emoji: '🍽️', ...T(eveningTrainStart + evTrain.dur, 45), type: 'food',
+        const recStart = eveningTrainStart + evTrain.dur
+        ev({ title: cfg.travelGymMin > 0 ? 'Dusche & Weg nach Hause' : 'Recovery & Abendessen', emoji: '🍽️',
+          ...T(recStart, 45 + cfg.travelGymMin), type: 'food',
           desc: 'Duschen · Abendessen · viel Protein' })
         ev({ title: 'Freie Zeit & Abendroutine', emoji: '🌙', ...T(afterTrain + 15, cfg.bedMin - afterTrain - 15 - 15), type: 'free',
           desc: 'Entspannen · keine harten Bildschirme nach 23:00' })
@@ -200,18 +243,13 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
         desc: 'Zähneputzen · Licht aus' })
 
     } else if (d === 5) {
-      // Saturday: morning mega session + afternoon session
+      // Saturday
       const morTrain = day.morning!
       const aftTrain = day.afternoon!
 
-      ev({ title: morTrain.title, emoji: morTrain.emoji, ...T(cursor, morTrain.dur), type: morTrain.type, desc: morTrain.desc })
-      cursor += morTrain.dur
-      ev({ title: 'Recovery & Frühstück', emoji: '🚿', ...T(cursor, 45), type: 'recovery',
-        desc: 'Duschen · ausgiebig frühstücken · Kohlenhydrate + Protein' })
-      cursor += 45
+      cursor = addTraining(ev, cursor, morTrain, cfg.travelGymMin)
 
-      // Programming before afternoon session
-      const progEnd = Math.min(14 * 60, aftTrain.fixedStart! - 30)
+      const progEnd = Math.min(14 * 60, (aftTrain.fixedStart! - cfg.travelGymMin) - 30)
       if (cursor < progEnd - 30 && cfg.programmingMin > 0) {
         const progDur = Math.min(cfg.programmingMin, progEnd - cursor - 30)
         ev({ title: 'Programmieren', emoji: '💻', ...T(cursor, progDur), type: 'coding',
@@ -219,27 +257,27 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
         cursor += progDur + 15
       }
 
-      // Afternoon training at 15:00
-      ev({ title: aftTrain.title, emoji: aftTrain.emoji, ...T(aftTrain.fixedStart!, aftTrain.dur), type: aftTrain.type, desc: aftTrain.desc })
-      const afterAft = aftTrain.fixedStart! + aftTrain.dur + 30
-      ev({ title: 'Abendessen & Erholung', emoji: '🍽️', ...T(aftTrain.fixedStart! + aftTrain.dur, 45), type: 'food',
+      const aftStart = aftTrain.fixedStart!
+      if (cfg.travelGymMin > 0) {
+        ev({ title: 'Weg zum Training', emoji: '🚶', ...T(aftStart - cfg.travelGymMin, cfg.travelGymMin),
+          type: 'travel', desc: `${cfg.travelGymMin}min Anfahrt` })
+      }
+      ev({ title: aftTrain.title, emoji: aftTrain.emoji, ...T(aftStart, aftTrain.dur), type: aftTrain.type, desc: aftTrain.desc })
+      const afterAft = aftStart + aftTrain.dur + cfg.travelGymMin + 45
+      ev({ title: cfg.travelGymMin > 0 ? 'Dusche & Weg nach Hause' : 'Abendessen & Erholung', emoji: '🍽️',
+        ...T(aftStart + aftTrain.dur, 45 + cfg.travelGymMin), type: 'food',
         desc: 'Viel essen – Kohlenhydrate & Protein · Regeneration beginnt jetzt' })
       ev({ title: 'Freie Zeit & Wochenende', emoji: '🎯', ...T(afterAft, cfg.bedMin - afterAft - 15), type: 'free',
         desc: 'Entspannen · Freunde · Social' })
       ev({ title: 'Schlaf vorbereiten', emoji: '🌙', ...T(cfg.bedMin - 15, 15), type: 'routine', desc: '' })
 
     } else {
-      // Normal weekday (Mon, Tue, Wed): double training
+      // Normal weekday (Mon, Tue, Wed)
       const morTrain = day.morning
       if (morTrain) {
-        ev({ title: morTrain.title, emoji: morTrain.emoji, ...T(cursor, morTrain.dur), type: morTrain.type, desc: morTrain.desc })
-        cursor += morTrain.dur
-        ev({ title: 'Recovery & Dusche', emoji: '🚿', ...T(cursor, 30), type: 'recovery',
-          desc: 'Kaltdusche · dehnen · Protein-Shake' })
-        cursor += 30
+        cursor = addTraining(ev, cursor, morTrain, cfg.travelGymMin)
       }
 
-      // Programming
       if (cfg.programmingMin > 0 && cursor < 13 * 60) {
         const progDur = Math.min(cfg.programmingMin, 12 * 60 - cursor)
         ev({ title: 'Programmieren', emoji: '💻', ...T(cursor, progDur), type: 'coding',
@@ -247,38 +285,41 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
         cursor += progDur
       }
 
-      // Lunch
       ev({ title: 'Mittagessen', emoji: '🍽️', ...T(12 * 60, 60), type: 'food',
         desc: 'Ausgewogen essen · Kohlenhydrate & Protein für Abendtraining' })
       cursor = 13 * 60
 
-      // Remaining programming if needed
-      const remainProg = cfg.programmingMin - Math.max(0, Math.min(cfg.programmingMin, 12 * 60 - routineEnd - (morTrain?.dur ?? 0) - 30))
+      const remainProg = cfg.programmingMin - Math.max(0, Math.min(cfg.programmingMin, 12 * 60 - routineEnd - (morTrain?.dur ?? 0) - 30 - cfg.travelGymMin * 2))
       if (remainProg > 30 && cursor < 14 * 60) {
         ev({ title: 'Programmieren (Fortsetzung)', emoji: '💻', ...T(cursor, Math.min(remainProg, 60)), type: 'coding', desc: '' })
         cursor += Math.min(remainProg, 60)
       }
 
-      // Reading
       const readStart = Math.max(cursor + 15, 13 * 60 + 30)
       ev({ title: 'Lesen', emoji: '📚', ...T(readStart, cfg.readingMin), type: 'reading',
         desc: `${cfg.readingMin}min konzentriertes Lesen – Handy weglegen` })
       cursor = readStart + cfg.readingMin + 15
 
-      // Free time until evening training
+      const travelBuffer = cfg.travelGymMin > 0 ? cfg.travelGymMin : 15
       const eveningTrainStart = 18 * 60
-      if (cursor < eveningTrainStart - 15) {
-        ev({ title: 'Freie Zeit', emoji: '🎯', ...T(cursor, eveningTrainStart - 15 - cursor), type: 'free',
+      if (cursor < eveningTrainStart - travelBuffer) {
+        ev({ title: 'Freie Zeit', emoji: '🎯', ...T(cursor, eveningTrainStart - travelBuffer - cursor), type: 'free',
           desc: 'Spazieren · Nap · Social · Nichts tun ist auch Training' })
       }
 
-      // Evening training
       const evTrain = day.evening
       if (evTrain) {
+        if (cfg.travelGymMin > 0) {
+          ev({ title: 'Weg zum Training', emoji: '🚶', ...T(eveningTrainStart - cfg.travelGymMin, cfg.travelGymMin),
+            type: 'travel', desc: `${cfg.travelGymMin}min Anfahrt` })
+        }
         ev({ title: evTrain.title, emoji: evTrain.emoji, ...T(eveningTrainStart, evTrain.dur), type: evTrain.type, desc: evTrain.desc })
-        ev({ title: 'Abendessen & Regeneration', emoji: '🍽️', ...T(eveningTrainStart + evTrain.dur, 45), type: 'food',
+        const recStart = eveningTrainStart + evTrain.dur
+        const recDur = 45 + cfg.travelGymMin
+        ev({ title: cfg.travelGymMin > 0 ? 'Abendessen & Weg nach Hause' : 'Abendessen & Regeneration', emoji: '🍽️',
+          ...T(recStart, recDur), type: 'food',
           desc: 'Duschen · Abendessen · viel Protein · BCAA/Creatine' })
-        const afterTrain = eveningTrainStart + evTrain.dur + 45
+        const afterTrain = recStart + recDur
         ev({ title: 'Freie Zeit & Abend', emoji: '🌙', ...T(afterTrain, cfg.bedMin - afterTrain - 15), type: 'free',
           desc: 'Entspannen · serien/lesen/nichts tun' })
       }
@@ -287,19 +328,27 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
         desc: 'Zähneputzen · Licht aus · Handy weg' })
     }
 
-    // Insert fixed appointments
+    // ── Fixed appointments with travel ──────────────────────────────────────
     for (const appt of fixedAppts.filter(a => a.dayIndex === d)) {
-      ev({
-        title: appt.title,
-        emoji: '📅',
-        start: appt.startMin,
-        end: appt.startMin + appt.durationMin,
+      if (appt.travelMin > 0) {
+        ev({ title: `Weg: ${appt.title}`, emoji: '🚶',
+          start: appt.startMin - appt.travelMin, end: appt.startMin,
+          type: 'travel', desc: `${appt.travelMin}min Anfahrt` })
+      }
+      ev({ title: appt.title, emoji: '📅',
+        start: appt.startMin, end: appt.startMin + appt.durationMin,
         type: 'appointment',
-        desc: `Fester Termin · ${minsToTime(appt.startMin)} – ${minsToTime(appt.startMin + appt.durationMin)}`,
-      })
+        desc: appt.travelMin > 0
+          ? `Fester Termin · inkl. ${appt.travelMin}min Wegzeit je Richtung`
+          : 'Fester Termin' })
+      if (appt.travelMin > 0) {
+        const retStart = appt.startMin + appt.durationMin
+        ev({ title: 'Rückweg', emoji: '🚶',
+          start: retStart, end: retStart + appt.travelMin,
+          type: 'travel', desc: `${appt.travelMin}min Heimweg` })
+      }
     }
 
-    // Sort by start time
     events.sort((a, b) => a.start - b.start)
     days.push({ dayIndex: d, date, events })
   }
@@ -312,7 +361,6 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
 function fmtICS(date: Date, minutesFromMidnight: number): string {
   const d = new Date(date)
   let mins = minutesFromMidnight
-  // handle past-midnight (bedtime)
   if (mins >= 24 * 60) { d.setDate(d.getDate() + 1); mins -= 24 * 60 }
   const Y = d.getFullYear()
   const M = String(d.getMonth() + 1).padStart(2, '0')
@@ -324,17 +372,15 @@ function fmtICS(date: Date, minutesFromMidnight: number): string {
 
 function exportICS(days: DayPlan[], cfg: PlanConfig) {
   const lines: string[] = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
     'PRODID:-//PersonalOS//WeeklyPlanner//DE',
     'CALSCALE:GREGORIAN',
     'X-WR-CALNAME:PersonalOS Wochenplan',
     'X-WR-TIMEZONE:Europe/Berlin',
   ]
-
   for (const day of days) {
     for (const ev of day.events) {
-      if (ev.type === 'sleep' || ev.type === 'free') continue  // skip noise
+      if (ev.type === 'sleep' || ev.type === 'free') continue
       const uid = `${day.date.toISOString().slice(0, 10)}-${ev.start}-${Math.random().toString(36).slice(2)}@personalos`
       lines.push(
         'BEGIN:VEVENT',
@@ -348,7 +394,6 @@ function exportICS(days: DayPlan[], cfg: PlanConfig) {
       )
     }
   }
-
   lines.push('END:VCALENDAR')
   const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -371,7 +416,7 @@ function minsToTime(m: number): string {
 function getThisMonday(): Date {
   const d = new Date()
   const dow = d.getDay()
-  const diff = dow === 0 ? -6 : 1 - dow  // Monday
+  const diff = dow === 0 ? -6 : 1 - dow
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
   return d
@@ -381,14 +426,11 @@ function getNextMonday(): Date {
   d.setDate(d.getDate() + 7)
   return d
 }
-function dateToInput(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
+function dateToInput(d: Date): string { return d.toISOString().slice(0, 10) }
 
 // ── Color map ──────────────────────────────────────────────────────────────
 
 const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string }> = {
-  appointment:    { bg: 'rgba(255,159,10,0.1)',   color: '#ff9f0a',             border: 'rgba(255,159,10,0.3)' },
   sleep:          { bg: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.06)' },
   routine:        { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.1)' },
   food:           { bg: 'rgba(255,214,10,0.08)',  color: 'var(--yellow)',       border: 'rgba(255,214,10,0.2)' },
@@ -400,6 +442,9 @@ const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string 
   reading:        { bg: 'rgba(255,214,10,0.08)',  color: '#ffd60a',             border: 'rgba(255,214,10,0.2)' },
   free:           { bg: 'transparent',            color: 'var(--text-muted)',   border: 'transparent' },
   recovery:       { bg: 'rgba(48,209,88,0.06)',   color: 'var(--text-muted)',   border: 'rgba(48,209,88,0.15)' },
+  appointment:    { bg: 'rgba(255,159,10,0.1)',   color: '#ff9f0a',             border: 'rgba(255,159,10,0.3)' },
+  travel:         { bg: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.08)' },
+  haushalt:       { bg: 'rgba(64,200,224,0.08)',  color: '#40c8e0',             border: 'rgba(64,200,224,0.25)' },
 }
 
 const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
@@ -411,44 +456,39 @@ export default function WeeklyPlannerPage() {
   const [step, setStep] = useState<'wizard' | 'plan'>('wizard')
   const [selDay, setSelDay] = useState(0)
 
-  // Config state
+  // Woche
   const [weekStart, setWeekStart] = useState(dateToInput(getNextMonday()))
   const [phase, setPhase] = useState<1 | 2 | 3>(1)
   const [phaseWeek, setPhaseWeek] = useState<1 | 2 | 3 | 4>(1)
+
+  // Tagesrhythmus
   const [wakeTime, setWakeTime] = useState('07:15')
   const [routineMin, setRoutineMin] = useState(30)
-  const [progHours, setProgHours] = useState(2)
-  const [readingMin, setReadingMin] = useState(60)
+
+  // Uni
   const [uniStart, setUniStart] = useState('09:00')
   const [uniEnd, setUniEnd] = useState('13:00')
+  const [travelUniMin, setTravelUniMin] = useState(0)
 
-  function buildConfig(): PlanConfig {
-    const [wh, wm] = wakeTime.split(':').map(Number)
-    const [ush, usm] = uniStart.split(':').map(Number)
-    const [ueh, uem] = uniEnd.split(':').map(Number)
-    return {
-      weekStart: new Date(weekStart + 'T00:00:00'),
-      phase,
-      phaseWeek,
-      wakeMin:    toMins(wh, wm),
-      routineMin,
-      programmingMin: progHours * 60,
-      readingMin,
-      uniStart:   toMins(ush, usm),
-      uniEnd:     toMins(ueh, uem),
-      bedMin:     toMins(0, 0) + 24 * 60,  // 00:00 next day = 1440
-    }
-  }
+  // Training
+  const [travelGymMin, setTravelGymMin] = useState(0)
 
-  const [cfg, setCfg] = useState<PlanConfig | null>(null)
-  const [plan, setPlan] = useState<DayPlan[]>([])
+  // Aktivitäten
+  const [progHours, setProgHours] = useState(2)
+  const [readingMin, setReadingMin] = useState(60)
 
-  // Fixed appointments
+  // Haushalt
+  const [haushaltMin, setHaushaltMin] = useState(0)
+  const [haushaltDay, setHaushaltDay] = useState(5)
+  const [haushaltStart, setHaushaltStart] = useState('10:00')
+
+  // Feste Termine
   const [appointments, setAppointments] = useState<FixedAppointment[]>([])
   const [apptDayIdx, setApptDayIdx] = useState(0)
   const [apptTitle, setApptTitle] = useState('')
   const [apptStart, setApptStart] = useState('10:00')
   const [apptDur, setApptDur] = useState(60)
+  const [apptTravel, setApptTravel] = useState(0)
 
   function addAppointment() {
     if (!apptTitle.trim()) return
@@ -459,9 +499,37 @@ export default function WeeklyPlannerPage() {
       title: apptTitle.trim(),
       startMin: h * 60 + m,
       durationMin: apptDur,
+      travelMin: apptTravel,
     }])
     setApptTitle('')
+    setApptTravel(0)
   }
+
+  function buildConfig(): PlanConfig {
+    const [wh, wm] = wakeTime.split(':').map(Number)
+    const [ush, usm] = uniStart.split(':').map(Number)
+    const [ueh, uem] = uniEnd.split(':').map(Number)
+    const [hsh, hsm] = haushaltStart.split(':').map(Number)
+    return {
+      weekStart: new Date(weekStart + 'T00:00:00'),
+      phase, phaseWeek,
+      wakeMin: toMins(wh, wm),
+      routineMin,
+      programmingMin: progHours * 60,
+      readingMin,
+      uniStart: toMins(ush, usm),
+      uniEnd: toMins(ueh, uem),
+      travelUniMin,
+      travelGymMin,
+      haushaltMin,
+      haushaltDay,
+      haushaltStart: toMins(hsh, hsm),
+      bedMin: toMins(0, 0) + 24 * 60,
+    }
+  }
+
+  const [cfg, setCfg] = useState<PlanConfig | null>(null)
+  const [plan, setPlan] = useState<DayPlan[]>([])
 
   function generate() {
     const c = buildConfig()
@@ -471,20 +539,20 @@ export default function WeeklyPlannerPage() {
     setSelDay(0)
   }
 
-  // ── Wizard UI ────────────────────────────────────────────────────────────
+  // ── Wizard UI ──────────────────────────────────────────────────────────
 
   if (step === 'wizard') {
     return (
-      <div className="page-root" style={{ maxWidth: 560 }}>
+      <div className="page-root" style={{ maxWidth: 580 }}>
         <PageHeader title="Wochenplaner" subtitle="Generiere deine perfekte Woche." />
 
-        <div className="space-y-6">
-          {/* Week */}
+        <div className="space-y-5">
+
+          {/* ── Woche ── */}
           <Section title="Woche">
             <Row label="Start (Montag)">
               <input type="date" value={weekStart} onChange={e => setWeekStart(e.target.value)}
-                     className="px-3 py-2 rounded-xl text-sm outline-none"
-                     style={inputStyle} />
+                     className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
             </Row>
             <Row label="Trainingsphase">
               <div className="flex gap-1">
@@ -502,12 +570,93 @@ export default function WeeklyPlannerPage() {
             </Row>
           </Section>
 
-          {/* Schedule basics */}
+          {/* ── Feste Termine ── prominent at top */}
+          <div className="rounded-2xl overflow-hidden"
+               style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,159,10,0.3)' }}>
+            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,159,10,0.2)', background: 'rgba(255,159,10,0.06)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#ff9f0a' }}>
+                📅 Feste Termine
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Termine werden inkl. Wegzeit in den Plan eingeplant
+              </p>
+            </div>
+            <div className="p-4 space-y-3">
+              {/* Day + Title */}
+              <div className="flex gap-2">
+                <select value={apptDayIdx} onChange={e => setApptDayIdx(Number(e.target.value))}
+                        className="px-3 py-2 rounded-xl text-sm outline-none flex-shrink-0"
+                        style={inputStyle}>
+                  {DAY_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+                </select>
+                <input type="text" placeholder="Titel des Termins" value={apptTitle}
+                       onChange={e => setApptTitle(e.target.value)}
+                       onKeyDown={e => { if (e.key === 'Enter') addAppointment() }}
+                       className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+                       style={inputStyle} />
+              </div>
+              {/* Time + Duration + Travel */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Uhrzeit</label>
+                  <input type="time" value={apptStart} onChange={e => setApptStart(e.target.value)}
+                         className="w-full px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Dauer</label>
+                  <div className="flex gap-1 flex-wrap">
+                    {[30, 60, 90, 120].map(m => (
+                      <Pill key={m} active={apptDur === m} onClick={() => setApptDur(m)} label={m >= 60 ? `${m / 60}h` : `${m}min`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Wegzeit (je Richtung)
+                </label>
+                <div className="flex gap-1 flex-wrap">
+                  {[0, 10, 15, 20, 30, 45, 60].map(m => (
+                    <Pill key={m} active={apptTravel === m} onClick={() => setApptTravel(m)}
+                          label={m === 0 ? 'Keine' : `${m}min`} />
+                  ))}
+                </div>
+              </div>
+              <button onClick={addAppointment} disabled={!apptTitle.trim()}
+                      className="w-full py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-40"
+                      style={{ background: 'rgba(255,159,10,0.15)', color: '#ff9f0a', border: '1px solid rgba(255,159,10,0.3)' }}>
+                <Plus size={14} /> Termin hinzufügen
+                {apptTravel > 0 && <span className="text-[10px] opacity-70">(+{apptTravel}min Weg je Seite)</span>}
+              </button>
+              {appointments.length > 0 && (
+                <div className="space-y-1.5">
+                  {appointments.map(a => (
+                    <div key={a.id} className="flex items-start gap-2 px-3 py-2.5 rounded-xl"
+                         style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
+                      <span className="text-xs font-semibold w-6 mt-0.5" style={{ color: '#ff9f0a' }}>{DAY_SHORT[a.dayIndex]}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{a.title}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {minsToTime(a.startMin)} · {a.durationMin}min
+                          {a.travelMin > 0 && ` · 🚶 ${a.travelMin}min Weg je Richtung`}
+                        </p>
+                      </div>
+                      <button onClick={() => setAppointments(prev => prev.filter(x => x.id !== a.id))}
+                              className="p-1 rounded transition-all hover:opacity-70 flex-shrink-0">
+                        <X size={12} style={{ color: 'var(--text-muted)' }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Tagesrhythmus ── */}
           <Section title="Tagesrhythmus">
             <Row label="Aufwachen">
               <input type="time" value={wakeTime} onChange={e => setWakeTime(e.target.value)}
-                     className="px-3 py-2 rounded-xl text-sm outline-none"
-                     style={inputStyle} />
+                     className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
             </Row>
             <Row label="Morgenroutine">
               <div className="flex gap-1">
@@ -518,7 +667,7 @@ export default function WeeklyPlannerPage() {
             </Row>
           </Section>
 
-          {/* Uni */}
+          {/* ── Uni ── */}
           <Section title="Uni (Do + Fr)">
             <Row label="Beginn">
               <input type="time" value={uniStart} onChange={e => setUniStart(e.target.value)}
@@ -528,9 +677,29 @@ export default function WeeklyPlannerPage() {
               <input type="time" value={uniEnd} onChange={e => setUniEnd(e.target.value)}
                      className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
             </Row>
+            <Row label="Wegzeit (je Richtung)">
+              <div className="flex gap-1 flex-wrap">
+                {[0, 10, 15, 20, 30, 45, 60].map(m => (
+                  <Pill key={m} active={travelUniMin === m} onClick={() => setTravelUniMin(m)}
+                        label={m === 0 ? 'Keine' : `${m}min`} />
+                ))}
+              </div>
+            </Row>
           </Section>
 
-          {/* Activities */}
+          {/* ── Training ── */}
+          <Section title="Training">
+            <Row label="Wegzeit zum Gym (je Richtung)">
+              <div className="flex gap-1 flex-wrap">
+                {[0, 10, 15, 20, 30, 45].map(m => (
+                  <Pill key={m} active={travelGymMin === m} onClick={() => setTravelGymMin(m)}
+                        label={m === 0 ? 'Keine' : `${m}min`} />
+                ))}
+              </div>
+            </Row>
+          </Section>
+
+          {/* ── Aktivitäten ── */}
           <Section title="Aktivitäten">
             <Row label="Programmieren / Tag">
               <div className="flex gap-1">
@@ -548,60 +717,35 @@ export default function WeeklyPlannerPage() {
             </Row>
           </Section>
 
-          {/* Fixed appointments */}
-          <Section title="Feste Termine">
-            <div className="px-4 py-3 space-y-3">
-              <div className="flex gap-2">
-                <select value={apptDayIdx} onChange={e => setApptDayIdx(Number(e.target.value))}
-                        className="px-3 py-2 rounded-xl text-sm outline-none flex-shrink-0"
-                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
-                  {DAY_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
-                </select>
-                <input type="text" placeholder="Titel" value={apptTitle}
-                       onChange={e => setApptTitle(e.target.value)}
-                       onKeyDown={e => { if (e.key === 'Enter') addAppointment() }}
-                       className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                       style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+          {/* ── Haushalt ── */}
+          <Section title="Haushalt">
+            <Row label="Zeit einplanen">
+              <div className="flex gap-1 flex-wrap">
+                {[0, 30, 60, 90, 120].map(m => (
+                  <Pill key={m} active={haushaltMin === m} onClick={() => setHaushaltMin(m)}
+                        label={m === 0 ? 'Keins' : m >= 60 ? `${m / 60}h` : `${m}min`} />
+                ))}
               </div>
-              <div className="flex gap-2 items-center">
-                <input type="time" value={apptStart} onChange={e => setApptStart(e.target.value)}
-                       className="px-3 py-2 rounded-xl text-sm outline-none"
-                       style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-                <div className="flex gap-1">
-                  {[30, 60, 90, 120].map(m => (
-                    <Pill key={m} active={apptDur === m} onClick={() => setApptDur(m)} label={m >= 60 ? `${m / 60}h` : `${m}min`} />
-                  ))}
-                </div>
-                <button onClick={addAppointment}
-                        className="ml-auto p-2 rounded-xl transition-all active:scale-95"
-                        style={{ background: 'var(--accent)', color: '#000' }}>
-                  <Plus size={16} />
-                </button>
-              </div>
-              {appointments.length > 0 && (
-                <div className="space-y-1 mt-1">
-                  {appointments.map(a => (
-                    <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                         style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
-                      <span className="text-xs font-semibold w-6" style={{ color: '#ff9f0a' }}>{DAY_SHORT[a.dayIndex]}</span>
-                      <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>
-                        {a.title} · {minsToTime(a.startMin)} ({a.durationMin}min)
-                      </span>
-                      <button onClick={() => setAppointments(prev => prev.filter(x => x.id !== a.id))}
-                              className="p-0.5 rounded transition-all hover:opacity-70">
-                        <X size={12} style={{ color: 'var(--text-muted)' }} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </Row>
+            {haushaltMin > 0 && (
+              <>
+                <Row label="Wochentag">
+                  <select value={haushaltDay} onChange={e => setHaushaltDay(Number(e.target.value))}
+                          className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle}>
+                    {DAY_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+                  </select>
+                </Row>
+                <Row label="Uhrzeit">
+                  <input type="time" value={haushaltStart} onChange={e => setHaushaltStart(e.target.value)}
+                         className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+                </Row>
+              </>
+            )}
           </Section>
 
-          <button
-            onClick={generate}
-            className="w-full py-4 rounded-2xl text-base font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-            style={{ background: 'var(--accent)', color: '#000' }}>
+          <button onClick={generate}
+                  className="w-full py-4 rounded-2xl text-base font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  style={{ background: 'var(--accent)', color: '#000' }}>
             Woche generieren <ChevronRight size={18} />
           </button>
         </div>
@@ -625,10 +769,9 @@ export default function WeeklyPlannerPage() {
                     style={{ color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
               <RefreshCw size={14} /> Neu
             </button>
-            <button
-              onClick={() => cfg && exportICS(plan, cfg)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
-              style={{ background: 'var(--accent)', color: '#000' }}>
+            <button onClick={() => cfg && exportICS(plan, cfg)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
+                    style={{ background: 'var(--accent)', color: '#000' }}>
               <Download size={14} /> .ics Export
             </button>
           </div>
@@ -640,6 +783,7 @@ export default function WeeklyPlannerPage() {
         {plan.map((day, i) => {
           const hasTraining = day.events.some(e => e.type === 'run' || e.type === 'strength')
           const isUni = day.events.some(e => e.type === 'uni')
+          const hasAppt = day.events.some(e => e.type === 'appointment')
           return (
             <button key={i} onClick={() => setSelDay(i)}
                     className="flex-shrink-0 flex flex-col items-center py-2.5 px-3 rounded-xl transition-all"
@@ -651,6 +795,7 @@ export default function WeeklyPlannerPage() {
               <div className="flex gap-0.5 mt-1">
                 {hasTraining && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff453a' }} />}
                 {isUni && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : 'var(--accent)' }} />}
+                {hasAppt && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff9f0a' }} />}
               </div>
             </button>
           )
@@ -673,6 +818,16 @@ export default function WeeklyPlannerPage() {
                   <span className="text-sm w-5 text-center">{ev.emoji}</span>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     00:00 – {minsToTime(ev.end)} · Schlafen
+                  </span>
+                </div>
+              )
+              if (ev.type === 'travel') return (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-60"
+                     style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+                  <span className="text-sm w-5 text-center">{ev.emoji}</span>
+                  <span className="text-xs flex-1" style={{ color: style.color }}>{ev.title}</span>
+                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                    {minsToTime(ev.start % (24 * 60))} – {minsToTime(ev.end % (24 * 60))}
                   </span>
                 </div>
               )
@@ -702,15 +857,16 @@ export default function WeeklyPlannerPage() {
           </div>
 
           {/* Day summary */}
-          <div className="mt-6 grid grid-cols-3 gap-2">
+          <div className="mt-6 grid grid-cols-4 gap-2">
             {[
               { label: 'Training', value: `${currentDay.events.filter(e => e.type === 'run' || e.type === 'strength').reduce((s, e) => s + e.end - e.start, 0)}min`, color: '#ff453a' },
+              { label: 'Unterwegs', value: `${currentDay.events.filter(e => e.type === 'travel').reduce((s, e) => s + e.end - e.start, 0)}min`, color: 'var(--text-muted)' },
               { label: 'Produktiv', value: `${currentDay.events.filter(e => e.type === 'coding' || e.type === 'reading' || e.type === 'uni').reduce((s, e) => s + e.end - e.start, 0)}min`, color: 'var(--green)' },
               { label: 'Frei', value: `${currentDay.events.filter(e => e.type === 'free').reduce((s, e) => s + e.end - e.start, 0)}min`, color: 'var(--accent)' },
             ].map(s => (
               <div key={s.label} className="p-3 rounded-2xl text-center"
                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                <p className="text-lg font-semibold tabular-nums" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-base font-semibold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
               </div>
             ))}
@@ -718,7 +874,7 @@ export default function WeeklyPlannerPage() {
         </div>
       )}
 
-      {/* Week overview mini */}
+      {/* Week overview */}
       <div className="mt-8">
         <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
           Wochenübersicht
@@ -728,14 +884,19 @@ export default function WeeklyPlannerPage() {
             const trainMin = day.events.filter(e => e.type === 'run' || e.type === 'strength').reduce((s, e) => s + e.end - e.start, 0)
             const isUni = day.events.some(e => e.type === 'uni')
             const sessions = day.events.filter(e => e.type === 'run' || e.type === 'strength')
+            const appts = day.events.filter(e => e.type === 'appointment')
+            const hasHaushalt = day.events.some(e => e.type === 'haushalt')
             return (
               <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all"
-                   style={{ background: selDay === i ? 'rgba(10,132,255,0.1)' : 'var(--bg-surface)', border: `1px solid ${selDay === i ? 'rgba(10,132,255,0.3)' : 'var(--border-subtle)'}` }}
+                   style={{ background: selDay === i ? 'rgba(10,132,255,0.1)' : 'var(--bg-surface)',
+                            border: `1px solid ${selDay === i ? 'rgba(10,132,255,0.3)' : 'var(--border-subtle)'}` }}
                    onClick={() => setSelDay(i)}>
                 <span className="text-xs font-semibold w-6" style={{ color: 'var(--text-muted)' }}>{DAY_SHORT[i]}</span>
                 <div className="flex-1 flex flex-wrap gap-1">
                   {isUni && <Tag label="🎓 Uni" color="var(--accent)" />}
                   {sessions.map((s, j) => <Tag key={j} label={`${s.emoji} ${s.title.split('–')[0].trim()}`} color={s.type === 'run' ? '#ff453a' : '#bf5af2'} />)}
+                  {appts.map((a, j) => <Tag key={`a${j}`} label={`📅 ${a.title}`} color="#ff9f0a" />)}
+                  {hasHaushalt && <Tag label="🏠 Haushalt" color="#40c8e0" />}
                   {i === 6 && <Tag label="🌿 Regeneration" color="var(--green)" />}
                 </div>
                 {trainMin > 0 && <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{trainMin}min</span>}
@@ -745,12 +906,12 @@ export default function WeeklyPlannerPage() {
         </div>
       </div>
 
-      {/* ICS info box */}
+      {/* ICS info */}
       <div className="mt-6 p-4 rounded-2xl" style={{ background: 'rgba(10,132,255,0.06)', border: '1px solid rgba(10,132,255,0.15)' }}>
         <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent)' }}>📲 In Apple Kalender importieren</p>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           .ics exportieren → Datei auf iPhone/Mac öffnen → "Zum Kalender hinzufügen" → Fertig.
-          Alle Trainings- und Uni-Blöcke erscheinen automatisch.
+          Wegzeiten, Termine und Trainingsblöcke erscheinen automatisch.
         </p>
       </div>
     </div>
@@ -781,7 +942,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
-      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span className="text-sm flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>{label}</span>
       {children}
     </div>
   )
