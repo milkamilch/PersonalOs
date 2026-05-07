@@ -90,7 +90,7 @@ _, _, _ = client.exec_command(f"echo '{env_content}' > /root/personalos/.env")
 
 print("  Starte Container neu…")
 _, stdout, stderr = client.exec_command(
-    "cd /root/personalos && docker compose up -d --force-recreate 2>&1"
+    "cd /root/personalos && docker compose up -d --build --force-recreate 2>&1"
 )
 out = stdout.read().decode()
 err = stderr.read().decode()
