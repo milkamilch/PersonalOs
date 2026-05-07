@@ -172,7 +172,17 @@
 /* ── Page layout helpers */
 .page-root {
   min-height: 100%;
-  padding: 28px 32px 48px;
+  padding: 20px 16px 96px;   /* bottom: 96px covers mobile nav + breathing room */
+}
+@media (min-width: 768px) {
+  .page-root {
+    padding: 28px 28px 56px;
+  }
+}
+@media (min-width: 1024px) {
+  .page-root {
+    padding: 32px 36px 56px;
+  }
 }
 .page-narrow  { max-width: 680px;  margin: 0 auto; }
 .page-medium  { max-width: 900px;  margin: 0 auto; }

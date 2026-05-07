@@ -64,7 +64,7 @@ function GreetingBar() {
   const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="flex items-baseline justify-between mb-4 flex-shrink-0 px-1">
+    <div className="flex items-baseline justify-between mb-5 flex-shrink-0 px-1">
       <div>
         <h1 className="font-semibold" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           {greeting}, Lars
@@ -137,7 +137,7 @@ function QuickStats() {
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-2 mb-4 flex-shrink-0">
+    <div className="grid grid-cols-4 gap-2 mb-5 flex-shrink-0">
       {stats.map(s => (
         <Link key={s.label} to={s.href} style={{ textDecoration: 'none' }}>
           <div className="flex flex-col items-center justify-center py-3 rounded-2xl gap-1 transition-all active:scale-95"
@@ -682,22 +682,22 @@ function NewsWidget() {
 export default function DashboardPage() {
   return (
     <div className="overflow-y-auto" style={{ background: 'var(--bg-base)', minHeight: '100%' }}>
-      <div style={{ padding: '20px 16px 32px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ padding: '20px 16px 96px', maxWidth: 1280, margin: '0 auto' }}>
         <GreetingBar />
         <QuickStats />
 
-        {/* Desktop: 3-column grid | Mobile: single column */}
-        <div className="grid gap-3"
-             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+        {/* Desktop: 3-column grid | Tablet: 2-column | Mobile: single column */}
+        <div className="grid gap-4"
+             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))' }}>
 
           {/* Column 1: Habits + Todos */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <HabitsWidget />
             <TodosWidget />
           </div>
 
           {/* Column 2: Finance + Journal + Notes + Goals */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <FinanceWidget />
             <JournalWidget />
             <NotesWidget />
@@ -705,7 +705,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Column 3: Weather + Server + GitHub + News */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <WeatherWidget />
             <ServerWidget />
             <GitHubWidget />

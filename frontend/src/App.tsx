@@ -41,7 +41,7 @@ export default function App() {
             <Sidebar />
           </div>
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-            <main className="flex-1 min-w-0 overflow-y-auto" style={{ background: 'var(--bg-base)' }}>
+            <main className="flex-1 min-w-0 overflow-y-auto md:pb-0" style={{ background: 'var(--bg-base)' }}>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
