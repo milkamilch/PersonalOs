@@ -44,6 +44,7 @@ interface PlanConfig {
   readingMin: number
   uniStart: number
   uniEnd: number
+  uniDays: Set<number>        // which weekday indices (0=Mon) have uni
   travelUniMin: number
   travelGymMin: number
   haushaltMin: number
@@ -98,7 +99,7 @@ const P1: Array<{ morning?: TrainSession; evening?: TrainSession }> = [
 ]
 
 const TRAINING_BY_PHASE: Record<number, typeof P1> = { 1: P1, 2: P1, 3: P1 }
-const UNI_DAYS = new Set([3, 4])
+// UNI_DAYS is now per-config; no global constant
 
 // ── Core slot-finder ───────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
     date.setDate(date.getDate() + d)
     const events: PlanEvent[] = []
     const day = training[d]
-    const isUni    = UNI_DAYS.has(d)
+    const isUni    = cfg.uniDays.has(d)
     const isSunday = d === 6
     const ev = (e: PlanEvent) => events.push(e)
 
@@ -516,6 +517,7 @@ export default function WeeklyPlannerPage() {
   const [phaseWeek,   setPhaseWeek]   = useState<1|2|3|4>(1)
   const [wakeTime,    setWakeTime]    = useState('07:15')
   const [routineMin,  setRoutineMin]  = useState(30)
+  const [uniDays,     setUniDays]     = useState<Set<number>>(new Set([0, 1, 2, 3]))
   const [uniStart,    setUniStart]    = useState('09:00')
   const [uniEnd,      setUniEnd]      = useState('13:00')
   const [travelUniMin, setTravelUniMin] = useState(0)
@@ -548,6 +550,10 @@ export default function WeeklyPlannerPage() {
       setRoutineMin(d.routine_min ?? 30)
       setProgHours(d.prog_hours ?? 2)
       setReadingMin(d.reading_min ?? 60)
+      if (d.uni_days) {
+        const days = String(d.uni_days).split(',').map(Number).filter(n => !isNaN(n))
+        setUniDays(new Set(days))
+      }
       setUniStart(d.uni_start ?? '09:00')
       setUniEnd(d.uni_end ?? '13:00')
       setTravelUniMin(d.travel_uni_min ?? 0)
@@ -611,6 +617,7 @@ export default function WeeklyPlannerPage() {
       wakeMin: toMins(wh, wm), routineMin,
       programmingMin: progHours * 60, readingMin,
       uniStart: toMins(ush, usm), uniEnd: toMins(ueh, uem),
+      uniDays: new Set(uniDays),
       travelUniMin, travelGymMin,
       haushaltMin, haushaltDay, haushaltStart: toMins(hsh, hsm),
       studyHoursWeekly: studyHours,
@@ -667,6 +674,7 @@ export default function WeeklyPlannerPage() {
       routine_min:     routineMin,
       prog_hours:      progHours,
       reading_min:     readingMin,
+      uni_days:        Array.from(uniDays).join(','),
       uni_start:       uniStart,
       uni_end:         uniEnd,
       travel_uni_min:  travelUniMin,
@@ -787,20 +795,35 @@ export default function WeeklyPlannerPage() {
             </Row>
           </Section>
 
-          <Section title="Uni (Do + Fr)">
-            <Row label="Beginn">
-              <input type="time" value={uniStart} onChange={e => setUniStart(e.target.value)}
-                     className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
-            </Row>
-            <Row label="Ende">
-              <input type="time" value={uniEnd} onChange={e => setUniEnd(e.target.value)}
-                     className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
-            </Row>
-            <Row label="Wegzeit je Richtung">
+          <Section title="Uni">
+            <Row label="Uni-Tage">
               <div className="flex gap-1 flex-wrap">
-                {[0,10,15,20,30,45,60].map(m => <Pill key={m} active={travelUniMin===m} onClick={() => setTravelUniMin(m)} label={m===0?'Keine':`${m}min`} />)}
+                {['Mo','Di','Mi','Do','Fr','Sa','So'].map((d, i) => (
+                  <Pill key={i} active={uniDays.has(i)}
+                    onClick={() => setUniDays(prev => {
+                      const next = new Set(prev)
+                      if (next.has(i)) next.delete(i); else next.add(i)
+                      return next
+                    })}
+                    label={d} />
+                ))}
               </div>
             </Row>
+            {uniDays.size > 0 && <>
+              <Row label="Beginn">
+                <input type="time" value={uniStart} onChange={e => setUniStart(e.target.value)}
+                       className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+              </Row>
+              <Row label="Ende">
+                <input type="time" value={uniEnd} onChange={e => setUniEnd(e.target.value)}
+                       className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+              </Row>
+              <Row label="Wegzeit je Richtung">
+                <div className="flex gap-1 flex-wrap">
+                  {[0,10,15,20,30,45,60].map(m => <Pill key={m} active={travelUniMin===m} onClick={() => setTravelUniMin(m)} label={m===0?'Keine':`${m}min`} />)}
+                </div>
+              </Row>
+            </>}
           </Section>
 
           <Section title="Training">
