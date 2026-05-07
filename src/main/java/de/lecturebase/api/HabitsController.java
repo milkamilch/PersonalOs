@@ -96,4 +96,23 @@ public class HabitsController {
         }
         return result;
     }
+
+    @GetMapping("/heatmap")
+    public List<Map<String, Object>> heatmap(@RequestParam(defaultValue = "120") int days) {
+        LocalDate today = LocalDate.now();
+        int total = jdbc.queryForObject("SELECT COUNT(*) FROM habits", Integer.class);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            String date = today.minusDays(i).toString();
+            int done = jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT habit_id) FROM habit_entries WHERE entry_date = ?",
+                Integer.class, date);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", date);
+            row.put("done", done);
+            row.put("total", total);
+            result.add(row);
+        }
+        return result;
+    }
 }

@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import QuickAdd from './QuickAdd'
+import { clearApiKey } from '../api/client'
+import { LogOut } from 'lucide-react'
 import {
   BookOpen, Brain, Map, Search, LayoutDashboard,
   FolderKanban, CheckSquare, GitBranch, Server,
@@ -126,6 +128,14 @@ export default function Sidebar() {
                 style={{ color: 'var(--text-muted)' }}>
             Lars
           </span>
+          <button
+            onClick={() => { clearApiKey(); window.location.reload() }}
+            className="ml-auto opacity-0 group-hover/sb:opacity-100 transition-opacity duration-100 delay-[60ms] p-1 rounded-lg hover:opacity-70"
+            title="Abmelden"
+            style={{ color: 'var(--text-muted)', flexShrink: 0 }}
+          >
+            <LogOut size={12} />
+          </button>
         </div>
       </div>
     </aside>

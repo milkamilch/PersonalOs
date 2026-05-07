@@ -84,6 +84,7 @@ env_vars = {
     "SERVER_HOST":     os.environ.get("SERVER_HOST", ""),
     "SERVER_SSH_USER": os.environ.get("SERVER_SSH_USER", "root"),
     "SERVER_SSH_PASS": os.environ.get("SERVER_SSH_PASS", ""),
+    "APP_PASSWORD":    os.environ.get("APP_PASSWORD", ""),
 }
 env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items())
 _, _, _ = client.exec_command(f"echo '{env_content}' > /root/personalos/.env")

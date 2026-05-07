@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Sparkles } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { JournalEntry } from '../api/types'
 import PageHeader from '../components/PageHeader'
@@ -30,6 +31,8 @@ export default function JournalPage() {
   const [content, setContent] = useState('')
   const [synced, setSynced]   = useState(false)
   const [saved, setSaved]     = useState(false)
+  const [reflection, setReflection] = useState('')
+  const [reflecting, setReflecting] = useState(false)
 
   const { data: today } = useQuery<JournalEntry>({
     queryKey: ['journalToday'],
@@ -54,6 +57,19 @@ export default function JournalPage() {
       setSynced(true)
     }
   }, [today, synced])
+
+  async function reflect() {
+    setReflecting(true)
+    setReflection('')
+    try {
+      const r = await endpoints.journalReflect()
+      setReflection(r.data?.reflection ?? '')
+    } catch {
+      setReflection('Fehler beim Laden der Reflexion.')
+    } finally {
+      setReflecting(false)
+    }
+  }
 
   const save = useMutation({
     mutationFn: (data: { entryDate: string; mood: number; content: string }) =>
@@ -169,6 +185,28 @@ export default function JournalPage() {
                 </div>
               </Card>
             )}
+
+            {/* AI Reflection */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                  KI-Reflexion
+                </p>
+                <Button variant="ghost" size="sm" icon={<Sparkles size={13} />}
+                        loading={reflecting} onClick={reflect}>
+                  Woche reflektieren
+                </Button>
+              </div>
+              {reflection ? (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
+                  {reflection}
+                </p>
+              ) : (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Lässt deine letzten 7 Einträge von Claude analysieren.
+                </p>
+              )}
+            </Card>
 
             {/* Last entries quick view */}
             {entries.slice(0, 5).map(e => (

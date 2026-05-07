@@ -1,19 +1,25 @@
 package de.lecturebase.api;
 
+import de.lecturebase.ai.AiClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/journal")
 public class JournalController {
 
     private final JdbcTemplate jdbc;
+    private final AiClient ai;
 
-    public JournalController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public JournalController(JdbcTemplate jdbc, AiClient ai) {
+        this.jdbc = jdbc;
+        this.ai = ai;
+    }
 
     @GetMapping
     public List<Map<String, Object>> list(@RequestParam(defaultValue = "30") int limit) {
@@ -57,5 +63,46 @@ public class JournalController {
             SELECT entry_date, mood FROM journal_entries
             ORDER BY entry_date DESC LIMIT 30
         """);
+    }
+
+    /** AI reflection on the last 7 journal entries. */
+    @PostMapping("/reflect")
+    public Map<String, String> reflect() {
+        List<Map<String, Object>> entries = jdbc.queryForList("""
+            SELECT entry_date, mood, content FROM journal_entries
+            ORDER BY entry_date DESC LIMIT 7
+        """);
+
+        if (entries.isEmpty()) {
+            return Map.of("reflection", "Noch keine Einträge vorhanden. Schreib ein paar Tage lang und ich kann deine Woche reflektieren.");
+        }
+
+        String[] moodLabels = {"", "Schlecht", "Mäßig", "Okay", "Gut", "Super"};
+        String entriesText = entries.stream()
+            .map(e -> {
+                String date = String.valueOf(e.get("entry_date"));
+                int mood    = ((Number) e.get("mood")).intValue();
+                String text = String.valueOf(e.getOrDefault("content", "")).trim();
+                return String.format("[%s] Stimmung: %s (%d/5)\n%s",
+                    date, mood > 0 && mood <= 5 ? moodLabels[mood] : "?", mood,
+                    text.isEmpty() ? "(kein Text)" : text);
+            })
+            .collect(Collectors.joining("\n\n---\n\n"));
+
+        String system = """
+            Du bist ein einfühlsamer persönlicher Assistent, der Journaleinträge reflektiert.
+            Antworte auf Deutsch. Sei kurz, ehrlich und ermutigend.
+            Vermeide Floskeln. Maximal 150 Wörter.
+            Struktur: 1) Was diese Woche auffällt (Muster, Themen, Stimmung), 2) Eine konkrete Beobachtung, 3) Ein kurzer Gedankenanstoß.
+            """;
+
+        String userMsg = "Hier sind meine letzten Journaleinträge. Bitte reflektiere sie kurz:\n\n" + entriesText;
+
+        try {
+            String reflection = ai.ask(system, userMsg);
+            return Map.of("reflection", reflection);
+        } catch (Exception e) {
+            return Map.of("reflection", "Reflexion konnte nicht generiert werden. Prüfe ob der AI-API-Key gesetzt ist.");
+        }
     }
 }

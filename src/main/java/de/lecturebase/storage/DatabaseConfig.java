@@ -420,6 +420,41 @@ public class DatabaseConfig {
                     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS weekly_planner_config (
+                    id              INTEGER PRIMARY KEY DEFAULT 1,
+                    wake_time       TEXT    NOT NULL DEFAULT '06:00',
+                    routine_min     INTEGER NOT NULL DEFAULT 30,
+                    prog_hours      INTEGER NOT NULL DEFAULT 2,
+                    reading_min     INTEGER NOT NULL DEFAULT 30,
+                    uni_start       TEXT    NOT NULL DEFAULT '10:00',
+                    uni_end         TEXT    NOT NULL DEFAULT '16:00',
+                    uni_days        TEXT    NOT NULL DEFAULT '1,2,3,4',
+                    travel_uni_min  INTEGER NOT NULL DEFAULT 20,
+                    travel_gym_min  INTEGER NOT NULL DEFAULT 15,
+                    haushalt_min    INTEGER NOT NULL DEFAULT 60,
+                    haushalt_day    INTEGER NOT NULL DEFAULT 5,
+                    haushalt_start  TEXT    NOT NULL DEFAULT '10:00',
+                    study_hours     INTEGER NOT NULL DEFAULT 0,
+                    thesis_hours    INTEGER NOT NULL DEFAULT 0,
+                    study_block_min INTEGER NOT NULL DEFAULT 90,
+                    phase           INTEGER NOT NULL DEFAULT 1,
+                    phase_week      INTEGER NOT NULL DEFAULT 1,
+                    bed_hour        INTEGER NOT NULL DEFAULT 23,
+                    bed_min         INTEGER NOT NULL DEFAULT 0
+                )
+            """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS weekly_fixed_appointments (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    appt_id     TEXT    NOT NULL UNIQUE,
+                    day_index   INTEGER NOT NULL,
+                    title       TEXT    NOT NULL,
+                    start_min   INTEGER NOT NULL,
+                    duration_min INTEGER NOT NULL DEFAULT 60,
+                    travel_min  INTEGER NOT NULL DEFAULT 0
+                )
+            """);
         };
     }
 }

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Download, ChevronRight, RefreshCw, Plus, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { endpoints } from '../api/client'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -538,14 +539,64 @@ export default function WeeklyPlannerPage() {
   const [cfg,  setCfg]  = useState<PlanConfig | null>(null)
   const [plan, setPlan] = useState<DayPlan[]>([])
 
+  // Load persisted config on mount
+  useEffect(() => {
+    endpoints.weeklyConfig().then(r => {
+      const d = r.data
+      if (!d || !d.wake_time) return
+      setWakeTime(d.wake_time)
+      setRoutineMin(d.routine_min ?? 30)
+      setProgHours(d.prog_hours ?? 2)
+      setReadingMin(d.reading_min ?? 60)
+      setUniStart(d.uni_start ?? '09:00')
+      setUniEnd(d.uni_end ?? '13:00')
+      setTravelUniMin(d.travel_uni_min ?? 0)
+      setTravelGymMin(d.travel_gym_min ?? 0)
+      setHaushaltMin(d.haushalt_min ?? 0)
+      setHaushaltDay(d.haushalt_day ?? 5)
+      setHaushaltStart(d.haushalt_start ?? '10:00')
+      setStudyHours(d.study_hours ?? 0)
+      setThesisHours(d.thesis_hours ?? 0)
+      setStudyBlockMin(d.study_block_min ?? 90)
+      setPhase((d.phase ?? 1) as 1|2|3)
+      setPhaseWeek((d.phase_week ?? 1) as 1|2|3|4)
+    }).catch(() => {})
+
+    endpoints.weeklyAppointments().then(r => {
+      setAppointments((r.data ?? []).map((a: Record<string, unknown>) => ({
+        id:          String(a.appt_id),
+        dayIndex:    Number(a.day_index),
+        title:       String(a.title),
+        startMin:    Number(a.start_min),
+        durationMin: Number(a.duration_min),
+        travelMin:   Number(a.travel_min),
+      })))
+    }).catch(() => {})
+  }, [])
+
   function addAppointment() {
     if (!apptTitle.trim()) return
     const [h, m] = apptStart.split(':').map(Number)
-    setAppointments(prev => [...prev, {
-      id: Math.random().toString(36).slice(2),
-      dayIndex: apptDayIdx, title: apptTitle.trim(),
-      startMin: h * 60 + m, durationMin: apptDur, travelMin: apptTravel,
-    }])
+    const body = {
+      day_index:    apptDayIdx,
+      title:        apptTitle.trim(),
+      start_min:    h * 60 + m,
+      duration_min: apptDur,
+      travel_min:   apptTravel,
+    }
+    endpoints.createWeeklyAppointment(body).then(r => {
+      const id = r.data?.id ?? Math.random().toString(36).slice(2)
+      setAppointments(prev => [...prev, {
+        id, dayIndex: body.day_index, title: body.title,
+        startMin: body.start_min, durationMin: body.duration_min, travelMin: body.travel_min,
+      }])
+    }).catch(() => {
+      setAppointments(prev => [...prev, {
+        id: Math.random().toString(36).slice(2),
+        dayIndex: body.day_index, title: body.title,
+        startMin: body.start_min, durationMin: body.duration_min, travelMin: body.travel_min,
+      }])
+    })
     setApptTitle(''); setApptTravel(0)
   }
 
@@ -573,6 +624,26 @@ export default function WeeklyPlannerPage() {
     const c = buildConfig()
     setCfg(c); setPlan(generatePlan(c, appointments))
     setStep('plan'); setSelDay(0)
+
+    // Persist config
+    endpoints.saveWeeklyConfig({
+      wake_time:       wakeTime,
+      routine_min:     routineMin,
+      prog_hours:      progHours,
+      reading_min:     readingMin,
+      uni_start:       uniStart,
+      uni_end:         uniEnd,
+      travel_uni_min:  travelUniMin,
+      travel_gym_min:  travelGymMin,
+      haushalt_min:    haushaltMin,
+      haushalt_day:    haushaltDay,
+      haushalt_start:  haushaltStart,
+      study_hours:     studyHours,
+      thesis_hours:    thesisHours,
+      study_block_min: studyBlockMin,
+      phase,
+      phase_week:      phaseWeek,
+    }).catch(() => {})
   }
 
   // ── Wizard ────────────────────────────────────────────────────────────────
@@ -655,8 +726,10 @@ export default function WeeklyPlannerPage() {
                           {minsToTime(a.startMin)} · {a.durationMin}min{a.travelMin > 0 && ` · 🚶 ${a.travelMin}min Weg`}
                         </p>
                       </div>
-                      <button onClick={() => setAppointments(prev => prev.filter(x => x.id !== a.id))}
-                              className="p-1 rounded hover:opacity-70 flex-shrink-0">
+                      <button onClick={() => {
+                        endpoints.deleteWeeklyAppointment(a.id).catch(() => {})
+                        setAppointments(prev => prev.filter(x => x.id !== a.id))
+                      }} className="p-1 rounded hover:opacity-70 flex-shrink-0">
                         <X size={12} style={{ color: 'var(--text-muted)' }} />
                       </button>
                     </div>

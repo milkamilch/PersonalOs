@@ -9,12 +9,24 @@ import { Button, Input, EmptyState, Card } from '../components/ui'
 const COLORS = ['#7c3aed','#4f46e5','#0891b2','#059669','#d97706','#dc2626','#db2777','#6366f1']
 const ICONS  = ['🏃','💪','📚','🧘','🥗','💧','😴','🎯','✍️','🎸','🧠','❤️','🌿','🛁','🚴']
 
+interface HeatmapDay { date: string; done: number; total: number }
+
+function heatColor(done: number, total: number): string {
+  if (total === 0 || done === 0) return 'rgba(255,255,255,0.04)'
+  const pct = done / total
+  if (pct >= 1)   return 'rgba(124,58,237,0.85)'
+  if (pct >= 0.7) return 'rgba(124,58,237,0.55)'
+  if (pct >= 0.4) return 'rgba(124,58,237,0.30)'
+  return 'rgba(124,58,237,0.14)'
+}
+
 export default function HabitsPage() {
   const qc = useQueryClient()
   const [showNew, setShowNew] = useState(false)
   const [name,  setName]  = useState('')
   const [icon,  setIcon]  = useState('✓')
   const [color, setColor] = useState('#7c3aed')
+  const [hovered, setHovered] = useState<HeatmapDay | null>(null)
 
   const { data: habits = [] } = useQuery<Habit[]>({
     queryKey: ['habits'],
@@ -27,9 +39,19 @@ export default function HabitsPage() {
     queryFn: () => endpoints.habitWeek().then(r => r.data),
   })
 
+  const { data: heatmap = [] } = useQuery<HeatmapDay[]>({
+    queryKey: ['habitHeatmap'],
+    queryFn: () => endpoints.habitHeatmap(120).then(r => r.data),
+    staleTime: 5 * 60_000,
+  })
+
   const toggle = useMutation({
     mutationFn: (id: number) => endpoints.toggleHabit(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['habits'] }); qc.invalidateQueries({ queryKey: ['habitWeek'] }) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['habits'] })
+      qc.invalidateQueries({ queryKey: ['habitWeek'] })
+      qc.invalidateQueries({ queryKey: ['habitHeatmap'] })
+    },
   })
 
   const create = useMutation({
@@ -48,6 +70,12 @@ export default function HabitsPage() {
   const todayDone = habits.filter(h => h.done_today === 1).length
   const total     = habits.length
 
+  // Build 17 columns × 7 rows grid (pad to full weeks)
+  const padded = [...heatmap]
+  while (padded.length % 7 !== 0) padded.unshift({ date: '', done: 0, total: 0 })
+  const weeks: HeatmapDay[][] = []
+  for (let i = 0; i < padded.length; i += 7) weeks.push(padded.slice(i, i + 7))
+
   return (
     <div className="page-root page-medium">
       <PageHeader
@@ -55,6 +83,51 @@ export default function HabitsPage() {
         subtitle={total > 0 ? `${todayDone} / ${total} heute erledigt` : 'Baue Routinen auf, die bleiben.'}
         actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setShowNew(s => !s)}>Neue Habit</Button>}
       />
+
+      {/* Heatmap */}
+      {heatmap.length > 0 && (
+        <Card className="mb-6 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Letzte 4 Monate
+            </p>
+            {hovered && hovered.date && (
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {new Date(hovered.date).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}
+                {' — '}{hovered.done}/{hovered.total}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-1 overflow-x-auto pb-1">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col gap-1">
+                {week.map((day, di) => (
+                  <div
+                    key={di}
+                    onMouseEnter={() => day.date ? setHovered(day) : undefined}
+                    onMouseLeave={() => setHovered(null)}
+                    style={{
+                      width: 12, height: 12,
+                      borderRadius: 3,
+                      background: day.date ? heatColor(day.done, day.total) : 'transparent',
+                      cursor: day.date ? 'default' : 'default',
+                      transition: 'background 0.1s',
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>0%</span>
+            {[0, 0.14, 0.30, 0.55, 0.85].map((_, i) => (
+              <div key={i} style={{ width: 10, height: 10, borderRadius: 2,
+                background: ['rgba(255,255,255,0.04)','rgba(124,58,237,0.14)','rgba(124,58,237,0.30)','rgba(124,58,237,0.55)','rgba(124,58,237,0.85)'][i] }} />
+            ))}
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>100%</span>
+          </div>
+        </Card>
+      )}
 
       {/* Week overview */}
       {week.length > 0 && (

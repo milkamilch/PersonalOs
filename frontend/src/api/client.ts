@@ -2,6 +2,17 @@ import axios from 'axios'
 
 export const api = axios.create({ baseURL: '/api' })
 
+const KEY = 'personalos_api_key'
+export const getApiKey  = () => localStorage.getItem(KEY) ?? ''
+export const setApiKey  = (k: string) => localStorage.setItem(KEY, k)
+export const clearApiKey = () => localStorage.removeItem(KEY)
+
+api.interceptors.request.use(cfg => {
+  const key = getApiKey()
+  if (key) cfg.headers['X-API-Key'] = key
+  return cfg
+})
+
 export const endpoints = {
   // Documents
   documents: () => api.get('/documents'),
@@ -133,6 +144,7 @@ export const endpoints = {
   upsertJournal: (b: object) => api.post('/journal', b),
   deleteJournalEntry: (id: number) => api.delete(`/journal/${id}`),
   moodTrend: () => api.get('/journal/mood-trend'),
+  journalReflect: () => api.post('/journal/reflect'),
 
   // Reading
   readingSessions: (params?: { mediaId?: number; days?: number }) => api.get('/reading/sessions', { params }),
@@ -172,4 +184,14 @@ export const endpoints = {
   createNote: (b: object) => api.post('/notes', b),
   updateNote: (id: number, b: object) => api.patch(`/notes/${id}`, b),
   deleteNote: (id: number) => api.delete(`/notes/${id}`),
+
+  // Habit heatmap
+  habitHeatmap: (days?: number) => api.get('/habits/heatmap', days ? { params: { days } } : {}),
+
+  // Weekly Planner
+  weeklyConfig: () => api.get('/planner-week/config'),
+  saveWeeklyConfig: (b: object) => api.put('/planner-week/config', b),
+  weeklyAppointments: () => api.get('/planner-week/appointments'),
+  createWeeklyAppointment: (b: object) => api.post('/planner-week/appointments', b),
+  deleteWeeklyAppointment: (id: string) => api.delete(`/planner-week/appointments/${id}`),
 }

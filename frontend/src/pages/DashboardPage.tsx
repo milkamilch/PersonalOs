@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Wifi, CheckSquare, GitBranch, AlertCircle, ExternalLink,
   Plus, Trash2, Newspaper, Repeat2, Wallet, Target,
-  CircleCheck, TrendingDown, BookOpen, ChevronRight, StickyNote
+  CircleCheck, TrendingDown, BookOpen, ChevronRight, StickyNote, Calendar
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { endpoints } from '../api/client'
-import type { ServerStatus, Todo, NewsItem, Habit, FinanceSummary, Goal, JournalEntry, QuickNote } from '../api/types'
+import type { ServerStatus, Todo, NewsItem, Habit, FinanceSummary, Goal, JournalEntry, QuickNote, CalendarEvent } from '../api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -617,6 +617,38 @@ function GitHubWidget() {
   )
 }
 
+// ── Today ─────────────────────────────────────────────────────────────────
+function TodayWidget() {
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: events = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ['calendarToday', today],
+    queryFn: () => endpoints.calendarEvents(today, today).then(r => r.data),
+    staleTime: 2 * 60_000,
+  })
+
+  return (
+    <Widget href="/calendar">
+      <WHead icon={Calendar} title={`Heute · ${new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}`} color="var(--accent)" />
+      <div className="p-3 space-y-1">
+        {events.length === 0 && (
+          <p className="text-xs py-2 text-center" style={{ color: 'var(--text-muted)' }}>Keine Termine heute</p>
+        )}
+        {events.map(e => (
+          <div key={e.id} className="flex items-center gap-2 px-2 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: e.color ?? 'var(--accent)' }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{e.title}</p>
+              {e.start_time && (
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{e.start_time}{e.end_time ? ` – ${e.end_time}` : ''}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Widget>
+  )
+}
+
 // ── News ──────────────────────────────────────────────────────────────────
 type FeedKey = 'de' | 'world' | 'bvb' | 'vikings'
 const FEEDS: { key: FeedKey; label: string }[] = [
@@ -696,8 +728,9 @@ export default function DashboardPage() {
             <TodosWidget />
           </div>
 
-          {/* Column 2: Finance + Journal + Notes + Goals */}
+          {/* Column 2: Today + Finance + Journal + Notes + Goals */}
           <div className="space-y-4">
+            <TodayWidget />
             <FinanceWidget />
             <JournalWidget />
             <NotesWidget />
