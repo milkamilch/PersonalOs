@@ -1,11 +1,19 @@
 import { useState } from 'react'
-import { Download, ChevronRight, RefreshCw } from 'lucide-react'
+import { Download, ChevronRight, RefreshCw, Plus, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type EventType = 'sleep' | 'routine' | 'food' | 'run' | 'strength' | 'recovery_sport' |
-  'uni' | 'coding' | 'reading' | 'free' | 'recovery'
+  'uni' | 'coding' | 'reading' | 'free' | 'recovery' | 'appointment'
+
+interface FixedAppointment {
+  id: string
+  dayIndex: number  // 0=Mon … 6=Sun
+  title: string
+  startMin: number
+  durationMin: number
+}
 
 interface PlanEvent {
   title: string
@@ -98,7 +106,7 @@ const TRAINING_BY_PHASE: Record<number, typeof P1> = { 1: P1, 2: P1, 3: P1 }  //
 
 const UNI_DAYS = new Set([3, 4])  // Thu, Fri
 
-function generatePlan(cfg: PlanConfig): DayPlan[] {
+function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): DayPlan[] {
   const training = TRAINING_BY_PHASE[cfg.phase] ?? P1
   const days: DayPlan[] = []
 
@@ -279,6 +287,18 @@ function generatePlan(cfg: PlanConfig): DayPlan[] {
         desc: 'Zähneputzen · Licht aus · Handy weg' })
     }
 
+    // Insert fixed appointments
+    for (const appt of fixedAppts.filter(a => a.dayIndex === d)) {
+      ev({
+        title: appt.title,
+        emoji: '📅',
+        start: appt.startMin,
+        end: appt.startMin + appt.durationMin,
+        type: 'appointment',
+        desc: `Fester Termin · ${minsToTime(appt.startMin)} – ${minsToTime(appt.startMin + appt.durationMin)}`,
+      })
+    }
+
     // Sort by start time
     events.sort((a, b) => a.start - b.start)
     days.push({ dayIndex: d, date, events })
@@ -368,6 +388,7 @@ function dateToInput(d: Date): string {
 // ── Color map ──────────────────────────────────────────────────────────────
 
 const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string }> = {
+  appointment:    { bg: 'rgba(255,159,10,0.1)',   color: '#ff9f0a',             border: 'rgba(255,159,10,0.3)' },
   sleep:          { bg: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.06)' },
   routine:        { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.1)' },
   food:           { bg: 'rgba(255,214,10,0.08)',  color: 'var(--yellow)',       border: 'rgba(255,214,10,0.2)' },
@@ -422,10 +443,30 @@ export default function WeeklyPlannerPage() {
   const [cfg, setCfg] = useState<PlanConfig | null>(null)
   const [plan, setPlan] = useState<DayPlan[]>([])
 
+  // Fixed appointments
+  const [appointments, setAppointments] = useState<FixedAppointment[]>([])
+  const [apptDayIdx, setApptDayIdx] = useState(0)
+  const [apptTitle, setApptTitle] = useState('')
+  const [apptStart, setApptStart] = useState('10:00')
+  const [apptDur, setApptDur] = useState(60)
+
+  function addAppointment() {
+    if (!apptTitle.trim()) return
+    const [h, m] = apptStart.split(':').map(Number)
+    setAppointments(prev => [...prev, {
+      id: Math.random().toString(36).slice(2),
+      dayIndex: apptDayIdx,
+      title: apptTitle.trim(),
+      startMin: h * 60 + m,
+      durationMin: apptDur,
+    }])
+    setApptTitle('')
+  }
+
   function generate() {
     const c = buildConfig()
     setCfg(c)
-    setPlan(generatePlan(c))
+    setPlan(generatePlan(c, appointments))
     setStep('plan')
     setSelDay(0)
   }
@@ -505,6 +546,56 @@ export default function WeeklyPlannerPage() {
                 ))}
               </div>
             </Row>
+          </Section>
+
+          {/* Fixed appointments */}
+          <Section title="Feste Termine">
+            <div className="px-4 py-3 space-y-3">
+              <div className="flex gap-2">
+                <select value={apptDayIdx} onChange={e => setApptDayIdx(Number(e.target.value))}
+                        className="px-3 py-2 rounded-xl text-sm outline-none flex-shrink-0"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                  {DAY_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+                </select>
+                <input type="text" placeholder="Titel" value={apptTitle}
+                       onChange={e => setApptTitle(e.target.value)}
+                       onKeyDown={e => { if (e.key === 'Enter') addAppointment() }}
+                       className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+                       style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="time" value={apptStart} onChange={e => setApptStart(e.target.value)}
+                       className="px-3 py-2 rounded-xl text-sm outline-none"
+                       style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+                <div className="flex gap-1">
+                  {[30, 60, 90, 120].map(m => (
+                    <Pill key={m} active={apptDur === m} onClick={() => setApptDur(m)} label={m >= 60 ? `${m / 60}h` : `${m}min`} />
+                  ))}
+                </div>
+                <button onClick={addAppointment}
+                        className="ml-auto p-2 rounded-xl transition-all active:scale-95"
+                        style={{ background: 'var(--accent)', color: '#000' }}>
+                  <Plus size={16} />
+                </button>
+              </div>
+              {appointments.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {appointments.map(a => (
+                    <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                         style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
+                      <span className="text-xs font-semibold w-6" style={{ color: '#ff9f0a' }}>{DAY_SHORT[a.dayIndex]}</span>
+                      <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>
+                        {a.title} · {minsToTime(a.startMin)} ({a.durationMin}min)
+                      </span>
+                      <button onClick={() => setAppointments(prev => prev.filter(x => x.id !== a.id))}
+                              className="p-0.5 rounded transition-all hover:opacity-70">
+                        <X size={12} style={{ color: 'var(--text-muted)' }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </Section>
 
           <button

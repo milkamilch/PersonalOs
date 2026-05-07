@@ -160,6 +160,13 @@ export const endpoints = {
   deleteRecurringTodo: (id: number) => api.delete(`/recurring-todos/${id}`),
   toggleRecurringTodo: (id: number) => api.post(`/recurring-todos/${id}/toggle`),
 
+  // Calendar Events
+  calendarEvents: (from?: string, to?: string) =>
+    api.get('/calendar/events', { params: from && to ? { from, to } : {} }),
+  createCalendarEvent: (b: object) => api.post('/calendar/events', b),
+  updateCalendarEvent: (id: number, b: object) => api.patch(`/calendar/events/${id}`, b),
+  deleteCalendarEvent: (id: number) => api.delete(`/calendar/events/${id}`),
+
   // Quick Notes
   notes: () => api.get('/notes'),
   createNote: (b: object) => api.post('/notes', b),

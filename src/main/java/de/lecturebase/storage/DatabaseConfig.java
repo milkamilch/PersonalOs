@@ -408,6 +408,18 @@ public class DatabaseConfig {
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS calendar_events (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title       TEXT    NOT NULL,
+                    event_date  TEXT    NOT NULL,
+                    start_time  TEXT,
+                    end_time    TEXT,
+                    notes       TEXT    NOT NULL DEFAULT '',
+                    color       TEXT    NOT NULL DEFAULT '#0a84ff',
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
         };
     }
 }

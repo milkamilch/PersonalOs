@@ -356,6 +356,18 @@ export interface QuickNote {
   updated_at: string
 }
 
+// ── Calendar Events ───────────────────────────────────────────────────────
+export interface CalendarEvent {
+  id: number
+  title: string
+  event_date: string
+  start_time: string | null
+  end_time: string | null
+  notes: string
+  color: string
+  created_at: string
+}
+
 // ── Journal ───────────────────────────────────────────────────────────────
 export interface JournalEntry {
   id: number
