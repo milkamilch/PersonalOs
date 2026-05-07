@@ -21,6 +21,8 @@ public class TodoRepository {
         t.setId(rs.getLong("id"));
         Object pid = rs.getObject("project_id");
         if (pid != null) t.setProjectId(((Number) pid).longValue());
+        Object gid = rs.getObject("goal_id");
+        if (gid != null) t.setGoalId(((Number) gid).longValue());
         t.setText(rs.getString("text"));
         t.setDone(rs.getInt("done") == 1);
         t.setCreatedAt(rs.getString("created_at"));
@@ -41,14 +43,21 @@ public class TodoRepository {
             mapper, projectId);
     }
 
-    public Todo create(Long projectId, String text) {
+    public List<Todo> findByGoal(long goalId) {
+        return jdbc.query(
+            "SELECT * FROM todos WHERE goal_id = ? ORDER BY done ASC, created_at DESC",
+            mapper, goalId);
+    }
+
+    public Todo create(Long projectId, Long goalId, String text) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO todos (project_id, text) VALUES (?, ?)",
+                "INSERT INTO todos (project_id, goal_id, text) VALUES (?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS);
             if (projectId != null) ps.setLong(1, projectId); else ps.setNull(1, java.sql.Types.INTEGER);
-            ps.setString(2, text);
+            if (goalId    != null) ps.setLong(2, goalId);    else ps.setNull(2, java.sql.Types.INTEGER);
+            ps.setString(3, text);
             return ps;
         }, keyHolder);
         long id = keyHolder.getKey().longValue();

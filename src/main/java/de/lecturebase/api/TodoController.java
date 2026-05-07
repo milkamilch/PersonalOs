@@ -19,17 +19,20 @@ public class TodoController {
     }
 
     @GetMapping
-    public List<Todo> list(@RequestParam(required = false) Long projectId) {
-        return projectId != null
-                ? todoRepository.findByProject(projectId)
-                : todoRepository.findAll();
+    public List<Todo> list(
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long goalId) {
+        if (projectId != null) return todoRepository.findByProject(projectId);
+        if (goalId    != null) return todoRepository.findByGoal(goalId);
+        return todoRepository.findAll();
     }
 
     @PostMapping
     public Todo create(
             @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long goalId,
             @RequestParam String text) {
-        return todoRepository.create(projectId, text);
+        return todoRepository.create(projectId, goalId, text);
     }
 
     @PostMapping("/{id}/done")

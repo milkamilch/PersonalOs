@@ -69,4 +69,20 @@ public class GoalsController {
         jdbc.update("DELETE FROM goals WHERE id = ?", id);
         return ResponseEntity.ok(Map.of("status", "deleted"));
     }
+
+    /** Todos linked to this goal. */
+    @GetMapping("/{id}/todos")
+    public List<Map<String, Object>> todos(@PathVariable long id) {
+        return jdbc.queryForList(
+            "SELECT * FROM todos WHERE goal_id = ? ORDER BY done ASC, created_at DESC", id);
+    }
+
+    /** Total time tracked (in seconds) for time entries linked to this goal. */
+    @GetMapping("/{id}/time")
+    public Map<String, Object> time(@PathVariable long id) {
+        Integer total = jdbc.queryForObject(
+            "SELECT COALESCE(SUM(duration_s), 0) FROM time_entries WHERE goal_id = ? AND duration_s IS NOT NULL",
+            Integer.class, id);
+        return Map.of("total_s", total != null ? total : 0);
+    }
 }

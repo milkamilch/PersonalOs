@@ -620,9 +620,45 @@ export default function WeeklyPlannerPage() {
     }
   }
 
-  function generate() {
+  async function generate() {
     const c = buildConfig()
-    setCfg(c); setPlan(generatePlan(c, appointments))
+    // Load calendar events for this week and merge as fixed appointments
+    const weekEnd = new Date(c.weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    const from = c.weekStart.toISOString().slice(0, 10)
+    const to   = weekEnd.toISOString().slice(0, 10)
+
+    let allAppts = [...appointments]
+    try {
+      const evRes = await endpoints.calendarEvents(from, to)
+      const calAppts: FixedAppointment[] = (evRes.data ?? [])
+        .filter((e: Record<string, unknown>) => e.start_time)
+        .map((e: Record<string, unknown>) => {
+          const evDate = new Date(String(e.event_date) + 'T00:00:00')
+          const diffDays = Math.round((evDate.getTime() - c.weekStart.getTime()) / 86400000)
+          const dayIndex = Math.max(0, Math.min(6, diffDays))
+          const [sh, sm] = String(e.start_time ?? '09:00').split(':').map(Number)
+          const startMin = sh * 60 + sm
+          let durationMin = 60
+          if (e.end_time) {
+            const [eh, em] = String(e.end_time).split(':').map(Number)
+            durationMin = Math.max(15, eh * 60 + em - startMin)
+          }
+          return {
+            id: `cal_${e.id}`,
+            dayIndex,
+            title: String(e.title),
+            startMin,
+            durationMin,
+            travelMin: 0,
+          }
+        })
+      // Only add calendar events not already covered by manual appointments
+      const existingIds = new Set(appointments.map(a => a.id))
+      allAppts = [...appointments, ...calAppts.filter(a => !existingIds.has(a.id))]
+    } catch { /* silently skip if offline */ }
+
+    setCfg(c); setPlan(generatePlan(c, allAppts))
     setStep('plan'); setSelDay(0)
 
     // Persist config

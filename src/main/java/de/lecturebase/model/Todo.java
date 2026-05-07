@@ -3,6 +3,7 @@ package de.lecturebase.model;
 public class Todo {
     private Long    id;
     private Long    projectId;
+    private Long    goalId;
     private String  text;
     private boolean done;
     private String  createdAt;
@@ -12,6 +13,9 @@ public class Todo {
 
     public Long    getProjectId()                { return projectId; }
     public void    setProjectId(Long pid)       { this.projectId = pid; }
+
+    public Long    getGoalId()                   { return goalId; }
+    public void    setGoalId(Long gid)          { this.goalId = gid; }
 
     public String  getText()                     { return text; }
     public void    setText(String text)         { this.text = text; }

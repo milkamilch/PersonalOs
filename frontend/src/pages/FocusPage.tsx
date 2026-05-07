@@ -1,31 +1,50 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Pause, RotateCcw, Coffee, Brain, Flame } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { endpoints } from '../api/client'
 
 type Phase = 'focus' | 'break' | 'long'
 
 const PRESETS = {
-  focus: { label: 'Fokus',      duration: 25 * 60, color: 'var(--accent)',  icon: Brain },
-  break: { label: 'Pause',      duration:  5 * 60, color: 'var(--green)',   icon: Coffee },
-  long:  { label: 'Lange Pause', duration: 15 * 60, color: 'var(--yellow)', icon: Coffee },
+  focus: { label: 'Fokus',       duration: 25 * 60, color: 'var(--accent)',  icon: Brain },
+  break: { label: 'Pause',       duration:  5 * 60, color: 'var(--green-fg)', icon: Coffee },
+  long:  { label: 'Lange Pause', duration: 15 * 60, color: 'var(--yellow-fg)', icon: Coffee },
+}
+
+interface FocusStats {
+  today_count:   number
+  today_seconds: number
+  week_count:    number
+  week_seconds:  number
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
+function fmtMin(s: number) {
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
 
 export default function FocusPage() {
-  const [phase, setPhase]       = useState<Phase>('focus')
+  const qc = useQueryClient()
+  const [phase, setPhase]   = useState<Phase>('focus')
   const [timeLeft, setTimeLeft] = useState(PRESETS.focus.duration)
   const [running, setRunning]   = useState(false)
-  const [sessions, setSessions] = useState(0)
-  const [totalFocus, setTotalFocus] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
   const elapsedRef   = useRef<number>(0)
 
+  const { data: stats } = useQuery<FocusStats>({
+    queryKey: ['focusStats'],
+    queryFn: () => endpoints.focusStats().then(r => r.data),
+    staleTime: 60_000,
+  })
+
   const preset = PRESETS[phase]
-  const mins = Math.floor(timeLeft / 60)
-  const secs = timeLeft % 60
-  const pct  = 1 - timeLeft / preset.duration
+  const mins   = Math.floor(timeLeft / 60)
+  const secs   = timeLeft % 60
+  const pct    = 1 - timeLeft / preset.duration
 
   const stop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -35,29 +54,28 @@ export default function FocusPage() {
   const finish = useCallback(() => {
     stop()
     if (phase === 'focus') {
-      const newSessions = sessions + 1
-      setSessions(newSessions)
-      setTotalFocus(t => t + PRESETS.focus.duration)
-      // After 4 sessions → long break
+      // Persist the session
+      endpoints.saveFocusSession(PRESETS.focus.duration)
+        .then(() => qc.invalidateQueries({ queryKey: ['focusStats'] }))
+        .catch(() => {})
+
+      const newSessions = (stats?.today_count ?? 0) + 1
       if (newSessions % 4 === 0) {
-        setPhase('long')
-        setTimeLeft(PRESETS.long.duration)
+        setPhase('long'); setTimeLeft(PRESETS.long.duration)
       } else {
-        setPhase('break')
-        setTimeLeft(PRESETS.break.duration)
+        setPhase('break'); setTimeLeft(PRESETS.break.duration)
       }
     } else {
-      setPhase('focus')
-      setTimeLeft(PRESETS.focus.duration)
+      setPhase('focus'); setTimeLeft(PRESETS.focus.duration)
     }
-    // Browser notification if permitted
+    elapsedRef.current = 0
     if (Notification.permission === 'granted') {
       new Notification(phase === 'focus' ? 'Fokus-Session beendet! 🎉' : 'Pause vorbei — weitermachen!', {
         body: phase === 'focus' ? 'Zeit für eine Pause.' : 'Nächste Fokus-Session startet.',
         icon: '/icon-192.png',
       })
     }
-  }, [phase, sessions, stop])
+  }, [phase, stats, stop, qc])
 
   useEffect(() => {
     if (running) {
@@ -76,27 +94,17 @@ export default function FocusPage() {
   }, [running, finish, preset.duration])
 
   function switchPhase(p: Phase) {
-    stop()
-    setPhase(p)
-    setTimeLeft(PRESETS[p].duration)
-    elapsedRef.current = 0
+    stop(); setPhase(p); setTimeLeft(PRESETS[p].duration); elapsedRef.current = 0
   }
-
   function reset() {
-    stop()
-    setTimeLeft(preset.duration)
-    elapsedRef.current = 0
+    stop(); setTimeLeft(preset.duration); elapsedRef.current = 0
   }
-
   function toggle() {
-    if (!running && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
+    if (!running && Notification.permission === 'default') Notification.requestPermission()
     setRunning(r => !r)
   }
 
-  // SVG circle
-  const R   = 88
+  const R    = 88
   const circ = 2 * Math.PI * R
 
   return (
@@ -152,37 +160,47 @@ export default function FocusPage() {
                   style={{ background: preset.color, color: '#000', boxShadow: `0 4px 20px color-mix(in srgb, ${preset.color} 40%, transparent)` }}>
             {running ? <Pause size={24} /> : <Play size={24} />}
           </button>
-          <div className="w-12 h-12" /> {/* spacer */}
+          <div className="w-12 h-12" />
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Stats — today + week */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="p-4 rounded-2xl flex items-center gap-3"
              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
           <Flame size={18} style={{ color: 'var(--accent)' }} />
           <div>
             <p className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-              {sessions}
+              {stats?.today_count ?? 0}
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sessions heute</p>
           </div>
         </div>
         <div className="p-4 rounded-2xl flex items-center gap-3"
              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <Brain size={18} style={{ color: 'var(--green)' }} />
+          <Brain size={18} style={{ color: 'var(--green-fg)' }} />
           <div>
             <p className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-              {Math.floor(totalFocus / 60)}m
+              {fmtMin(stats?.today_seconds ?? 0)}
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Fokuszeit heute</p>
           </div>
         </div>
       </div>
 
+      {stats && (stats.week_count > 0) && (
+        <div className="p-3 rounded-2xl flex items-center justify-between mb-4"
+             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Diese Woche</span>
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            {stats.week_count} Sessions · {fmtMin(stats.week_seconds)}
+          </span>
+        </div>
+      )}
+
       {/* Tips */}
       {!running && timeLeft === preset.duration && (
-        <div className="mt-6 p-4 rounded-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+        <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
             {phase === 'focus' ? 'Für maximale Konzentration:' : 'Für eine gute Pause:'}
           </p>

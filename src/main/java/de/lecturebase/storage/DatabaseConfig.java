@@ -455,6 +455,17 @@ public class DatabaseConfig {
                     travel_min  INTEGER NOT NULL DEFAULT 0
                 )
             """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS focus_sessions (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    duration_s  INTEGER NOT NULL DEFAULT 1500,
+                    session_date TEXT   NOT NULL,
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+            // Migrations for existing tables (ignore errors if column already exists)
+            try { jdbc.execute("ALTER TABLE todos ADD COLUMN goal_id INTEGER"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE time_entries ADD COLUMN goal_id INTEGER"); } catch (Exception ignored) {}
         };
     }
 }

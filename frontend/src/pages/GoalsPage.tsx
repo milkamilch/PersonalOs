@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Target, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, Target, CheckCircle2, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { Goal, GoalHorizon, GoalStatus } from '../api/types'
+import type { Goal, GoalHorizon, GoalStatus, Todo } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import { Button, Input, Select, Card, EmptyState } from '../components/ui'
 
@@ -12,6 +12,14 @@ const HORIZONS: { key: GoalHorizon; label: string; color: string }[] = [
   { key: 'year',  label: 'Dieses Jahr',   color: '#a78bfa' },
   { key: 'life',  label: 'Langfristig',   color: '#fb923c' },
 ]
+
+function fmtHours(s: number) {
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m`
+  return '—'
+}
 
 export default function GoalsPage() {
   const qc = useQueryClient()
@@ -126,13 +134,44 @@ function GoalCard({ goal, color, onProgress, onStatus, onDelete }: {
   onStatus: (s: GoalStatus) => void
   onDelete: () => void
 }) {
+  const qc = useQueryClient()
   const done = goal.status === 'done'
+  const [expanded, setExpanded] = useState(false)
+  const [newTodo, setNewTodo]   = useState('')
+
+  const { data: todos = [] } = useQuery<Todo[]>({
+    queryKey: ['goalTodos', goal.id],
+    queryFn: () => endpoints.goalTodos(goal.id).then(r => r.data),
+    enabled: expanded,
+  })
+  const { data: timeData } = useQuery<{ total_s: number }>({
+    queryKey: ['goalTime', goal.id],
+    queryFn: () => endpoints.goalTime(goal.id).then(r => r.data),
+    enabled: expanded,
+  })
+
+  const createTodo = useMutation({
+    mutationFn: () => endpoints.createTodo(newTodo, undefined, goal.id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['goalTodos', goal.id] }); setNewTodo('') },
+  })
+  const doneTodo = useMutation({
+    mutationFn: ({ id, d }: { id: number; d: boolean }) => endpoints.doneTodo(id, d),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goalTodos', goal.id] }),
+  })
+  const delTodo = useMutation({
+    mutationFn: (id: number) => endpoints.deleteTodo(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goalTodos', goal.id] }),
+  })
+
+  const openTodos = todos.filter(t => !t.done).length
 
   return (
-    <div className="p-4 rounded-2xl group transition-all"
+    <div className="rounded-2xl group transition-all overflow-hidden"
          style={{ background: done ? 'rgba(34,197,94,0.04)' : 'rgba(255,255,255,0.02)',
                   border: `1px solid ${done ? 'rgba(34,197,94,0.2)' : 'var(--border-subtle)'}` }}>
-      <div className="flex items-start gap-3">
+
+      {/* Header */}
+      <div className="flex items-start gap-3 p-4">
         <button onClick={() => onStatus(done ? 'active' : 'done')}
                 className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all"
                 style={{ background: done ? '#22c55e' : 'rgba(255,255,255,0.05)',
@@ -148,11 +187,17 @@ function GoalCard({ goal, color, onProgress, onStatus, onDelete }: {
           {goal.description && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{goal.description}</p>
           )}
-          {goal.target_date && (
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              Bis {new Date(goal.target_date).toLocaleDateString('de-DE')}
-            </p>
-          )}
+
+          <div className="flex items-center gap-3 mt-1.5">
+            {goal.target_date && (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                bis {new Date(goal.target_date).toLocaleDateString('de-DE')}
+              </p>
+            )}
+            {openTodos > 0 && (
+              <p className="text-xs" style={{ color: 'var(--accent-fg)' }}>{openTodos} Todo{openTodos !== 1 ? 's' : ''} offen</p>
+            )}
+          </div>
 
           {/* Progress bar */}
           {!done && (
@@ -170,6 +215,11 @@ function GoalCard({ goal, color, onProgress, onStatus, onDelete }: {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
+          <button onClick={() => setExpanded(e => !e)}
+                  className="p-1 rounded-lg transition-all"
+                  style={{ color: 'var(--text-muted)', background: expanded ? 'rgba(255,255,255,0.06)' : 'transparent' }}>
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
           {goal.status === 'active' && (
             <button onClick={() => onStatus('paused')}
                     className="opacity-0 group-hover:opacity-100 text-xs px-2 py-0.5 rounded-lg transition-all"
@@ -193,6 +243,63 @@ function GoalCard({ goal, color, onProgress, onStatus, onDelete }: {
           </button>
         </div>
       </div>
+
+      {/* Expanded section — Todos + Zeit */}
+      {expanded && (
+        <div className="px-4 pb-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          {/* Stats */}
+          {timeData && timeData.total_s > 0 && (
+            <div className="flex items-center gap-1.5 pt-3 mb-3">
+              <Clock size={12} style={{ color: 'var(--text-muted)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {fmtHours(timeData.total_s)} investiert
+              </span>
+            </div>
+          )}
+
+          {/* Todo list */}
+          <div className="pt-3 space-y-1">
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Aufgaben</p>
+            {todos.map(t => (
+              <div key={t.id} className="flex items-center gap-2 py-1 group/todo">
+                <button onClick={() => doneTodo.mutate({ id: t.id, d: !t.done })}
+                        className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all"
+                        style={{ borderColor: t.done ? color : 'rgba(255,255,255,0.2)',
+                                 background: t.done ? color : 'transparent' }}>
+                  {t.done && <CheckCircle2 size={10} color="white" />}
+                </button>
+                <span className="flex-1 text-sm" style={{ color: t.done ? 'var(--text-muted)' : 'var(--text-secondary)',
+                                                           textDecoration: t.done ? 'line-through' : 'none' }}>
+                  {t.text}
+                </span>
+                <button onClick={() => delTodo.mutate(t.id)}
+                        className="opacity-0 group-hover/todo:opacity-100 transition-opacity"
+                        style={{ color: 'var(--text-muted)' }}>
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ))}
+
+            {/* Add todo */}
+            <div className="flex gap-2 mt-2">
+              <input
+                value={newTodo}
+                onChange={e => setNewTodo(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && newTodo.trim() && createTodo.mutate()}
+                placeholder="Neue Aufgabe für dieses Ziel…"
+                className="flex-1 rounded-xl px-3 py-1.5 text-sm outline-none"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)',
+                         color: 'var(--text-primary)' }}
+              />
+              <button onClick={() => newTodo.trim() && createTodo.mutate()}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

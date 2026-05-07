@@ -51,8 +51,15 @@ public class TimeTrackingController {
         """);
         String project = (String) body.getOrDefault("project", "");
         String desc    = (String) body.getOrDefault("description", "");
-        jdbc.update("INSERT INTO time_entries (project, description, started_at) VALUES (?,?,CURRENT_TIMESTAMP)",
-            project, desc);
+        Object gid     = body.get("goal_id");
+        Long goalId    = gid != null ? ((Number) gid).longValue() : null;
+        if (goalId != null) {
+            jdbc.update("INSERT INTO time_entries (project, description, goal_id, started_at) VALUES (?,?,?,CURRENT_TIMESTAMP)",
+                project, desc, goalId);
+        } else {
+            jdbc.update("INSERT INTO time_entries (project, description, started_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+                project, desc);
+        }
         return jdbc.queryForMap("SELECT * FROM time_entries ORDER BY id DESC LIMIT 1");
     }
 

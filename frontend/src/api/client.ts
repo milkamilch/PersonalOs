@@ -57,10 +57,10 @@ export const endpoints = {
     api.post(`/projects/${id}/notes`, content, { headers: { 'Content-Type': 'text/plain' } }),
 
   // Todos
-  todos: (projectId?: number) =>
-    api.get('/todos', projectId != null ? { params: { projectId } } : undefined),
-  createTodo: (text: string, projectId?: number) =>
-    api.post('/todos', null, { params: { text, ...(projectId != null ? { projectId } : {}) } }),
+  todos: (projectId?: number, goalId?: number) =>
+    api.get('/todos', { params: { ...(projectId != null ? { projectId } : {}), ...(goalId != null ? { goalId } : {}) } }),
+  createTodo: (text: string, projectId?: number, goalId?: number) =>
+    api.post('/todos', null, { params: { text, ...(projectId != null ? { projectId } : {}), ...(goalId != null ? { goalId } : {}) } }),
   doneTodo: (id: number, done: boolean) => api.post(`/todos/${id}/done`, null, { params: { done } }),
   deleteTodo: (id: number) => api.delete(`/todos/${id}`),
 
@@ -187,6 +187,14 @@ export const endpoints = {
 
   // Habit heatmap
   habitHeatmap: (days?: number) => api.get('/habits/heatmap', days ? { params: { days } } : {}),
+
+  // Focus sessions
+  saveFocusSession: (duration_s: number) => api.post('/focus/session', { duration_s }),
+  focusStats: () => api.get('/focus/stats'),
+
+  // Goals extras
+  goalTodos: (id: number) => api.get(`/goals/${id}/todos`),
+  goalTime:  (id: number) => api.get(`/goals/${id}/time`),
 
   // Weekly Planner
   weeklyConfig: () => api.get('/planner-week/config'),
