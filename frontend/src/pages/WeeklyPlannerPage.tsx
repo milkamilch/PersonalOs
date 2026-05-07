@@ -23,6 +23,7 @@ interface PlanEvent {
   end: number
   type: EventType
   desc: string
+  conflict?: boolean
 }
 
 interface DayPlan {
@@ -350,6 +351,19 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
     }
 
     events.sort((a, b) => a.start - b.start)
+
+    // Mark overlapping events
+    for (let i = 0; i < events.length; i++) {
+      for (let j = i + 1; j < events.length; j++) {
+        if (events[j].start < events[i].end) {
+          events[i].conflict = true
+          events[j].conflict = true
+        } else {
+          break // sorted, no need to check further
+        }
+      }
+    }
+
     days.push({ dayIndex: d, date, events })
   }
 
@@ -784,16 +798,18 @@ export default function WeeklyPlannerPage() {
           const hasTraining = day.events.some(e => e.type === 'run' || e.type === 'strength')
           const isUni = day.events.some(e => e.type === 'uni')
           const hasAppt = day.events.some(e => e.type === 'appointment')
+          const hasConflict = day.events.some(e => e.conflict)
           return (
             <button key={i} onClick={() => setSelDay(i)}
                     className="flex-shrink-0 flex flex-col items-center py-2.5 px-3 rounded-xl transition-all"
                     style={selDay === i
-                      ? { background: 'var(--accent)', color: '#000' }
-                      : { background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                      ? { background: hasConflict ? '#ff453a' : 'var(--accent)', color: '#000' }
+                      : { background: 'var(--bg-surface)', border: `1px solid ${hasConflict ? 'rgba(255,69,58,0.4)' : 'var(--border-subtle)'}`, color: 'var(--text-muted)' }}>
               <span className="text-[10px] font-semibold">{DAY_SHORT[i]}</span>
               <span className="text-xs mt-0.5">{day.date.getDate()}</span>
               <div className="flex gap-0.5 mt-1">
-                {hasTraining && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff453a' }} />}
+                {hasConflict && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff453a' }} />}
+                {!hasConflict && hasTraining && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff453a' }} />}
                 {isUni && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : 'var(--accent)' }} />}
                 {hasAppt && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff9f0a' }} />}
               </div>
@@ -805,13 +821,29 @@ export default function WeeklyPlannerPage() {
       {/* Day detail */}
       {currentDay && (
         <div>
-          <p className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
             {DAY_NAMES[currentDay.dayIndex]}, {currentDay.date.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}
           </p>
+
+          {/* Conflict warning banner */}
+          {currentDay.events.some(e => e.conflict) && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-2xl mb-3"
+                 style={{ background: 'rgba(255,69,58,0.08)', border: '1px solid rgba(255,69,58,0.3)' }}>
+              <span className="text-base flex-shrink-0">⚠️</span>
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#ff453a' }}>Zeitkonflikte erkannt</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Rot markierte Blöcke überschneiden sich. Passe die Zeiten im Wizard an.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             {currentDay.events.map((ev, i) => {
               const style = TYPE_STYLE[ev.type]
+              const conflictBorder = ev.conflict ? '2px solid rgba(255,69,58,0.7)' : undefined
+
               if (ev.type === 'sleep') return (
                 <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-40"
                      style={{ background: style.bg }}>
@@ -823,22 +855,28 @@ export default function WeeklyPlannerPage() {
               )
               if (ev.type === 'travel') return (
                 <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-60"
-                     style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+                     style={{ background: style.bg, border: conflictBorder ?? `1px solid ${style.border}` }}>
                   <span className="text-sm w-5 text-center">{ev.emoji}</span>
-                  <span className="text-xs flex-1" style={{ color: style.color }}>{ev.title}</span>
+                  <span className="text-xs flex-1" style={{ color: ev.conflict ? '#ff453a' : style.color }}>{ev.title}</span>
                   <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {minsToTime(ev.start % (24 * 60))} – {minsToTime(ev.end % (24 * 60))}
                   </span>
+                  {ev.conflict && <span className="text-[10px]" style={{ color: '#ff453a' }}>⚠</span>}
                 </div>
               )
               return (
                 <div key={i} className="px-4 py-3 rounded-2xl"
-                     style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+                     style={{ background: ev.conflict ? 'rgba(255,69,58,0.06)' : style.bg,
+                              border: conflictBorder ?? `1px solid ${style.border}` }}>
                   <div className="flex items-start gap-3">
                     <span className="text-lg flex-shrink-0 mt-0.5">{ev.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-semibold" style={{ color: style.color }}>{ev.title}</span>
+                        <span className="text-sm font-semibold"
+                              style={{ color: ev.conflict ? '#ff453a' : style.color }}>
+                          {ev.title}
+                          {ev.conflict && <span className="ml-1 text-[10px]">⚠ Konflikt</span>}
+                        </span>
                         <span className="text-[10px] font-medium tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
                           {minsToTime(ev.start % (24 * 60))} – {minsToTime(ev.end % (24 * 60))}
                           <span className="ml-1 opacity-60">({ev.end - ev.start}min)</span>
@@ -886,10 +924,11 @@ export default function WeeklyPlannerPage() {
             const sessions = day.events.filter(e => e.type === 'run' || e.type === 'strength')
             const appts = day.events.filter(e => e.type === 'appointment')
             const hasHaushalt = day.events.some(e => e.type === 'haushalt')
+            const hasConflict = day.events.some(e => e.conflict)
             return (
               <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all"
                    style={{ background: selDay === i ? 'rgba(10,132,255,0.1)' : 'var(--bg-surface)',
-                            border: `1px solid ${selDay === i ? 'rgba(10,132,255,0.3)' : 'var(--border-subtle)'}` }}
+                            border: `1px solid ${hasConflict ? 'rgba(255,69,58,0.35)' : selDay === i ? 'rgba(10,132,255,0.3)' : 'var(--border-subtle)'}` }}
                    onClick={() => setSelDay(i)}>
                 <span className="text-xs font-semibold w-6" style={{ color: 'var(--text-muted)' }}>{DAY_SHORT[i]}</span>
                 <div className="flex-1 flex flex-wrap gap-1">
@@ -898,6 +937,7 @@ export default function WeeklyPlannerPage() {
                   {appts.map((a, j) => <Tag key={`a${j}`} label={`📅 ${a.title}`} color="#ff9f0a" />)}
                   {hasHaushalt && <Tag label="🏠 Haushalt" color="#40c8e0" />}
                   {i === 6 && <Tag label="🌿 Regeneration" color="var(--green)" />}
+                  {hasConflict && <Tag label="⚠ Konflikt" color="#ff453a" />}
                 </div>
                 {trainMin > 0 && <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{trainMin}min</span>}
               </div>
