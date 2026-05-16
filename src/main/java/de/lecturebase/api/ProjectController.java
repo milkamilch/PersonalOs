@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -44,7 +45,7 @@ public class ProjectController {
 
     @GetMapping("/{id}/notes")
     public Map<String, String> notes(@PathVariable long id) {
-        return Map.of("content", service.notes(id));
+        return Map.of("content", Objects.requireNonNullElse(service.notes(id), ""));
     }
 
     @PostMapping("/{id}/notes")

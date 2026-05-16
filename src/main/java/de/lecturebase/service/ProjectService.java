@@ -4,7 +4,6 @@ import de.lecturebase.model.Project;
 import de.lecturebase.storage.ProjectRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class ProjectService {
