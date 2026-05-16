@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Repository
 public class HabitsRepository {
@@ -37,7 +38,7 @@ public class HabitsRepository {
             ps.setString(3, color);
             return ps;
         }, kh);
-        return jdbc.queryForMap("SELECT * FROM habits WHERE id = ?", kh.getKey().longValue());
+        return jdbc.queryForMap("SELECT * FROM habits WHERE id = ?", Objects.requireNonNull(kh.getKey(), "Insert did not return a generated key").longValue());
     }
 
     public void delete(long id) {
