@@ -1,6 +1,6 @@
 package de.lecturebase.api;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import de.lecturebase.service.NotesService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -9,41 +9,24 @@ import java.util.Map;
 @RequestMapping("/api/notes")
 public class NotesController {
 
-    private final JdbcTemplate jdbc;
+    private final NotesService service;
 
-    public NotesController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public NotesController(NotesService service) { this.service = service; }
 
     @GetMapping
-    public List<Map<String, Object>> list() {
-        return jdbc.queryForList(
-            "SELECT * FROM quick_notes ORDER BY pinned DESC, updated_at DESC"
-        );
-    }
+    public List<Map<String, Object>> list() { return service.list(); }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody Map<String, Object> body) {
-        String title   = (String) body.getOrDefault("title", "");
-        String content = (String) body.getOrDefault("content", "");
-        String color   = (String) body.getOrDefault("color", "default");
-        jdbc.update(
-            "INSERT INTO quick_notes (title, content, color) VALUES (?, ?, ?)",
-            title, content, color
-        );
-        return jdbc.queryForMap("SELECT * FROM quick_notes ORDER BY id DESC LIMIT 1");
-    }
+    public Map<String, Object> create(@RequestBody Map<String, Object> body) { return service.create(body); }
 
     @PatchMapping("/{id}")
     public Map<String, Object> update(@PathVariable int id, @RequestBody Map<String, Object> body) {
-        if (body.containsKey("title"))   jdbc.update("UPDATE quick_notes SET title=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",   body.get("title"),   id);
-        if (body.containsKey("content")) jdbc.update("UPDATE quick_notes SET content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", body.get("content"), id);
-        if (body.containsKey("color"))   jdbc.update("UPDATE quick_notes SET color=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",   body.get("color"),   id);
-        if (body.containsKey("pinned"))  jdbc.update("UPDATE quick_notes SET pinned=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",  body.get("pinned"),  id);
-        return jdbc.queryForMap("SELECT * FROM quick_notes WHERE id=?", id);
+        return service.update(id, body);
     }
 
     @DeleteMapping("/{id}")
     public Map<String, Object> delete(@PathVariable int id) {
-        jdbc.update("DELETE FROM quick_notes WHERE id=?", id);
+        service.delete(id);
         return Map.of("ok", true);
     }
 }
