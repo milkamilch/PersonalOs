@@ -8,6 +8,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Repository
 public class GoalsRepository {
@@ -62,8 +63,8 @@ public class GoalsRepository {
     }
 
     public int totalTimeSeconds(long id) {
-        return jdbc.queryForObject(
+        return Optional.ofNullable(jdbc.queryForObject(
             "SELECT COALESCE(SUM(duration_s), 0) FROM time_entries WHERE goal_id = ? AND duration_s IS NOT NULL",
-            Integer.class, id);
+            Integer.class, id)).orElse(0);
     }
 }
