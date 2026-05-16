@@ -1,6 +1,5 @@
 package de.lecturebase.storage;
 
-import de.lecturebase.model.Document;
 import de.lecturebase.model.Project;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -36,13 +35,10 @@ public class ProjectRepository {
         List<Project> projects = jdbc.query(
             "SELECT * FROM projects ORDER BY created_at DESC", mapper);
         projects.forEach(p -> {
-            Integer docs = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM project_documents WHERE project_id = ?", Integer.class, p.getId());
             Integer todos = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM todos WHERE project_id = ?", Integer.class, p.getId());
             Integer open = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM todos WHERE project_id = ? AND done = 0", Integer.class, p.getId());
-            p.setDocCount(docs != null ? docs : 0);
             p.setTodoCount(todos != null ? todos : 0);
             p.setOpenTodoCount(open != null ? open : 0);
         });
@@ -74,38 +70,9 @@ public class ProjectRepository {
     }
 
     public void delete(long id) {
-        jdbc.update("DELETE FROM project_documents WHERE project_id = ?", id);
         jdbc.update("DELETE FROM project_notes WHERE project_id = ?", id);
         jdbc.update("DELETE FROM todos WHERE project_id = ?", id);
         jdbc.update("DELETE FROM projects WHERE id = ?", id);
-    }
-
-    public void addDocument(long projectId, long documentId) {
-        jdbc.update(
-            "INSERT OR IGNORE INTO project_documents (project_id, document_id) VALUES (?, ?)",
-            projectId, documentId);
-    }
-
-    public void removeDocument(long projectId, long documentId) {
-        jdbc.update(
-            "DELETE FROM project_documents WHERE project_id = ? AND document_id = ?",
-            projectId, documentId);
-    }
-
-    public List<Document> findDocuments(long projectId) {
-        return jdbc.query("""
-            SELECT d.id, d.name, d.file_path, d.uploaded_at
-            FROM documents d
-            JOIN project_documents pd ON pd.document_id = d.id
-            WHERE pd.project_id = ?
-            ORDER BY d.uploaded_at DESC
-            """, (rs, row) -> {
-            Document d = new Document();
-            d.setId(rs.getLong("id"));
-            d.setName(rs.getString("name"));
-            d.setFilePath(rs.getString("file_path"));
-            return d;
-        }, projectId);
     }
 
     public String findNotes(long projectId) {

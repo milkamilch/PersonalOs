@@ -14,32 +14,6 @@ api.interceptors.request.use(cfg => {
 })
 
 export const endpoints = {
-  // Documents
-  documents: () => api.get('/documents'),
-  upload: (form: FormData) => api.post('/ingest', form),
-  deleteDoc: (id: number) => api.delete(`/documents/${id}`),
-
-  // Flashcards
-  flashcards: (docId: number) => api.get(`/flashcards?documentId=${docId}`),
-  rateCard: (id: number, known: boolean) => api.post(`/flashcards/${id}/rate?known=${known}`),
-  dueCards: () => api.get('/flashcards/due'),
-
-  // Summaries
-  summary: (docId: number) => api.get(`/summaries?documentId=${docId}`),
-
-  // Mind map
-  mindmap: (docId: number) => api.get(`/mindmap?documentId=${docId}`),
-  mindmapQuiz: (concepts: string[]) => api.post('/mindmap/quiz', concepts),
-
-  // Search
-  search: (q: string) => api.get(`/search?q=${encodeURIComponent(q)}`),
-
-  // Stats
-  stats: () => api.get('/stats'),
-
-  // Export
-  glossary: (docId: number) => api.get(`/export/glossary?documentId=${docId}`, { responseType: 'blob' }),
-
   // Projects
   projects: () => api.get('/projects'),
   createProject: (p: { name: string; description?: string; color?: string }) =>
@@ -47,11 +21,6 @@ export const endpoints = {
   updateProject: (id: number, p: { name: string; description?: string; color?: string }) =>
     api.put(`/projects/${id}`, null, { params: p }),
   deleteProject: (id: number) => api.delete(`/projects/${id}`),
-  projectDocs: (id: number) => api.get(`/projects/${id}/documents`),
-  addProjectDoc: (id: number, documentId: number) =>
-    api.post(`/projects/${id}/documents`, null, { params: { documentId } }),
-  removeProjectDoc: (id: number, documentId: number) =>
-    api.delete(`/projects/${id}/documents/${documentId}`),
   projectNotes: (id: number) => api.get(`/projects/${id}/notes`),
   saveProjectNotes: (id: number, content: string) =>
     api.post(`/projects/${id}/notes`, content, { headers: { 'Content-Type': 'text/plain' } }),
@@ -82,18 +51,6 @@ export const endpoints = {
 
   // News (RSS proxy)
   news: (feed: 'de' | 'world' | 'bvb' | 'vikings') => api.get(`/news?feed=${feed}`),
-
-  // Study planner
-  plans: () => api.get('/planner'),
-  createPlan: (documentId: number, examDate: string, totalPages: number) =>
-    api.post('/planner', null, { params: { documentId, examDate, totalPages } }),
-  deletePlan: (id: number) => api.delete(`/planner/${id}`),
-  logStudy: (id: number, pages: number) =>
-    api.post(`/planner/${id}/log`, null, { params: { pages } }),
-  planHistory: (id: number) => api.get(`/planner/${id}/history`),
-
-  // Audio transcription
-  transcribeAudio: (form: FormData) => api.post('/audio/transcribe', form),
 
   // Habits
   habits: () => api.get('/habits'),
@@ -144,7 +101,6 @@ export const endpoints = {
   upsertJournal: (b: object) => api.post('/journal', b),
   deleteJournalEntry: (id: number) => api.delete(`/journal/${id}`),
   moodTrend: () => api.get('/journal/mood-trend'),
-  journalReflect: () => api.post('/journal/reflect'),
 
   // Reading
   readingSessions: (params?: { mediaId?: number; days?: number }) => api.get('/reading/sessions', { params }),

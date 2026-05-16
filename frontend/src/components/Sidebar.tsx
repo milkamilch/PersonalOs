@@ -3,46 +3,36 @@ import QuickAdd from './QuickAdd'
 import { clearApiKey } from '../api/client'
 import { LogOut } from 'lucide-react'
 import {
-  BookOpen, Brain, Map, Search, LayoutDashboard,
+  BookOpen, LayoutDashboard,
   FolderKanban, CheckSquare, GitBranch, Server,
-  GraduationCap, CalendarDays, Mic, FileText,
   Repeat2, Wallet, Dumbbell, Clapperboard, Target, NotebookPen, Timer, Calendar, StickyNote, Clock, Users, Sparkles
 } from 'lucide-react'
 
 const nav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',    group: 'main'  },
-  { to: '/goals',     icon: Target,          label: 'Ziele',        group: 'life'  },
-  { to: '/contacts',  icon: Users,           label: 'Kontakte',     group: 'life'  },
-  { to: '/habits',    icon: Repeat2,         label: 'Gewohnheiten', group: 'life'  },
-  { to: '/finance',   icon: Wallet,          label: 'Finanzen',     group: 'life'  },
-  { to: '/fitness',   icon: Dumbbell,        label: 'Fitness',      group: 'life'  },
-  { to: '/journal',   icon: NotebookPen,     label: 'Journal',      group: 'life'  },
-  { to: '/media',     icon: Clapperboard,    label: 'Medien',       group: 'life'  },
-  { to: '/reading',   icon: BookOpen,        label: 'Lesen',        group: 'life'  },
-  { to: '/calendar',  icon: Calendar,        label: 'Kalender',     group: 'work'  },
-  { to: '/planner-week', icon: Sparkles,    label: 'Wochenplaner', group: 'work'  },
-  { to: '/focus',     icon: Timer,           label: 'Fokus',        group: 'work'  },
-  { to: '/time',      icon: Clock,           label: 'Zeiterfassung',group: 'work'  },
-  { to: '/notes',     icon: StickyNote,      label: 'Notizen',      group: 'work'  },
-  { to: '/todos',     icon: CheckSquare,     label: 'Todos',        group: 'work'  },
-  { to: '/projects',  icon: FolderKanban,    label: 'Projekte',     group: 'work'  },
-  { to: '/github',    icon: GitBranch,       label: 'GitHub',       group: 'work'  },
-  { to: '/server',    icon: Server,          label: 'Server',       group: 'work'  },
-  { to: '/study',     icon: BookOpen,        label: 'Lernen',       group: 'learn' },
-  { to: '/flashcards',icon: Brain,           label: 'Karteikarten', group: 'learn' },
-  { to: '/mindmap',   icon: Map,             label: 'Mind Map',     group: 'learn' },
-  { to: '/search',    icon: Search,          label: 'Suche',        group: 'learn' },
-  { to: '/exam',      icon: GraduationCap,   label: 'Prüfung',      group: 'learn' },
-  { to: '/planner',   icon: CalendarDays,    label: 'Lernplaner',   group: 'learn' },
-  { to: '/audio',     icon: Mic,             label: 'Audio',        group: 'learn' },
-  { to: '/pdf',       icon: FileText,        label: 'PDF',          group: 'learn' },
+  { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',    group: 'main' },
+  { to: '/goals',        icon: Target,          label: 'Ziele',        group: 'life' },
+  { to: '/contacts',     icon: Users,           label: 'Kontakte',     group: 'life' },
+  { to: '/habits',       icon: Repeat2,         label: 'Gewohnheiten', group: 'life' },
+  { to: '/finance',      icon: Wallet,          label: 'Finanzen',     group: 'life' },
+  { to: '/fitness',      icon: Dumbbell,        label: 'Fitness',      group: 'life' },
+  { to: '/journal',      icon: NotebookPen,     label: 'Journal',      group: 'life' },
+  { to: '/media',        icon: Clapperboard,    label: 'Medien',       group: 'life' },
+  { to: '/reading',      icon: BookOpen,        label: 'Lesen',        group: 'life' },
+  { to: '/calendar',     icon: Calendar,        label: 'Kalender',     group: 'work' },
+  { to: '/planner-week', icon: Sparkles,        label: 'Wochenplaner', group: 'work' },
+  { to: '/focus',        icon: Timer,           label: 'Fokus',        group: 'work' },
+  { to: '/time',         icon: Clock,           label: 'Zeiterfassung',group: 'work' },
+  { to: '/notes',        icon: StickyNote,      label: 'Notizen',      group: 'work' },
+  { to: '/todos',        icon: CheckSquare,     label: 'Todos',        group: 'work' },
+  { to: '/projects',     icon: FolderKanban,    label: 'Projekte',     group: 'work' },
+  { to: '/github',       icon: GitBranch,       label: 'GitHub',       group: 'work' },
+  { to: '/server',       icon: Server,          label: 'Server',       group: 'work' },
 ]
 
 const groups = [
-  { key: 'main',  label: null       },
-  { key: 'life',  label: 'Leben'    },
-  { key: 'work',  label: 'Arbeit'   },
-  { key: 'learn', label: 'Studium'  },
+  { key: 'main', label: null     },
+  { key: 'life', label: 'Leben'  },
+  { key: 'work', label: 'Arbeit' },
 ]
 
 export default function Sidebar() {

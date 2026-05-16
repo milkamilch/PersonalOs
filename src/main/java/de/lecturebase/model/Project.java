@@ -6,7 +6,6 @@ public class Project {
     private String description;
     private String color;
     private String createdAt;
-    private int    docCount;
     private int    todoCount;
     private int    openTodoCount;
 
@@ -24,9 +23,6 @@ public class Project {
 
     public String getCreatedAt()                { return createdAt; }
     public void   setCreatedAt(String d)       { this.createdAt = d; }
-
-    public int    getDocCount()                 { return docCount; }
-    public void   setDocCount(int n)           { this.docCount = n; }
 
     public int    getTodoCount()                { return todoCount; }
     public void   setTodoCount(int n)          { this.todoCount = n; }

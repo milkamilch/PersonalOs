@@ -1,6 +1,5 @@
 package de.lecturebase.api;
 
-import de.lecturebase.model.Document;
 import de.lecturebase.model.Project;
 import de.lecturebase.storage.ProjectRepository;
 import org.springframework.http.ResponseEntity;
@@ -49,27 +48,6 @@ public class ProjectController {
     public ResponseEntity<Map<String, String>> delete(@PathVariable long id) {
         projectRepository.delete(id);
         return ResponseEntity.ok(Map.of("status", "deleted"));
-    }
-
-    @GetMapping("/{id}/documents")
-    public List<Document> documents(@PathVariable long id) {
-        return projectRepository.findDocuments(id);
-    }
-
-    @PostMapping("/{id}/documents")
-    public ResponseEntity<Map<String, String>> addDocument(
-            @PathVariable long id,
-            @RequestParam long documentId) {
-        projectRepository.addDocument(id, documentId);
-        return ResponseEntity.ok(Map.of("status", "added"));
-    }
-
-    @DeleteMapping("/{id}/documents/{documentId}")
-    public ResponseEntity<Map<String, String>> removeDocument(
-            @PathVariable long id,
-            @PathVariable long documentId) {
-        projectRepository.removeDocument(id, documentId);
-        return ResponseEntity.ok(Map.of("status", "removed"));
     }
 
     @GetMapping("/{id}/notes")

@@ -79,6 +79,10 @@ sftp.close()
 
 # Write .env on server
 env_vars = {
+    "CLAUDE_API_KEY":  os.environ.get("CLAUDE_API_KEY", ""),
+    "GEMINI_API_KEY":  os.environ.get("GEMINI_API_KEY", ""),
+    "VOYAGE_API_KEY":  os.environ.get("VOYAGE_API_KEY", ""),
+    "OPENAI_API_KEY":  os.environ.get("OPENAI_API_KEY", ""),
     "GITHUB_TOKEN":    os.environ.get("GITHUB_TOKEN", ""),
     "GITHUB_USERNAME": os.environ.get("GITHUB_USERNAME", ""),
     "SERVER_HOST":     os.environ.get("SERVER_HOST", ""),

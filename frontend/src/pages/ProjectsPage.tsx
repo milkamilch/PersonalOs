@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, FileText } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { Project, Todo, Document } from '../api/types'
+import type { Project, Todo } from '../api/types'
 
 const COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#db2777', '#0891b2']
 
 export default function ProjectsPage() {
   const qc = useQueryClient()
   const [active, setActive] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'docs' | 'todos' | 'notes'>('docs')
+  const [tab, setTab] = useState<'todos' | 'notes'>('todos')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', color: '#7c3aed' })
   const [todoText, setTodoText] = useState('')
@@ -19,17 +19,6 @@ export default function ProjectsPage() {
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['projects'],
     queryFn: () => endpoints.projects().then(r => r.data),
-  })
-
-  const { data: allDocs = [] } = useQuery<Document[]>({
-    queryKey: ['documents'],
-    queryFn: () => endpoints.documents().then(r => r.data),
-  })
-
-  const { data: projDocs = [] } = useQuery<Document[]>({
-    queryKey: ['projDocs', active?.id],
-    queryFn: () => endpoints.projectDocs(active!.id).then(r => r.data),
-    enabled: !!active,
   })
 
   const { data: todos = [] } = useQuery<Todo[]>({
@@ -58,16 +47,6 @@ export default function ProjectsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setActive(null) },
   })
 
-  const addDoc = useMutation({
-    mutationFn: (docId: number) => endpoints.addProjectDoc(active!.id, docId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projDocs', active?.id] }),
-  })
-
-  const removeDoc = useMutation({
-    mutationFn: (docId: number) => endpoints.removeProjectDoc(active!.id, docId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projDocs', active?.id] }),
-  })
-
   const createTodo = useMutation({
     mutationFn: () => endpoints.createTodo(todoText, active!.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos', active?.id] }); setTodoText('') },
@@ -88,8 +67,6 @@ export default function ProjectsPage() {
     setNotesSaved(true)
     setTimeout(() => setNotesSaved(false), 2000)
   }
-
-  const availableDocs = allDocs.filter(d => !projDocs.some(pd => pd.id === d.id))
 
   return (
     <div className="flex h-full">
@@ -150,7 +127,7 @@ export default function ProjectsPage() {
         {projects.map(p => (
           <button
             key={p.id}
-            onClick={() => { setActive(p); setTab('docs'); setNotes('') }}
+            onClick={() => { setActive(p); setTab('todos'); setNotes('') }}
             className={`w-full text-left p-3 rounded-xl transition-colors ${
               active?.id === p.id ? 'bg-gray-800 ring-1 ring-gray-700' : 'hover:bg-gray-800/50'
             }`}
@@ -163,7 +140,6 @@ export default function ProjectsPage() {
               <p className="text-xs text-gray-500 mt-1 pl-4.5 truncate">{p.description}</p>
             )}
             <div className="flex gap-2 mt-1.5 pl-4.5 text-xs text-gray-500">
-              <span>{p.docCount} Dok.</span>
               <span>{p.openTodoCount}/{p.todoCount} Todos</span>
             </div>
           </button>
@@ -206,7 +182,7 @@ export default function ProjectsPage() {
 
             {/* Tabs */}
             <div className="flex gap-1 mb-4 bg-gray-800/50 rounded-xl p-1 w-fit">
-              {(['docs', 'todos', 'notes'] as const).map(t => (
+              {(['todos', 'notes'] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -214,55 +190,10 @@ export default function ProjectsPage() {
                     tab === t ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  {t === 'docs' ? 'Dokumente' : t === 'todos' ? 'Todos' : 'Notizen'}
+                  {t === 'todos' ? 'Todos' : 'Notizen'}
                 </button>
               ))}
             </div>
-
-            {tab === 'docs' && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-400 mb-2">Verknüpfte Dokumente</h3>
-                  {projDocs.length === 0 ? (
-                    <p className="text-sm text-gray-600">Keine Dokumente verknüpft.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {projDocs.map(d => (
-                        <div key={d.id} className="flex items-center gap-2 p-2.5 bg-gray-800 rounded-lg">
-                          <FileText size={14} className="text-violet-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-200 flex-1">{d.name}</span>
-                          <button
-                            onClick={() => removeDoc.mutate(d.id)}
-                            className="text-gray-600 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {availableDocs.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-400 mb-2">Hinzufügen</h3>
-                    <div className="space-y-1.5">
-                      {availableDocs.map(d => (
-                        <button
-                          key={d.id}
-                          onClick={() => addDoc.mutate(d.id)}
-                          className="w-full flex items-center gap-2 p-2 hover:bg-gray-800 rounded-lg text-left transition-colors group"
-                        >
-                          <FileText size={14} className="text-gray-600 group-hover:text-violet-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-400 group-hover:text-gray-200">{d.name}</span>
-                          <Plus size={14} className="ml-auto text-gray-600 group-hover:text-violet-400" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {tab === 'todos' && (
               <div className="space-y-3">

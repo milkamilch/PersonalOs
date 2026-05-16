@@ -1,46 +1,40 @@
-# LectureBase
+# PersonalOS
 
-A full-stack AI study assistant for university students. Upload lecture PDFs, ask questions, generate flashcards, build mind maps, track your progress — all in one dark-mode SPA.
+A self-hosted personal operating system for students — AI study assistant, life tracker, and productivity hub in one dark-mode PWA. Works on desktop and mobile.
 
 ---
 
-## Features
+## What it does
 
-### Documents
-- **Upload** PDF and DOCX files — text is extracted, chunked with overlap, and stored in SQLite
-- **Duplicate detection** via SHA-256 hash — re-uploading the same file is rejected with a 409
-- **Tag system** — assign tags at upload time, filter documents by tag
-- **PDF Viewer** — view any uploaded PDF directly in the browser via a built-in inline viewer
+PersonalOS combines an AI-powered study toolkit with a full personal life OS:
 
-### Search & Q&A
-- **Keyword search** — fast full-text SQL search across all chunks with document/page references
-- **Semantic search** — optional vector search via Voyage AI embeddings (requires `VOYAGE_API_KEY`)
-- **RAG chat** — ask questions in natural language; Claude answers using only your uploaded scripts
+**Study & Learning**
+- Upload lecture scripts (PDF, DOCX, TXT, MD / Obsidian) — text is extracted, chunked, and stored
+- Ask Claude questions about your documents via RAG
+- Auto-generate flashcards with SM-2 spaced repetition
+- Build interactive mind maps from your scripts
+- Exam mode: AI generates open questions, grades your free-text answers
+- Semantic search across all your documents (optional, via Voyage AI)
+- Whisper audio transcription → searchable document
 
-### AI Learning Tools
-- **Flashcard generator** — AI creates question/answer pairs from each chunk; exportable
-- **Spaced repetition (SM-2)** — rate cards as known/unknown; due dates calculated per the SM-2 algorithm
-- **Summaries** — one-click document summary, generated and cached per document
-- **Probeklausur (Exam mode)** — AI generates open-ended exam questions from your scripts; you answer freely; Claude scores and gives feedback with a model answer
-- **Mind Map** — extracts key concepts per chunk, builds a hierarchical tree; click any node to open a concept-focused chat panel
-- **Mind Map Quiz** — generate a multiple-choice quiz from the concepts in the current mind map
-- **Glossary export** — download a Markdown glossary of all concepts for a document
+**Life OS**
+- Habits with daily tracking and heatmap calendar
+- Finance: transactions, categories, monthly budgets
+- Fitness: workout logging, exercises, body weight tracker
+- Goals: week / month / year goals with linked todos and time tracking
+- Journal with mood tracking and AI reflection
+- Calendar with color-coded events
+- Weekly planner: schedule builder for study blocks, gym, university, travel
+- Focus (Pomodoro) sessions
+- Time tracking by project or goal
+- Contacts, quick notes, media tracker (books / shows / movies)
 
-### Planning & Organisation
-- **Lernplaner (Study Planner)** — create a plan with exam date and total pages; tracks daily progress, remaining pages, days left, and daily goal
-- **Projects** — group documents together with notes and a color label
-- **Todos** — task list, optionally linked to a project
-
-### Audio
-- **Whisper transcription** — upload an audio recording (MP3, WAV, M4A, WebM, …); OpenAI Whisper transcribes it and the result is saved as a searchable document (requires `OPENAI_API_KEY`)
-
-### Dashboard & Integrations
-- **Dashboard** — bento-grid overview with stats, server status, todos, GitHub activity, and a live news feed
-- **JArvis** — conversational AI assistant with voice input (Web Speech API) and TTS output
-- **GitHub integration** — proxied view of your repos and open issues (requires `GITHUB_TOKEN` + `GITHUB_USERNAME`)
-- **Server monitoring** — ping check against a configured host with response time
-- **News feed** — RSS proxy for Tagesschau, BBC World, and custom feeds
-- **Google Drive import** — browse and import files from Google Drive (requires `GOOGLE_DRIVE_API_KEY`)
+**Integrations**
+- GitHub: repos, open issues, PRs, activity feed
+- Google Drive: browse and import files directly
+- Server monitoring: ping checks with response times and container management
+- News feed: RSS proxy (Tagesschau, BBC World, custom)
+- JArvis: conversational AI assistant with voice input and TTS
 
 ---
 
@@ -48,34 +42,16 @@ A full-stack AI study assistant for university students. Upload lecture PDFs, as
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 25, Spring Boot 3 |
-| Database | SQLite (JDBC, single-file) |
-| PDF parsing | Apache PDFBox 3 |
-| DOCX parsing | Apache POI 5 |
+| Backend | Java 25 · Spring Boot 3 |
+| Database | SQLite (single-file, JDBC — no ORM) |
+| PDF/DOCX parsing | Apache PDFBox 3 · Apache POI 5 |
 | Primary AI | Anthropic Claude API |
 | Fallback AI | Google Gemini API |
 | Embeddings | Voyage AI |
 | Audio | OpenAI Whisper API |
 | Frontend | Vite · React 19 · TypeScript · Tailwind v4 |
-| State/data | TanStack Query v5 · React Router v7 |
-
----
-
-## Project Structure
-
-```
-src/main/java/de/lecturebase/
-├── ingestion/       # DocumentParser, TextChunker, IngestionService
-├── storage/         # ChunkRepository, EmbeddingRepository, DatabaseConfig
-├── ai/              # AiClient (Claude + Gemini), EmbeddingClient (Voyage),
-│                    # RagService, MindMapService, QuizService, ChatSession
-└── api/             # REST controllers (one per feature area)
-
-frontend/src/
-├── api/             # client.ts (axios), types.ts
-├── components/      # Sidebar, PageHeader, JArvisOrb (canvas animation)
-└── pages/           # One page component per route
-```
+| Data fetching | TanStack Query v5 · React Router v7 |
+| Mobile/PWA | vite-plugin-pwa · Workbox |
 
 ---
 
@@ -83,12 +59,15 @@ frontend/src/
 
 - Java 21+ (tested on Java 25)
 - Maven 3.x
-- Node.js 20+ (for the frontend dev server)
-- At minimum one AI API key (Claude or Gemini)
+- Node.js 20+
+- At least one AI API key (Claude or Gemini)
 
-**Install on macOS:**
 ```bash
+# macOS
 brew install openjdk maven node
+
+# Debian/Ubuntu
+sudo apt install openjdk-21-jdk maven nodejs npm
 ```
 
 ---
@@ -98,24 +77,24 @@ brew install openjdk maven node
 ```bash
 # 1. Clone
 git clone <repo-url>
-cd JP26
+cd PersonalOs
 
-# 2. Set required API key (Claude or Gemini — at least one)
+# 2. Set API keys — at least one AI key is required
 export CLAUDE_API_KEY=sk-ant-...
-# export GEMINI_API_KEY=AIza...   # alternative / fallback
+# export GEMINI_API_KEY=AIza...         # alternative / fallback
 
 # 3. Optional integrations
-# export VOYAGE_API_KEY=pa-...      # semantic search
-# export OPENAI_API_KEY=sk-...      # audio transcription
-# export GITHUB_TOKEN=ghp_...
-# export GITHUB_USERNAME=yourname
-# export SERVER_HOST=1.2.3.4        # server ping widget
-# export GOOGLE_DRIVE_API_KEY=AIza...
+# export VOYAGE_API_KEY=pa-...          # semantic vector search
+# export OPENAI_API_KEY=sk-...          # audio transcription (Whisper)
+# export GITHUB_TOKEN=ghp_...           # GitHub integration
+# export GITHUB_USERNAME=yourname       # GitHub integration
+# export SERVER_HOST=1.2.3.4            # server monitoring widget
+# export GOOGLE_DRIVE_API_KEY=AIza...   # Google Drive import
 
-# 4. Build & run the backend
+# 4. Run the backend
 mvn spring-boot:run
 
-# 5. In a second terminal — run the frontend dev server
+# 5. Run the frontend dev server (separate terminal)
 cd frontend
 npm install
 npm run dev
@@ -126,99 +105,17 @@ npm run dev
 | Frontend (dev) | http://localhost:5173 |
 | Backend API | http://localhost:8080/api |
 
-For production, `npm run build` outputs to `frontend/dist/` which is served statically by Spring Boot from `src/main/resources/static/`.
+For production, run `npm run build` — the output in `frontend/dist/` is served statically by Spring Boot.
 
----
+### Mobile / PWA
 
-## API Reference (key endpoints)
-
-### Documents
-```
-POST   /api/upload              multipart/form-data  file + optional tags
-GET    /api/documents           list all documents
-DELETE /api/documents/{id}      delete document + all chunks
-GET    /api/documents/{id}/file serve the original file (PDF viewer)
-```
-
-### Search & Q&A
-```
-GET  /api/search?q=...          keyword search
-POST /api/ask                   { "question": "..." } → RAG answer
-```
-
-### Flashcards
-```
-GET  /api/flashcards?documentId=1    list cards for a document
-POST /api/flashcards/{id}/rate?known=true   SM-2 rating
-GET  /api/flashcards/due              cards due for review today
-```
-
-### Mind Map
-```
-POST /api/mindmap/build?documentId=1   build/rebuild concept tree
-GET  /api/mindmap?documentId=1         fetch tree JSON
-POST /api/mindmap/chat                 { concept, message, history }
-POST /api/mindmap/quiz                 [ "concept1", "concept2", ... ]
-GET  /api/export/glossary?documentId=1 download Markdown glossary
-```
-
-### Study Planner
-```
-GET    /api/planner                           list all plans
-POST   /api/planner?documentId=&examDate=&totalPages=   create plan
-DELETE /api/planner/{id}                      delete plan
-POST   /api/planner/{id}/log?pages=N          log pages studied today
-GET    /api/planner/{id}/history              14-day log
-```
-
-### Exam
-```
-GET  /api/quiz/generate?documentId=1&count=5   generate open questions
-POST /api/quiz/evaluate                         { question, chunkContext, userAnswer }
-```
-
-### Audio
-```
-POST /api/audio/transcribe   multipart/form-data  file → transcript + optional document ingest
-```
-
-### Other
-```
-GET  /api/summaries?documentId=1
-GET  /api/stats
-GET  /api/news?feed=de|world|bvb|vikings
-GET  /api/github/repos
-GET  /api/github/issues?repo=owner/name
-GET  /api/server/status
-POST /api/jarvis/chat
-```
-
----
-
-## Navigation (sidebar routes)
-
-| Route | Page |
-|---|---|
-| `/dashboard` | Bento overview (stats, news, todos, GitHub, server) |
-| `/study` | Upload documents, manage library |
-| `/flashcards` | Study flashcards with spaced repetition |
-| `/mindmap` | Interactive concept tree + quiz + node chat |
-| `/search` | Keyword + semantic search |
-| `/exam` | AI-generated open exam questions |
-| `/planner` | Study planner with exam countdown |
-| `/audio` | Audio upload → Whisper transcription |
-| `/pdf` | Inline PDF viewer |
-| `/projects` | Project workspace with notes and todos |
-| `/todos` | Global todo list |
-| `/jarvis` | JArvis AI assistant with voice |
-| `/github` | GitHub repo and issue viewer |
-| `/server` | Server ping status |
+The app is a Progressive Web App. On mobile, open it in Chrome or Safari and use "Add to Home Screen" to install it as a native-feeling app. All pages are responsive and work on small screens via a bottom navigation bar.
 
 ---
 
 ## Configuration
 
-All secrets are read from environment variables; the properties file only contains the `${VAR:}` references (empty default = feature disabled).
+All secrets are read from environment variables. Empty = feature disabled. No secrets go in source code.
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -230,3 +127,134 @@ All secrets are read from environment variables; the properties file only contai
 | `GITHUB_USERNAME` | optional | GitHub integration |
 | `SERVER_HOST` | optional | Server ping widget |
 | `GOOGLE_DRIVE_API_KEY` | optional | Google Drive import |
+
+---
+
+## Obsidian Integration
+
+PersonalOS can ingest Markdown files directly — upload any `.md` file from your Obsidian vault via the Study page. Your notes are chunked, embedded, and searchable alongside your PDFs. You can then ask Claude questions across your entire knowledge base and generate flashcards from your handwritten notes.
+
+---
+
+## Project Structure
+
+```
+src/main/java/de/lecturebase/
+├── api/             # REST controllers (one per feature area, 30+)
+├── ingestion/       # DocumentParser (PDF, DOCX, TXT, MD), TextChunker, IngestionService
+├── storage/         # JDBC repositories, DatabaseConfig, SQLite schema
+├── ai/              # Claude/Gemini clients, RAG, MindMap, Embeddings, OCR
+├── model/           # Plain Java POJOs
+└── search/          # Full-text search service
+
+frontend/src/
+├── api/             # client.ts (axios + auth interceptor), types.ts
+├── components/      # Sidebar, MobileNav, PageHeader, UI primitives
+└── pages/           # 27 page components, one per route
+```
+
+---
+
+## Pages & Routes
+
+| Route | Purpose |
+|---|---|
+| `/dashboard` | Bento overview: stats, habits, todos, finance, journal, news, GitHub |
+| `/study` | Upload documents (PDF, DOCX, TXT, MD), manage library |
+| `/flashcards` | Spaced repetition card review (SM-2) |
+| `/mindmap` | Interactive concept tree, quiz, node chat, glossary export |
+| `/search` | Keyword + semantic search across all documents |
+| `/exam` | AI-generated open exam questions with grading |
+| `/planner` | Study planner with exam countdown and daily progress log |
+| `/audio` | Audio upload → Whisper transcription → searchable document |
+| `/pdf` | Inline PDF viewer |
+| `/projects` | Project workspaces: group documents, todos, notes |
+| `/todos` | Global todo list |
+| `/goals` | Goals by horizon (week / month / year) with progress and time tracking |
+| `/habits` | Daily habit tracker with heatmap calendar |
+| `/journal` | Daily journal with mood (1–5) and AI reflection |
+| `/finance` | Transactions, categories, monthly budget overview |
+| `/fitness` | Workout log, exercise sets, body weight tracker |
+| `/focus` | Pomodoro session timer |
+| `/time` | Time entries by project or goal |
+| `/calendar` | Event management with color coding |
+| `/notes` | Quick sticky notes (pinnable, colored) |
+| `/contacts` | Contact management with tags |
+| `/media` | Book / show / movie tracker with reading sessions |
+| `/reading` | Reading session log linked to media items |
+| `/planner-week` | Weekly schedule builder |
+| `/github` | GitHub repos, issues, PRs, activity |
+| `/server` | Server ping, metrics, container management |
+
+---
+
+## API Reference (key endpoints)
+
+### Documents
+```
+POST   /api/upload                         Upload file (PDF, DOCX, TXT, MD) + optional tags
+GET    /api/documents                      List all documents
+DELETE /api/documents/{id}                 Delete document and all chunks
+GET    /api/documents/{id}/file            Serve original file
+```
+
+### Search & Q&A
+```
+GET  /api/search?q=...                     Keyword search across chunks
+POST /api/ask                              { "question": "..." } → RAG answer from Claude
+```
+
+### Flashcards
+```
+GET  /api/flashcards?documentId=1          List cards for a document
+GET  /api/flashcards/due                   Cards due for review today
+POST /api/flashcards/{id}/rate?known=true  SM-2 rating
+GET  /api/flashcards/generate-stream       SSE streaming card generation
+```
+
+### Mind Map
+```
+POST /api/mindmap/build?documentId=1       Build / rebuild concept tree
+GET  /api/mindmap?documentId=1             Fetch tree JSON
+POST /api/mindmap/chat                     { concept, message, history }
+POST /api/mindmap/quiz                     ["concept1", "concept2"]
+GET  /api/export/glossary?documentId=1     Download Markdown glossary
+```
+
+### Study Planner
+```
+GET    /api/planner                                        List all plans
+POST   /api/planner?documentId=&examDate=&totalPages=      Create plan
+POST   /api/planner/{id}/log?pages=N                       Log pages studied today
+GET    /api/planner/{id}/history                           14-day progress chart
+DELETE /api/planner/{id}                                   Delete plan
+```
+
+### Exam
+```
+GET  /api/quiz/generate?documentId=1&count=5   Generate open-ended exam questions
+POST /api/quiz/evaluate                         { question, chunkContext, userAnswer }
+```
+
+### Audio
+```
+POST /api/audio/transcribe    Multipart: audio file → transcript + optional document ingest
+```
+
+### Life OS (Habits / Finance / Fitness / Goals / Journal)
+```
+GET  /api/habits                  GET  /api/finance/transactions    GET  /api/fitness/workouts
+POST /api/habits                  POST /api/finance/transactions    POST /api/fitness/workouts
+GET  /api/habits/week             GET  /api/finance/summary         GET  /api/fitness/stats
+GET  /api/journal                 GET  /api/goals                   POST /api/focus/session
+POST /api/journal                 POST /api/goals                   GET  /api/focus/stats
+GET  /api/journal/mood-trend      PATCH /api/goals/{id}             GET  /api/time
+```
+
+Full API: see controllers in `src/main/java/de/lecturebase/api/`.
+
+---
+
+## Uploaded Files
+
+Files are stored in the `uploads/` directory next to the JAR, named `{sha256}_{originalname}`. SQLite stores metadata in `lecturebase.db`. Both are excluded from Git.

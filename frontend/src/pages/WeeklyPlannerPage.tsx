@@ -272,6 +272,15 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
       if (thesisPerDay > 0) {
         cursor = placeWork(cursor, thesisPerDay, 'thesis', eveningDeadline)
       }
+      if (cfg.programmingMin > 0 && cursor + 20 < eveningDeadline) {
+        const progSlot = findSlot(fixed, cursor, Math.min(cfg.programmingMin, eveningDeadline - cursor))
+        const progDur  = Math.min(cfg.programmingMin, eveningDeadline - progSlot)
+        if (progDur >= 20) {
+          ev({ title: 'Programmieren', emoji: '💻', start: progSlot, end: progSlot + progDur, type: 'coding',
+            desc: 'Deep Work Block · schwierige Aufgaben angehen' })
+          cursor = progSlot + progDur
+        }
+      }
 
       const readSlot = findSlot(fixed, cursor, cfg.readingMin)
       if (readSlot + cfg.readingMin < eveningDeadline) {
@@ -309,13 +318,30 @@ function generatePlan(cfg: PlanConfig, fixedAppts: FixedAppointment[] = []): Day
       const morTrain = day.morning!
       cursor = placeTraining(morTrain, cursor)
 
-      // Study/thesis after mega session
+      // Study/thesis/programming/reading after mega session
       const aftPref = (day.evening?.preferredStart ?? 15 * 60) - cfg.travelGymMin - 15
       if (studyPerDay > 0) {
         cursor = placeWork(cursor, studyPerDay, 'study', aftPref)
       }
       if (thesisPerDay > 0) {
         cursor = placeWork(cursor, thesisPerDay, 'thesis', aftPref)
+      }
+      if (cfg.programmingMin > 0 && cursor + 20 < aftPref) {
+        const progSlot = findSlot(fixed, cursor, Math.min(cfg.programmingMin, aftPref - cursor))
+        const progDur  = Math.min(cfg.programmingMin, aftPref - progSlot)
+        if (progDur >= 20) {
+          ev({ title: 'Programmieren', emoji: '💻', start: progSlot, end: progSlot + progDur, type: 'coding',
+            desc: 'Deep Work Block · schwierige Aufgaben angehen' })
+          cursor = progSlot + progDur
+        }
+      }
+      if (cfg.readingMin > 0 && cursor + 20 < aftPref) {
+        const readSlot = findSlot(fixed, cursor, cfg.readingMin)
+        if (readSlot + cfg.readingMin < aftPref) {
+          ev({ title: 'Lesen', emoji: '📚', start: readSlot, end: readSlot + cfg.readingMin, type: 'reading',
+            desc: `${cfg.readingMin}min Lesen – Wochenende` })
+          cursor = readSlot + cfg.readingMin + 10
+        }
       }
 
       // Afternoon training (preferred 15:00)
