@@ -1,10 +1,9 @@
 package de.lecturebase.api;
 
 import de.lecturebase.model.Todo;
-import de.lecturebase.storage.TodoRepository;
+import de.lecturebase.service.TodoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 
@@ -12,40 +11,35 @@ import java.util.Map;
 @RequestMapping("/api/todos")
 public class TodoController {
 
-    private final TodoRepository todoRepository;
+    private final TodoService service;
 
-    public TodoController(TodoRepository todoRepository) {
-        this.todoRepository = todoRepository;
-    }
+    public TodoController(TodoService service) { this.service = service; }
 
     @GetMapping
     public List<Todo> list(
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long goalId) {
-        if (projectId != null) return todoRepository.findByProject(projectId);
-        if (goalId    != null) return todoRepository.findByGoal(goalId);
-        return todoRepository.findAll();
+        return service.list(projectId, goalId);
     }
 
     @PostMapping
     public Todo create(
+            @RequestParam String text,
             @RequestParam(required = false) Long projectId,
-            @RequestParam(required = false) Long goalId,
-            @RequestParam String text) {
-        return todoRepository.create(projectId, goalId, text);
+            @RequestParam(required = false) Long goalId) {
+        return service.create(text, projectId, goalId);
     }
 
     @PostMapping("/{id}/done")
     public ResponseEntity<Map<String, String>> setDone(
-            @PathVariable long id,
-            @RequestParam boolean done) {
-        todoRepository.setDone(id, done);
+            @PathVariable long id, @RequestParam boolean done) {
+        service.setDone(id, done);
         return ResponseEntity.ok(Map.of("status", done ? "done" : "open"));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> delete(@PathVariable long id) {
-        todoRepository.delete(id);
+        service.delete(id);
         return ResponseEntity.ok(Map.of("status", "deleted"));
     }
 }
