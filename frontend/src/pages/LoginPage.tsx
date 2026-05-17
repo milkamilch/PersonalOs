@@ -25,27 +25,27 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
       <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 18,
+        background: 'var(--surface)',
+        border: '1px solid var(--line)',
+        borderRadius: 20,
         padding: '40px 36px',
         width: '100%',
         maxWidth: 360,
-        boxShadow: 'var(--shadow-lg)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
       }}>
-        <div className="text-center mb-8">
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-          <h1 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 22, margin: 0 }}>
+          <h1 style={{ color: 'var(--fg)', fontWeight: 700, fontSize: 22, margin: 0, fontFamily: 'Inter Tight, Inter, sans-serif' }}>
             PersonalOS
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 6 }}>
+          <p style={{ color: 'var(--fg-4)', fontSize: 14, marginTop: 6, margin: '6px 0 0' }}>
             Passwort eingeben
           </p>
         </div>
 
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input
             type="password"
             value={pw}
@@ -53,27 +53,28 @@ export default function LoginPage({ onLogin }: Props) {
             placeholder="Passwort"
             autoFocus
             style={{
-              background: 'var(--bg-input)',
-              border: `1px solid ${error ? 'var(--red-fg)' : 'var(--border-default)'}`,
+              background: 'var(--surface-sunk)',
+              border: `1px solid ${error ? 'var(--rose)' : 'var(--line)'}`,
               borderRadius: 10,
               padding: '12px 14px',
-              color: 'var(--text-primary)',
+              color: 'var(--fg)',
               fontSize: 15,
               outline: 'none',
               width: '100%',
+              boxSizing: 'border-box',
             }}
           />
 
           {error && (
-            <p style={{ color: 'var(--red-fg)', fontSize: 13, margin: 0 }}>{error}</p>
+            <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading || !pw}
             style={{
-              background: pw && !loading ? 'var(--accent)' : 'var(--bg-elevated)',
-              color: pw && !loading ? '#fff' : 'var(--text-muted)',
+              background: pw && !loading ? 'var(--accent)' : 'var(--surface-sunk)',
+              color: pw && !loading ? '#fff' : 'var(--fg-4)',
               border: 'none',
               borderRadius: 10,
               padding: '12px',
