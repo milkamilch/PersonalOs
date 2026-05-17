@@ -1,404 +1,272 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, CheckSquare, Heart, Dumbbell, Plus, X, Pencil, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Dumbbell, Heart, Pencil, Plus, X } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { Todo, Habit, Workout, CalendarEvent } from '../api/types'
-import PageHeader from '../components/PageHeader'
+import type { CalendarEvent, Habit, Todo, Workout } from '../api/types'
 
 function isoDate(d: Date) { return d.toISOString().slice(0, 10) }
-function startOfMonth(y: number, m: number) { return new Date(y, m, 1) }
-function daysInMonth(y: number, m: number)  { return new Date(y, m + 1, 0).getDate() }
+function daysInMonthFn(y: number, m: number) { return new Date(y, m + 1, 0).getDate() }
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+const EVENT_COLORS = ['#1C6BFF', '#2F8F4E', '#C8344A', '#C58A00', '#8E5BFF', '#0FA3A6']
 
-const EVENT_COLORS = [
-  '#0a84ff', '#30d158', '#ff453a', '#ff9f0a', '#bf5af2', '#ff375f', '#40c8e0',
-]
+interface EventForm { title: string; start_time: string; end_time: string; notes: string; color: string }
+const emptyForm = (): EventForm => ({ title: '', start_time: '', end_time: '', notes: '', color: '#1C6BFF' })
 
-interface EventForm {
-  title: string
-  start_time: string
-  end_time: string
-  notes: string
-  color: string
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
 }
-
-const emptyForm = (): EventForm => ({
-  title: '', start_time: '', end_time: '', notes: '', color: '#0a84ff',
-})
 
 export default function CalendarPage() {
   const qc = useQueryClient()
   const now = new Date()
-  const [year,  setYear]  = useState(now.getFullYear())
+  const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [selected, setSelected] = useState<string>(isoDate(now))
-
-  // Event modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [form, setForm] = useState<EventForm>(emptyForm())
 
-  const { data: todos = [] } = useQuery<Todo[]>({
-    queryKey: ['todos'],
-    queryFn: () => endpoints.todos().then(r => r.data),
-  })
-  const { data: habits = [] } = useQuery<Habit[]>({
-    queryKey: ['habits'],
-    queryFn: () => endpoints.habits().then(r => r.data),
-  })
-  const { data: workouts = [] } = useQuery<Workout[]>({
-    queryKey: ['workouts'],
-    queryFn: () => endpoints.workouts(90).then(r => r.data),
-  })
-  const { data: calEvents = [] } = useQuery<CalendarEvent[]>({
-    queryKey: ['calendarEvents'],
-    queryFn: () => endpoints.calendarEvents().then(r => r.data),
-  })
+  const { data: todos = [] } = useQuery<Todo[]>({ queryKey: ['todos'], queryFn: () => endpoints.todos().then(r => r.data) })
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: () => endpoints.habits().then(r => r.data) })
+  const { data: workouts = [] } = useQuery<Workout[]>({ queryKey: ['workouts'], queryFn: () => endpoints.workouts(90).then(r => r.data) })
+  const { data: calEvents = [] } = useQuery<CalendarEvent[]>({ queryKey: ['calendarEvents'], queryFn: () => endpoints.calendarEvents().then(r => r.data) })
 
-  const createEvent = useMutation({
-    mutationFn: (b: object) => endpoints.createCalendarEvent(b),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['calendarEvents'] }); closeModal() },
-  })
-  const updateEvent = useMutation({
-    mutationFn: ({ id, b }: { id: number; b: object }) => endpoints.updateCalendarEvent(id, b),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['calendarEvents'] }); closeModal() },
-  })
-  const deleteEvent = useMutation({
-    mutationFn: (id: number) => endpoints.deleteCalendarEvent(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['calendarEvents'] }),
-  })
+  const createEvent = useMutation({ mutationFn: (b: object) => endpoints.createCalendarEvent(b), onSuccess: () => { qc.invalidateQueries({ queryKey: ['calendarEvents'] }); closeModal() } })
+  const updateEvent = useMutation({ mutationFn: ({ id, b }: { id: number; b: object }) => endpoints.updateCalendarEvent(id, b), onSuccess: () => { qc.invalidateQueries({ queryKey: ['calendarEvents'] }); closeModal() } })
+  const deleteEvent = useMutation({ mutationFn: (id: number) => endpoints.deleteCalendarEvent(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['calendarEvents'] }) })
 
-  function openCreate() {
-    setEditingEvent(null)
-    setForm(emptyForm())
-    setModalOpen(true)
-  }
-  function openEdit(ev: CalendarEvent) {
-    setEditingEvent(ev)
-    setForm({
-      title: ev.title,
-      start_time: ev.start_time ?? '',
-      end_time: ev.end_time ?? '',
-      notes: ev.notes,
-      color: ev.color,
-    })
-    setModalOpen(true)
-  }
+  function openCreate() { setEditingEvent(null); setForm(emptyForm()); setModalOpen(true) }
+  function openEdit(ev: CalendarEvent) { setEditingEvent(ev); setForm({ title: ev.title, start_time: ev.start_time ?? '', end_time: ev.end_time ?? '', notes: ev.notes, color: ev.color }); setModalOpen(true) }
   function closeModal() { setModalOpen(false); setEditingEvent(null); setForm(emptyForm()) }
-
   function submit() {
     if (!form.title.trim()) return
-    const payload = {
-      title: form.title.trim(),
-      event_date: selected,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
-      notes: form.notes,
-      color: form.color,
-    }
-    if (editingEvent) {
-      updateEvent.mutate({ id: editingEvent.id, b: payload })
-    } else {
-      createEvent.mutate(payload)
-    }
+    const payload = { title: form.title.trim(), event_date: selected, start_time: form.start_time || null, end_time: form.end_time || null, notes: form.notes, color: form.color }
+    editingEvent ? updateEvent.mutate({ id: editingEvent.id, b: payload }) : createEvent.mutate(payload)
   }
 
-  function prev() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
-  }
-  function next() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
-  }
+  function prev() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
+  function next() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
 
-  const days     = daysInMonth(year, month)
-  const firstDay = startOfMonth(year, month).getDay()
-  const startPad = (firstDay + 6) % 7
-  const today    = isoDate(now)
+  const days = daysInMonthFn(year, month)
+  const startPad = (new Date(year, month, 1).getDay() + 6) % 7
+  const today = isoDate(now)
+  const monthName = new Date(year, month).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
 
   const workoutDates = new Set(workouts.map(w => w.workout_date?.slice(0, 10)))
-  const eventsByDate = calEvents.reduce<Record<string, CalendarEvent[]>>((acc, e) => {
-    ;(acc[e.event_date] ??= []).push(e)
-    return acc
-  }, {})
+  const eventsByDate = calEvents.reduce<Record<string, CalendarEvent[]>>((acc, e) => { (acc[e.event_date] ??= []).push(e); return acc }, {})
 
-  function dotsFor(dateStr: string) {
-    const dots: { color: string; key: string }[] = []
-    if (workoutDates.has(dateStr)) dots.push({ color: 'var(--green)', key: 'workout' })
-    if (eventsByDate[dateStr]?.length) dots.push({ color: 'var(--accent)', key: 'event' })
-    return dots
+  const prevDays = daysInMonthFn(year, month === 0 ? 11 : month - 1)
+  const cells: { day: number; muted: boolean }[] = []
+  for (let i = 0; i < 42; i++) {
+    const d = i - startPad + 1
+    if (d < 1) cells.push({ day: prevDays + d, muted: true })
+    else if (d > days) cells.push({ day: d - days, muted: true })
+    else cells.push({ day: d, muted: false })
   }
 
-  const selTodos    = todos.filter(t => t.createdAt?.slice(0, 10) === selected)
+  const selEvents = eventsByDate[selected] ?? []
   const selWorkouts = workouts.filter(w => w.workout_date?.slice(0, 10) === selected)
-  const selEvents   = eventsByDate[selected] ?? []
-  const isToday     = selected === today
+  const selTodos = todos.filter(t => t.createdAt?.slice(0, 10) === selected)
+  const isToday = selected === today
+  const selDate = new Date(selected + 'T12:00:00')
+
+  const inputStyle = { background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)', width: '100%' }
 
   return (
-    <div className="page-root" style={{ maxWidth: 680 }}>
-      <PageHeader title="Kalender" subtitle="Todos, Habits, Workouts und Termine." />
-
-      {/* Month nav */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={prev} className="p-2 rounded-xl transition-all active:scale-95"
-                style={{ color: 'var(--text-muted)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <ChevronLeft size={16} />
-        </button>
-        <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          {new Date(year, month).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-        </h2>
-        <button onClick={next} className="p-2 rounded-xl transition-all active:scale-95"
-                style={{ color: 'var(--text-muted)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {/* Calendar grid */}
-      <div className="rounded-2xl overflow-hidden mb-4"
-           style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-        <div className="grid grid-cols-7">
-          {WEEKDAYS.map(d => (
-            <div key={d} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider"
-                 style={{ color: 'var(--text-muted)' }}>{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7">
-          {[...Array(startPad)].map((_, i) => <div key={`pad-${i}`} className="h-12" />)}
-          {[...Array(days)].map((_, i) => {
-            const day     = i + 1
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-            const isT     = dateStr === today
-            const isSel   = dateStr === selected
-            const dots    = dotsFor(dateStr)
-            return (
-              <button key={dateStr} onClick={() => setSelected(dateStr)}
-                      className="h-12 flex flex-col items-center justify-center gap-0.5 transition-all"
-                      style={isSel ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
-                <span className="text-sm tabular-nums font-medium flex items-center justify-center w-7 h-7 rounded-full transition-all"
-                      style={{
-                        color: isT ? '#fff' : isSel ? 'var(--accent)' : 'var(--text-secondary)',
-                        background: isT ? 'var(--accent)' : 'transparent',
-                        fontWeight: isT ? 700 : 400,
-                      }}>
-                  {day}
-                </span>
-                {dots.length > 0 && (
-                  <div className="flex gap-0.5">
-                    {dots.map(d => <div key={d.key} className="w-1 h-1 rounded-full" style={{ background: d.color }} />)}
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Day detail */}
-      <div className="rounded-2xl p-4 space-y-3"
-           style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {new Date(selected + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-            {isToday && <span className="ml-2 text-xs px-2 py-0.5 rounded-full"
-                              style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>Heute</span>}
-          </p>
-          <button onClick={openCreate}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95"
-                  style={{ background: 'var(--accent)', color: '#000' }}>
-            <Plus size={12} /> Termin
-          </button>
-        </div>
-
-        {/* Calendar Events */}
-        {selEvents.length > 0 && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Clock size={12} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Termine</span>
-            </div>
-            <div className="space-y-1.5">
-              {selEvents.map(ev => (
-                <div key={ev.id} className="flex items-start gap-2 px-3 py-2.5 rounded-xl group"
-                     style={{ background: `${ev.color}12`, border: `1px solid ${ev.color}30` }}>
-                  <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: ev.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ev.title}</p>
-                    {(ev.start_time || ev.end_time) && (
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {ev.start_time}{ev.end_time ? ` – ${ev.end_time}` : ''}
-                      </p>
-                    )}
-                    {ev.notes && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{ev.notes}</p>}
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(ev)} className="p-1 rounded-lg transition-all hover:opacity-70">
-                      <Pencil size={12} style={{ color: 'var(--text-muted)' }} />
-                    </button>
-                    <button onClick={() => deleteEvent.mutate(ev.id)} className="p-1 rounded-lg transition-all hover:opacity-70">
-                      <X size={12} style={{ color: '#ff453a' }} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+    <div className="content">
+      <PageHead
+        eyebrow={monthName}
+        title="Kalender"
+        sub="Ein Monat ist nur ein Vorschlag der Zeit. Trag ihn ein."
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn ghost" onClick={prev}><ChevronLeft size={14} /></button>
+            <button className="btn" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()); setSelected(isoDate(now)) }}>Heute</button>
+            <button className="btn ghost" onClick={next}><ChevronRight size={14} /></button>
+            <button className="btn primary" onClick={openCreate}><Plus size={14} /> Termin</button>
           </div>
-        )}
+        }
+      />
 
-        {selWorkouts.length > 0 && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Dumbbell size={12} style={{ color: 'var(--green)' }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--green)' }}>Workout</span>
+      <div className="bento">
+        <div className="col-8">
+          <div className="card">
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">{monthName}</span>
             </div>
-            {selWorkouts.map(w => (
-              <div key={w.id} className="text-sm px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                <p style={{ color: 'var(--text-secondary)' }}>{w.name}</p>
-                {w.exercises.length > 0 && (
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {w.exercises.map(e => e.name).join(', ')}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {isToday && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Heart size={12} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                Habits heute
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-1">
-              {habits.map(h => (
-                <div key={h.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                     style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <span className="text-xs">{h.icon}</span>
-                  <span className="text-xs flex-1 truncate"
-                        style={{ color: h.done_today ? 'var(--text-muted)' : 'var(--text-secondary)',
-                                 textDecoration: h.done_today ? 'line-through' : 'none' }}>
-                    {h.name}
-                  </span>
-                  {h.done_today === 1 && <span style={{ color: 'var(--green)', fontSize: 10 }}>✓</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {selTodos.length > 0 && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <CheckSquare size={12} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Todos</span>
-            </div>
-            {selTodos.map(t => (
-              <div key={t.id} className="text-sm px-3 py-1.5 rounded-xl flex items-center gap-2"
-                   style={{ background: 'rgba(255,255,255,0.02)' }}>
-                <span style={{ color: t.done ? 'var(--green)' : 'var(--text-muted)' }}>{t.done ? '✓' : '○'}</span>
-                <span style={{ color: t.done ? 'var(--text-muted)' : 'var(--text-secondary)',
-                               textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {selEvents.length === 0 && selWorkouts.length === 0 && selTodos.length === 0 && !isToday && (
-          <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
-            Keine Einträge für diesen Tag
-          </p>
-        )}
-      </div>
-
-      {/* Event modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-             style={{ background: 'rgba(0,0,0,0.6)' }}
-             onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
-          <div className="w-full max-w-md rounded-2xl p-5 space-y-4"
-               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-            <div className="flex items-center justify-between">
-              <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {editingEvent ? 'Termin bearbeiten' : 'Neuer Termin'}
-              </p>
-              <button onClick={closeModal} className="p-1.5 rounded-xl transition-all hover:opacity-70">
-                <X size={16} style={{ color: 'var(--text-muted)' }} />
-              </button>
-            </div>
-
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {new Date(selected + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-
-            <input
-              type="text"
-              placeholder="Titel *"
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-              autoFocus
-            />
-
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Von</label>
-                <input
-                  type="time"
-                  value={form.start_time}
-                  onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                  style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Bis</label>
-                <input
-                  type="time"
-                  value={form.end_time}
-                  onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                  style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-                />
-              </div>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Notiz (optional)"
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-            />
-
-            <div>
-              <label className="text-xs mb-2 block" style={{ color: 'var(--text-muted)' }}>Farbe</label>
-              <div className="flex gap-2">
-                {EVENT_COLORS.map(c => (
-                  <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
-                          className="w-7 h-7 rounded-full transition-all"
-                          style={{
-                            background: c,
-                            outline: form.color === c ? `2px solid ${c}` : 'none',
-                            outlineOffset: 2,
-                            opacity: form.color === c ? 1 : 0.5,
-                          }} />
+            <div className="card-b" style={{ padding: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--line)' }}>
+                {WEEKDAYS.map((d, i) => (
+                  <div key={d} style={{ padding: '10px 12px', fontSize: 10.5, color: i >= 5 ? 'var(--fg-4)' : 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>{d}</div>
                 ))}
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(88px, 1fr)' }}>
+                {cells.map((cell, i) => {
+                  const isWe = i % 7 >= 5
+                  const dateStr = cell.muted ? '' : `${year}-${String(month + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`
+                  const isT = dateStr === today
+                  const isSel = dateStr === selected
+                  const evs = dateStr ? (eventsByDate[dateStr] ?? []) : []
+                  const hasWorkout = dateStr ? workoutDates.has(dateStr) : false
+                  return (
+                    <button key={i} onClick={() => !cell.muted && dateStr && setSelected(dateStr)}
+                      style={{ textAlign: 'left', padding: '8px 10px',
+                        borderRight: i % 7 < 6 ? '1px solid var(--line)' : 'none',
+                        borderBottom: i < 35 ? '1px solid var(--line)' : 'none',
+                        background: isSel ? 'var(--accent-soft)' : isWe && !cell.muted ? 'var(--surface-sunk)' : 'var(--surface)',
+                        color: cell.muted ? 'var(--fg-5)' : 'var(--fg)',
+                        cursor: cell.muted ? 'default' : 'pointer',
+                        display: 'flex', flexDirection: 'column', gap: 4,
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontFamily: 'Inter Tight', fontSize: 12.5, fontWeight: isT ? 600 : 500, fontVariantNumeric: 'tabular-nums',
+                          color: isT ? 'white' : isSel ? 'var(--accent)' : 'inherit',
+                          background: isT ? 'var(--accent)' : 'transparent',
+                          width: isT ? 22 : 'auto', height: isT ? 22 : 'auto',
+                          borderRadius: isT ? 99 : 0, display: 'inline-grid', placeItems: 'center',
+                          marginLeft: isT ? -4 : 0 }}>
+                          {cell.day}
+                        </span>
+                        {hasWorkout && <span style={{ width: 5, height: 5, borderRadius: 99, background: 'var(--green)', flexShrink: 0 }} />}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {evs.slice(0, 2).map((ev, j) => (
+                          <div key={j} style={{ fontSize: 10, lineHeight: 1.25, padding: '1px 4px', borderRadius: 3,
+                            background: `${ev.color}1A`, color: ev.color, fontWeight: 500,
+                            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            {ev.title}
+                          </div>
+                        ))}
+                        {evs.length > 2 && <div style={{ fontSize: 10, color: 'var(--fg-4)', paddingLeft: 4 }}>+{evs.length - 2}</div>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
+          </div>
+        </div>
 
-            <button
-              onClick={submit}
-              disabled={!form.title.trim()}
-              className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
-              style={{ background: 'var(--accent)', color: '#000' }}>
-              {editingEvent ? 'Speichern' : 'Termin hinzufügen'}
-            </button>
+        <div className="col-4" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">
+                {selDate.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'short' })}
+                {isToday && <span className="pill success" style={{ marginLeft: 8, fontSize: 10 }}>Heute</span>}
+              </span>
+              <div className="spacer" />
+              <button className="btn primary" style={{ height: 28, fontSize: 11, padding: '0 10px' }} onClick={openCreate}><Plus size={11} /> Termin</button>
+            </div>
+            <div className="card-b" style={{ padding: 0 }}>
+              {selEvents.length === 0 && selWorkouts.length === 0 && selTodos.length === 0 && !isToday && (
+                <div className="empty" style={{ padding: 40 }}>Keine Einträge an diesem Tag.</div>
+              )}
+
+              {selEvents.map((ev, i) => (
+                <div key={ev.id} className="agenda-item" style={{ borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
+                  <div className="time">{ev.start_time ?? '—'}</div>
+                  <div className="bar" style={{ background: ev.color }} />
+                  <div className="body">
+                    <div className="t">{ev.title}</div>
+                    <div className="s">{ev.start_time}{ev.end_time ? ` – ${ev.end_time}` : ''}{ev.notes ? ` · ${ev.notes}` : ''}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                    <button onClick={() => openEdit(ev)} style={{ padding: 4, color: 'var(--fg-4)', cursor: 'pointer' }}><Pencil size={11} /></button>
+                    <button onClick={() => deleteEvent.mutate(ev.id)} style={{ padding: 4, color: 'var(--rose)', cursor: 'pointer' }}><X size={11} /></button>
+                  </div>
+                </div>
+              ))}
+
+              {selWorkouts.map((w, i) => (
+                <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderTop: (i > 0 || selEvents.length > 0) ? '1px solid var(--line)' : 'none' }}>
+                  <Dumbbell size={12} style={{ color: 'var(--green)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>{w.name}</span>
+                </div>
+              ))}
+
+              {isToday && habits.slice(0, 6).map((h, i) => (
+                <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', borderTop: (i > 0 || selEvents.length > 0 || selWorkouts.length > 0) ? '1px solid var(--line)' : 'none', opacity: h.done_today ? 0.55 : 1 }}>
+                  <Heart size={11} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, flex: 1 }}>{h.icon} {h.name}</span>
+                  {h.done_today === 1 && <span style={{ fontSize: 10, color: 'var(--green)' }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-h"><span className="accent-dot" /><span className="title">Kategorien</span></div>
+            <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { c: '#1C6BFF', n: 'Studium' }, { c: '#2F8F4E', n: 'Sport' },
+                { c: '#C58A00', n: 'Termin'  }, { c: '#8E5BFF', n: 'Privat' }, { c: '#C8344A', n: 'Reise' },
+              ].map(cat => (
+                <div key={cat.n} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: cat.c, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13 }}>{cat.n}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--fg-4)' }}>
+                    {calEvents.filter(e => e.color === cat.c).length}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {modalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
+          <div className="card" style={{ width: '100%', maxWidth: 440 }}>
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">{editingEvent ? 'Termin bearbeiten' : 'Neuer Termin'}</span>
+              <div className="spacer" />
+              <button onClick={closeModal} style={{ color: 'var(--fg-4)', cursor: 'pointer' }}><X size={16} /></button>
+            </div>
+            <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>
+                {selDate.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </div>
+              <input placeholder="Titel *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inputStyle} autoFocus />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 4 }}>Von</div>
+                  <input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 4 }}>Bis</div>
+                  <input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} style={inputStyle} />
+                </div>
+              </div>
+              <input placeholder="Notiz (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inputStyle} />
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 8 }}>Farbe</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {EVENT_COLORS.map(c => (
+                    <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
+                      style={{ width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
+                        outline: form.color === c ? `2px solid ${c}` : 'none', outlineOffset: 2, opacity: form.color === c ? 1 : 0.5 }} />
+                  ))}
+                </div>
+              </div>
+              <button onClick={submit} disabled={!form.title.trim()}
+                style={{ width: '100%', padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: 'white', cursor: 'pointer', opacity: form.title.trim() ? 1 : 0.4 }}>
+                {editingEvent ? 'Speichern' : 'Termin hinzufügen'}
+              </button>
+            </div>
           </div>
         </div>
       )}

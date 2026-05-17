@@ -1,26 +1,30 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Users, Mail, Phone, Building2, Search, X, Check, Tag } from 'lucide-react'
+import { Check, Mail, Phone, Plus, Search, Trash2, X } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { Contact } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Input, EmptyState } from '../components/ui'
 
-const TAG_COLORS: Record<string, string> = {
-  'Freund':    'rgba(48,209,88,0.15)',
-  'Arbeit':    'rgba(10,132,255,0.15)',
-  'Familie':   'rgba(255,69,58,0.15)',
-  'Bekannt':   'rgba(255,214,10,0.15)',
-  'Kunde':     'rgba(191,90,242,0.15)',
+const TAG_COLOR: Record<string, string> = {
+  Familie: '#8E5BFF', Uni: '#1C6BFF', Code: '#2F8F4E', Arbeit: '#1C6BFF',
+  Admin: '#9A9A9F', Sport: '#C8344A', Freund: '#2F8F4E', Bekannt: '#C58A00', Kunde: '#8E5BFF',
 }
 
-const TAG_FG: Record<string, string> = {
-  'Freund':  'var(--green)',
-  'Arbeit':  'var(--accent)',
-  'Familie': 'var(--red)',
-  'Bekannt': 'var(--yellow)',
-  'Kunde':   '#bf5af2',
+function tagColor(tag: string | undefined | null) { return TAG_COLOR[tag ?? ''] ?? '#9A9A9F' }
+
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
 }
+
+const TAGS = ['Freund', 'Familie', 'Arbeit', 'Uni', 'Code', 'Admin', 'Sport', 'Bekannt', 'Kunde']
 
 export default function ContactsPage() {
   const qc = useQueryClient()
@@ -38,40 +42,28 @@ export default function ContactsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
   })
 
-  // Group by first letter
   const grouped = contacts.reduce<Record<string, Contact[]>>((acc, c) => {
-    const letter = c.name.charAt(0).toUpperCase()
-    if (!acc[letter]) acc[letter] = []
-    acc[letter].push(c)
+    const L = c.name.charAt(0).toUpperCase()
+    ;(acc[L] ||= []).push(c)
     return acc
   }, {})
+  const letters = Object.keys(grouped).sort()
+
+  const tagCounts = TAGS.map(t => ({ tag: t, count: contacts.filter(c => c.tag === t).length })).filter(x => x.count > 0)
 
   return (
-    <div className="page-root page-medium">
-      <PageHeader
+    <div className="content">
+      <PageHead
+        eyebrow={`${contacts.length} Kontakte`}
         title="Kontakte"
-        subtitle="Dein persönliches Netzwerk."
-        actions={
-          <button onClick={() => { setShowForm(true); setEditing(null) }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
-                  style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
-            <Plus size={15} /> Kontakt
-          </button>
+        sub="Beziehungen sind das einzige, was am Ende zählt."
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn primary" onClick={() => { setShowForm(true); setEditing(null) }}><Plus size={14} /> Neuer Kontakt</button>
+          </div>
         }
       />
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Suchen…"
-          className="pl-9"
-        />
-      </div>
-
-      {/* Form modal */}
       {(showForm || editing) && (
         <ContactForm
           contact={editing}
@@ -80,146 +72,116 @@ export default function ContactsPage() {
         />
       )}
 
-      {contacts.length === 0 && !showForm && (
-        <EmptyState icon={<Users size={22} />} title="Noch keine Kontakte"
-          description="Füge Personen hinzu und behalte dein Netzwerk im Blick." />
-      )}
-
-      <div className="space-y-4">
-        {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([letter, group]) => (
-          <div key={letter}>
-            <p className="text-xs font-bold px-1 mb-2" style={{ color: 'var(--text-muted)' }}>{letter}</p>
-            <div className="space-y-1.5">
-              {group.map(c => (
-                <div key={c.id}
-                     className="flex items-center gap-3 px-4 py-3 rounded-2xl group cursor-pointer transition-all"
-                     style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-                     onClick={() => setEditing(c)}>
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
-                       style={{ background: 'rgba(10,132,255,0.15)', color: 'var(--accent)' }}>
-                    {c.name.charAt(0).toUpperCase()}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
-                      {c.tag && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium flex-shrink-0"
-                              style={{ background: TAG_COLORS[c.tag] ?? 'rgba(255,255,255,0.08)', color: TAG_FG[c.tag] ?? 'var(--text-muted)' }}>
-                          {c.tag}
-                        </span>
-                      )}
+      <div className="bento">
+        <div className="col-8 card">
+          <div className="card-b" style={{ padding: 0 }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-sunk)', border: '1px solid var(--line)', borderRadius: 8, padding: '6px 10px' }}>
+                <Search size={13} style={{ color: 'var(--fg-4)', flexShrink: 0 }} />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Suchen…"
+                  style={{ flex: 1, background: 'transparent', border: 0, outline: 0, fontSize: 13, color: 'var(--fg)' }} />
+              </div>
+            </div>
+            {contacts.length === 0 && <div className="empty" style={{ padding: 60 }}>Noch keine Kontakte.</div>}
+            {letters.map(L => (
+              <div key={L}>
+                <div style={{ padding: '10px 20px 5px', fontSize: 10.5, fontWeight: 600, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.12em', background: 'var(--surface-sunk)', borderTop: '1px solid var(--line)' }}>{L}</div>
+                {grouped[L].map((c) => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 20px', borderTop: '1px solid var(--line)', cursor: 'pointer' }}
+                    onClick={() => setEditing(c)}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                      background: `linear-gradient(135deg, ${tagColor(c.tag)}, ${tagColor(c.tag)}88)`,
+                      display: 'grid', placeItems: 'center', color: 'white', fontSize: 12, fontWeight: 600 }}>
+                      {c.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      {c.company && <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{c.company}</span>}
-                      {c.email && <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{c.email}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 500 }}>{c.name}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>{c.company}</div>
+                    </div>
+                    {c.tag && <span className="pill" style={{ background: `${tagColor(c.tag)}1A`, color: tagColor(c.tag) }}>{c.tag}</span>}
+                    <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                      {c.phone && <a href={`tel:${c.phone}`} style={{ padding: 4, color: 'var(--green)' }}><Phone size={13} /></a>}
+                      {c.email && <a href={`mailto:${c.email}`} style={{ padding: 4, color: 'var(--accent)' }}><Mail size={13} /></a>}
+                      <button onClick={() => del.mutate(c.id)} style={{ padding: 4, color: 'var(--fg-5)' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-5)')}>
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    {c.phone && (
-                      <a href={`tel:${c.phone}`} className="p-2 rounded-lg" style={{ color: 'var(--green)' }}>
-                        <Phone size={14} />
-                      </a>
-                    )}
-                    {c.email && (
-                      <a href={`mailto:${c.email}`} className="p-2 rounded-lg" style={{ color: 'var(--accent)' }}>
-                        <Mail size={14} />
-                      </a>
-                    )}
-                    <button onClick={() => del.mutate(c.id)} className="p-2 rounded-lg" style={{ color: 'var(--red)' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="col-4" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <div className="card-h"><span className="accent-dot" /><span className="title">Tags</span></div>
+            <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {tagCounts.length === 0 && <div className="empty">Keine Tags</div>}
+              {tagCounts.map(({ tag, count }) => (
+                <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: tagColor(tag), flexShrink: 0 }} />
+                  <span style={{ fontSize: 13 }}>{tag}</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono', fontSize: 11.5, color: 'var(--fg-4)' }}>{count}</span>
                 </div>
               ))}
             </div>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   )
 }
 
-const TAGS = ['Freund', 'Familie', 'Arbeit', 'Bekannt', 'Kunde', '']
-
-function ContactForm({ contact, onClose, onSaved }: {
-  contact: Contact | null; onClose: () => void; onSaved: () => void
-}) {
+function ContactForm({ contact, onClose, onSaved }: { contact: Contact | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
-    name:        contact?.name        ?? '',
-    email:       contact?.email       ?? '',
-    phone:       contact?.phone       ?? '',
-    company:     contact?.company     ?? '',
-    notes:       contact?.notes       ?? '',
-    tag:         contact?.tag         ?? '',
+    name: contact?.name ?? '', email: contact?.email ?? '', phone: contact?.phone ?? '',
+    company: contact?.company ?? '', notes: contact?.notes ?? '', tag: contact?.tag ?? '',
     lastContact: contact?.last_contact ?? '',
   })
 
-  const create = useMutation({
-    mutationFn: () => endpoints.createContact(form),
-    onSuccess: onSaved,
-  })
-  const update = useMutation({
-    mutationFn: () => endpoints.updateContact(contact!.id, form),
-    onSuccess: onSaved,
-  })
-
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }))
+  const create = useMutation({ mutationFn: () => endpoints.createContact(form), onSuccess: onSaved })
+  const update = useMutation({ mutationFn: () => endpoints.updateContact(contact!.id, form), onSuccess: onSaved })
+  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.value }))
+  const inputStyle = { background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)', width: '100%' }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-         style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-         onClick={onClose}>
-      <div className="w-full sm:max-w-md mx-4 mb-safe rounded-t-3xl sm:rounded-2xl overflow-hidden"
-           style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-           onClick={e => e.stopPropagation()}>
-
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {contact ? 'Kontakt bearbeiten' : 'Neuer Kontakt'}
-          </p>
-          <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="card" style={{ width: '100%', maxWidth: 480, margin: 16 }} onClick={e => e.stopPropagation()}>
+        <div className="card-h">
+          <span className="accent-dot" />
+          <span className="title">{contact ? 'Kontakt bearbeiten' : 'Neuer Kontakt'}</span>
+          <div className="spacer" />
+          <button onClick={onClose} style={{ color: 'var(--fg-4)', cursor: 'pointer' }}><X size={16} /></button>
         </div>
-
-        <div className="p-4 space-y-3" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
-          <Input placeholder="Name *" value={form.name} onChange={f('name')} />
-          <div className="grid grid-cols-2 gap-2">
-            <Input placeholder="E-Mail" value={form.email} onChange={f('email')} type="email" />
-            <Input placeholder="Telefon" value={form.phone} onChange={f('phone')} type="tel" />
+        <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input placeholder="Name *" value={form.name} onChange={f('name')} style={inputStyle} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <input placeholder="E-Mail" value={form.email} onChange={f('email')} type="email" style={inputStyle} />
+            <input placeholder="Telefon" value={form.phone} onChange={f('phone')} type="tel" style={inputStyle} />
           </div>
-          <Input placeholder="Unternehmen" value={form.company} onChange={f('company')} icon={<Building2 size={14} />} />
-          <Input placeholder="Letzter Kontakt" value={form.lastContact} onChange={f('lastContact')} type="date" />
-
-          {/* Tags */}
+          <input placeholder="Unternehmen / Kontext" value={form.company} onChange={f('company')} style={inputStyle} />
+          <input placeholder="Letzter Kontakt" value={form.lastContact} onChange={f('lastContact')} type="date" style={inputStyle} />
           <div>
-            <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
-              <Tag size={12} /> Kategorie
-            </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div style={{ fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Kategorie</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {TAGS.map(t => (
-                <button key={t} onClick={() => setForm(p => ({ ...p, tag: t }))}
-                        className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-                        style={form.tag === t
-                          ? { background: TAG_COLORS[t] ?? 'rgba(255,255,255,0.1)', color: TAG_FG[t] ?? 'var(--text-primary)' }
-                          : { background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' }}>
-                  {t || 'Keine'}
+                <button key={t} onClick={() => setForm(p => ({ ...p, tag: p.tag === t ? '' : t }))}
+                  style={{ padding: '4px 12px', borderRadius: 99, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
+                    background: form.tag === t ? `${tagColor(t)}1A` : 'var(--surface-sunk)',
+                    color: form.tag === t ? tagColor(t) : 'var(--fg-3)',
+                    border: `1px solid ${form.tag === t ? tagColor(t) : 'var(--line)'}` }}>
+                  {t}
                 </button>
               ))}
             </div>
           </div>
-
-          <textarea value={form.notes} onChange={f('notes')} placeholder="Notizen…" rows={2}
-                    className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
-                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-
-          <button
-            onClick={() => contact ? update.mutate() : create.mutate()}
-            disabled={!form.name.trim()}
-            className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-[0.98]"
-            style={{ background: 'var(--accent)', color: '#000' }}>
+          <textarea placeholder="Notizen…" value={form.notes} onChange={f('notes')} rows={2}
+            style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }} />
+          <button onClick={() => contact ? update.mutate() : create.mutate()} disabled={!form.name.trim()}
+            style={{ width: '100%', padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: 'white', cursor: 'pointer', opacity: form.name.trim() ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Check size={15} /> {contact ? 'Speichern' : 'Erstellen'}
           </button>
         </div>

@@ -1,367 +1,195 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Dumbbell, X, ChevronDown, ChevronUp, Scale } from 'lucide-react'
+import { Plus, TrendingDown, TrendingUp } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { Workout, FitnessStats, BodyWeightEntry } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Button, Input, Card, EmptyState, Badge } from '../components/ui'
 
-const QUICK_EXERCISES = ['Bankdrücken','Kniebeuge','Kreuzheben','Klimmzüge','Dips','Schulterdrücken','Rudern','Bizeps Curls','Trizeps','Planke','Laufen','Fahrrad']
+const fmtDate = (s: string) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
+}
 
 export default function FitnessPage() {
   const qc = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
-  const [expanded, setExpanded] = useState<number | null>(null)
-  const [tab, setTab] = useState<'workouts' | 'weight'>('workouts')
+  const [showAddWorkout, setShowAddWorkout] = useState(false)
+  const [showAddWeight, setShowAddWeight] = useState(false)
+  const [workoutName, setWorkoutName] = useState('')
+  const [weightVal, setWeightVal] = useState('')
 
-  const { data: workouts = [] } = useQuery<Workout[]>({
-    queryKey: ['workouts'],
-    queryFn: () => endpoints.workouts().then(r => r.data),
-  })
+  const { data: workouts = [] } = useQuery<Workout[]>({ queryKey: ['workouts'], queryFn: () => endpoints.workouts(30).then(r => r.data) })
+  const { data: stats } = useQuery<FitnessStats>({ queryKey: ['fitnessStats'], queryFn: () => endpoints.fitnessStats().then(r => r.data) })
+  const { data: weightLog = [] } = useQuery<BodyWeightEntry[]>({ queryKey: ['weightLog'], queryFn: () => endpoints.weightLog(30).then(r => r.data) })
 
-  const { data: stats } = useQuery<FitnessStats>({
-    queryKey: ['fitnessStats'],
-    queryFn: () => endpoints.fitnessStats().then(r => r.data),
+  const createWorkout = useMutation({
+    mutationFn: () => endpoints.createWorkout({ name: workoutName, notes: '', workout_date: new Date().toISOString().slice(0, 10) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); setWorkoutName(''); setShowAddWorkout(false) },
   })
+  const logWeight = useMutation({
+    mutationFn: () => endpoints.logWeight({ weight_kg: parseFloat(weightVal), log_date: new Date().toISOString().slice(0, 10) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['weightLog'] }); setWeightVal(''); setShowAddWeight(false) },
+  })
+  const delWorkout = useMutation({ mutationFn: (id: number) => endpoints.deleteWorkout(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }) })
 
-  const del = useMutation({
-    mutationFn: (id: number) => endpoints.deleteWorkout(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); qc.invalidateQueries({ queryKey: ['fitnessStats'] }) },
-  })
+  const sortedWeight = [...weightLog].sort((a, b) => a.log_date.localeCompare(b.log_date))
+  const lastWeight  = sortedWeight[sortedWeight.length - 1]?.weight_kg
+  const firstWeight = sortedWeight[0]?.weight_kg
+  const weightDelta = lastWeight != null && firstWeight != null ? lastWeight - firstWeight : null
+
+  const sparkPath = (() => {
+    if (sortedWeight.length < 2) return ''
+    const vals = sortedWeight.map(e => e.weight_kg)
+    const min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1
+    return 'M ' + vals.map((v, i) => `${(i / (vals.length - 1)) * 100},${40 - ((v - min) / range) * 38 - 1}`).join(' L ')
+  })()
 
   return (
-    <div className="page-root page-medium">
-      <PageHeader
-        title="Fitness"
-        subtitle="Trainings-Log und Fortschritt."
-        actions={
-          tab === 'workouts'
-            ? <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setShowForm(s => !s)}>Training</Button>
-            : null
+    <div className="content">
+      <PageHead
+        eyebrow="Fitness"
+        title="Training"
+        sub="Disziplin schlägt Motivation. Jedes Mal."
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={() => setShowAddWeight(true)}><Plus size={13} /> Gewicht</button>
+            <button className="btn primary" onClick={() => setShowAddWorkout(true)}><Plus size={14} /> Workout</button>
+          </div>
         }
       />
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', width: 'fit-content' }}>
-        {([['workouts', Dumbbell, 'Training'], ['weight', Scale, 'Gewicht']] as const).map(([key, Icon, label]) => (
-          <button key={key} onClick={() => setTab(key)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                  style={tab === key
-                    ? { background: 'var(--accent)', color: '#000' }
-                    : { color: 'var(--text-muted)' }}>
-            <Icon size={14} />{label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'workouts' && <>
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          <StatBox label="Gesamt" value={stats.totalWorkouts} />
-          <StatBox label="Diesen Monat" value={stats.thisMonth} />
-          <StatBox label="Diese Woche" value={stats.thisWeek} />
-          <StatBox label="Letztes Training" value={stats.lastWorkout === '—' ? '—' : new Date(stats.lastWorkout).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} />
+      {showAddWorkout && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-b" style={{ display: 'flex', gap: 8 }}>
+            <input autoFocus value={workoutName} onChange={e => setWorkoutName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') createWorkout.mutate() }}
+              placeholder="Workout-Name (z.B. Push, Pull, Legs, 5km)"
+              style={{ flex: 1, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <button className="btn primary" onClick={() => workoutName.trim() && createWorkout.mutate()}>Anlegen</button>
+            <button className="btn ghost" onClick={() => setShowAddWorkout(false)}>Abbrechen</button>
+          </div>
         </div>
       )}
 
-      {/* New workout form */}
-      {showForm && (
-        <NewWorkoutForm qc={qc} onClose={() => setShowForm(false)} />
+      {showAddWeight && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-b" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input autoFocus type="number" step="0.1" value={weightVal} onChange={e => setWeightVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') logWeight.mutate() }}
+              placeholder="Gewicht in kg"
+              style={{ width: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <span style={{ color: 'var(--fg-3)', fontSize: 13 }}>kg</span>
+            <button className="btn primary" onClick={() => weightVal && logWeight.mutate()}>Eintragen</button>
+            <button className="btn ghost" onClick={() => setShowAddWeight(false)}>Abbrechen</button>
+          </div>
+        </div>
       )}
 
-      {/* Workout list */}
-      {workouts.length === 0 && !showForm && (
-        <EmptyState icon={<Dumbbell size={22} />} title="Kein Training geloggt"
-          description="Starte dein erstes Training und track deinen Fortschritt." />
-      )}
-
-      <div className="space-y-3">
-        {workouts.map(w => (
-          <div key={w.id} className="rounded-2xl overflow-hidden"
-               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
-            <div className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-                 onClick={() => setExpanded(expanded === w.id ? null : w.id)}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                   style={{ background: 'rgba(124,58,237,0.15)' }}>
-                <Dumbbell size={16} style={{ color: 'var(--accent-fg)' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{w.name}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(w.workout_date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
-                  {w.exercises.length > 0 && ` · ${w.exercises.length} Übungen`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={e => { e.stopPropagation(); del.mutate(w.id) }}
-                        className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                        style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--red-fg)')}
-                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
-                  <Trash2 size={13} />
-                </button>
-                {expanded === w.id ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
-              </div>
+      <div className="bento" style={{ marginBottom: 16 }}>
+        <div className="col-3 stat">
+          <div className="l">Diese Woche</div>
+          <div className="v">{stats?.thisWeek ?? 0}<span className="unit">×</span></div>
+          <div className="delta">Trainingseinheiten</div>
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Diesen Monat</div>
+          <div className="v">{stats?.thisMonth ?? 0}<span className="unit">×</span></div>
+          <div className="delta">Einheiten</div>
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Aktuelles Gewicht</div>
+          <div className="v">{lastWeight != null ? lastWeight.toFixed(1) : '—'}<span className="unit">{lastWeight != null ? 'kg' : ''}</span></div>
+          {weightDelta != null && (
+            <div className={`delta ${weightDelta < 0 ? 'up' : 'down'}`}>
+              {weightDelta < 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
+              {weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg (30 Tage)
             </div>
+          )}
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Gesamt Workouts</div>
+          <div className="v">{stats?.totalWorkouts ?? 0}</div>
+          <div className="delta">alle Zeit</div>
+        </div>
+      </div>
 
-            {expanded === w.id && w.exercises.length > 0 && (
-              <div className="px-4 pb-3 space-y-1.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="pt-2">
-                  {w.exercises.map(ex => (
-                    <div key={ex.id} className="flex items-center gap-2 py-1.5">
-                      <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>{ex.name}</span>
-                      <div className="flex gap-2">
-                        {ex.sets > 0 && <Badge variant="neutral">{ex.sets}×{ex.reps}</Badge>}
-                        {ex.weight_kg > 0 && <Badge variant="neutral">{ex.weight_kg}kg</Badge>}
-                        {ex.duration_min > 0 && <Badge variant="neutral">{ex.duration_min}min</Badge>}
-                      </div>
-                    </div>
-                  ))}
+      <div className="bento">
+        <div className="col-7">
+          <div className="card">
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">Workout-Verlauf</span>
+              <div className="spacer" />
+              <span className="meta">letzte 30 Tage</span>
+            </div>
+            <div className="card-b" style={{ padding: 0 }}>
+              {workouts.length === 0 && <div className="empty" style={{ padding: 60 }}>Noch keine Workouts geloggt.</div>}
+              {workouts.slice(0, 15).map((w, i) => (
+                <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
+                  <div style={{ width: 56, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: 'var(--fg-4)', flexShrink: 0 }}>{fmtDate(w.workout_date)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{w.name}</div>
+                    {w.notes && <div style={{ fontSize: 11.5, color: 'var(--accent)', marginTop: 2 }}>★ {w.notes}</div>}
+                    {w.exercises.length > 0 && <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>{w.exercises.length} Übungen</div>}
+                  </div>
+                  <button onClick={() => delWorkout.mutate(w.id)} style={{ color: 'var(--fg-5)' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-5)')}>✕</button>
                 </div>
-                {w.notes && (
-                  <p className="text-xs pt-1" style={{ color: 'var(--text-muted)' }}>📝 {w.notes}</p>
-                )}
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="col-5" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <div className="card-h"><span className="accent-dot" /><span className="title">Körpergewicht · 30 Tage</span></div>
+            <div className="card-b">
+              {lastWeight != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                  <div className="display" style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.03em' }}>
+                    {lastWeight.toFixed(1)}<small style={{ fontSize: 14, color: 'var(--fg-3)' }}> kg</small>
+                  </div>
+                  {weightDelta != null && (
+                    <span className={`pill ${weightDelta < 0 ? 'success' : 'danger'}`}>
+                      {weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg
+                    </span>
+                  )}
+                </div>
+              )}
+              {sparkPath && (
+                <svg viewBox="0 0 100 40" style={{ width: '100%', height: 60 }} preserveAspectRatio="none">
+                  <path d={sparkPath} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+                </svg>
+              )}
+              {sortedWeight.length === 0 && <div className="empty">Noch kein Gewicht eingetragen.</div>}
+            </div>
+          </div>
+          {sortedWeight.length > 0 && (
+            <div className="card">
+              <div className="card-h"><span className="accent-dot" /><span className="title">Letzte Einträge</span></div>
+              <div className="card-b" style={{ padding: 0 }}>
+                {[...sortedWeight].reverse().slice(0, 5).map((e, i) => (
+                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
+                    <span className="mono" style={{ fontSize: 11.5, color: 'var(--fg-4)', width: 48 }}>{fmtDate(e.log_date)}</span>
+                    <span style={{ flex: 1, fontFamily: 'Inter Tight', fontWeight: 600, fontSize: 14 }}>{e.weight_kg.toFixed(1)} kg</span>
+                    <button onClick={() => endpoints.deleteWeight(e.id).then(() => qc.invalidateQueries({ queryKey: ['weightLog'] }))} style={{ color: 'var(--fg-5)', fontSize: 11 }}
+                      onMouseEnter={el => (el.currentTarget.style.color = 'var(--rose)')}
+                      onMouseLeave={el => (el.currentTarget.style.color = 'var(--fg-5)')}>✕</button>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
-      </>}
-
-      {tab === 'weight' && <WeightTab />}
-    </div>
-  )
-}
-
-function WeightTab() {
-  const qc = useQueryClient()
-  const [kg, setKg]     = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [note, setNote] = useState('')
-
-  const { data: entries = [] } = useQuery<BodyWeightEntry[]>({
-    queryKey: ['weightLog'],
-    queryFn: () => endpoints.weightLog(90).then(r => r.data),
-  })
-
-  const log = useMutation({
-    mutationFn: () => endpoints.logWeight({ weightKg: parseFloat(kg.replace(',', '.')), logDate: date, note }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['weightLog'] }); setKg(''); setNote('') },
-  })
-  const del = useMutation({
-    mutationFn: (id: number) => endpoints.deleteWeight(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['weightLog'] }),
-  })
-
-  const sorted  = [...entries].sort((a, b) => a.log_date.localeCompare(b.log_date))
-  const latest  = sorted[sorted.length - 1]
-  const oldest  = sorted[0]
-  const diff    = latest && oldest && latest !== oldest ? (latest.weight_kg - oldest.weight_kg) : null
-
-  // Sparkline
-  const maxW = Math.max(...sorted.map(e => e.weight_kg), 1)
-  const minW = Math.min(...sorted.map(e => e.weight_kg), maxW - 1)
-  const range = maxW - minW || 1
-  const H = 60, W = 300
-  const pts = sorted.map((e, i) => {
-    const x = sorted.length > 1 ? (i / (sorted.length - 1)) * W : W / 2
-    const y = H - ((e.weight_kg - minW) / range) * H
-    return `${x},${y}`
-  }).join(' ')
-
-  return (
-    <div className="space-y-4">
-      {/* Log form */}
-      <Card className="p-4">
-        <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Gewicht eintragen</p>
-        <div className="flex gap-2 items-end">
-          <div className="relative flex-shrink-0" style={{ width: 100 }}>
-            <input
-              value={kg}
-              onChange={e => setKg(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && kg && log.mutate()}
-              placeholder="kg"
-              type="number" step="0.1" inputMode="decimal"
-              className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-            />
-          </div>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                 className="px-3 py-2 rounded-xl text-sm outline-none"
-                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-          <input value={note} onChange={e => setNote(e.target.value)}
-                 placeholder="Notiz (optional)" className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-          <Button variant="primary" size="sm" disabled={!kg} onClick={() => log.mutate()}>Speichern</Button>
-        </div>
-      </Card>
-
-      {/* Stats row */}
-      {latest && (
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-3 text-center">
-            <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{latest.weight_kg} kg</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Aktuell</p>
-          </Card>
-          <Card className="p-3 text-center">
-            <p className="text-xl font-bold tabular-nums" style={{ color: diff === null ? 'var(--text-muted)' : diff < 0 ? 'var(--green)' : diff > 0 ? 'var(--red)' : 'var(--text-muted)' }}>
-              {diff === null ? '—' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg`}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>seit {sorted.length} Einträgen</p>
-          </Card>
-          <Card className="p-3 text-center">
-            <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{entries.length}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Einträge</p>
-          </Card>
-        </div>
-      )}
-
-      {/* Sparkline chart */}
-      {sorted.length > 1 && (
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>Verlauf (90 Tage)</p>
-          <div style={{ overflowX: 'auto' }}>
-            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H }}>
-              <polyline fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" points={pts} />
-              {sorted.map((e, i) => {
-                const x = sorted.length > 1 ? (i / (sorted.length - 1)) * W : W / 2
-                const y = H - ((e.weight_kg - minW) / range) * H
-                return <circle key={e.id} cx={x} cy={y} r={3} fill="var(--accent)" />
-              })}
-            </svg>
-            <div className="flex justify-between text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-              <span>{sorted[0]?.log_date.slice(5)}</span>
-              <span>{sorted[sorted.length - 1]?.log_date.slice(5)}</span>
             </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Entry list */}
-      {entries.length === 0 && (
-        <EmptyState icon={<Scale size={22} />} title="Noch keine Einträge" description="Trag dein Gewicht ein, um deinen Fortschritt zu sehen." />
-      )}
-      <div className="space-y-1.5">
-        {[...entries].sort((a, b) => b.log_date.localeCompare(a.log_date)).map(e => (
-          <div key={e.id} className="flex items-center gap-3 px-4 py-3 rounded-xl group"
-               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
-            <p className="text-sm font-semibold tabular-nums w-16" style={{ color: 'var(--text-primary)' }}>{e.weight_kg} kg</p>
-            <p className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>
-              {new Date(e.log_date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
-              {e.note && <span className="ml-2">{e.note}</span>}
-            </p>
-            <button onClick={() => del.mutate(e.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                    style={{ color: 'var(--red)' }}>
-              <Trash2 size={12} />
-            </button>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
     </div>
-  )
-}
-
-function StatBox({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card className="p-3 text-center">
-      <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
-      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
-    </Card>
-  )
-}
-
-function NewWorkoutForm({ qc, onClose }: { qc: ReturnType<typeof useQueryClient>; onClose: () => void }) {
-  const [name, setName]   = useState('')
-  const [date, setDate]   = useState(new Date().toISOString().slice(0, 10))
-  const [notes, setNotes] = useState('')
-  const [exercises, setExercises] = useState<Array<{ name: string; sets: number; reps: number; weightKg: number; durationMin: number }>>([])
-  const [exName, setExName]   = useState('')
-  const [sets, setSets]       = useState('3')
-  const [reps, setReps]       = useState('10')
-  const [weight, setWeight]   = useState('')
-  const [duration, setDuration] = useState('')
-
-  const save = useMutation({
-    mutationFn: () => endpoints.createWorkout({ name, notes, workoutDate: date, exercises }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['workouts'] })
-      qc.invalidateQueries({ queryKey: ['fitnessStats'] })
-      onClose()
-    },
-  })
-
-  const addExercise = () => {
-    if (!exName.trim()) return
-    setExercises(es => [...es, {
-      name: exName.trim(),
-      sets: parseInt(sets) || 0,
-      reps: parseInt(reps) || 0,
-      weightKg: parseFloat(weight) || 0,
-      durationMin: parseInt(duration) || 0,
-    }])
-    setExName(''); setWeight(''); setDuration('')
-  }
-
-  return (
-    <Card className="p-4 mb-6">
-      <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Neues Training</p>
-      <div className="space-y-2 mb-4">
-        <Input placeholder="Name (z.B. Oberkörper, Beinday…)" value={name} onChange={e => setName(e.target.value)} />
-        <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-        <Input placeholder="Notizen (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
-      </div>
-
-      {/* Exercises */}
-      <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>Übungen</p>
-
-      {/* Quick add */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {QUICK_EXERCISES.map(q => (
-          <button key={q} onClick={() => setExName(q)}
-                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                  style={{ background: exName === q ? 'var(--accent-soft)' : 'rgba(255,255,255,0.04)',
-                           color: exName === q ? 'var(--accent-fg)' : 'var(--text-muted)',
-                           border: `1px solid ${exName === q ? 'var(--accent-fg)' : 'transparent'}` }}>
-            {q}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <Input placeholder="Übung" value={exName} onChange={e => setExName(e.target.value)} />
-        <div className="flex gap-1">
-          <Input placeholder="Sätze" value={sets} onChange={e => setSets(e.target.value)} />
-          <Input placeholder="Wdh." value={reps} onChange={e => setReps(e.target.value)} />
-          <Input placeholder="kg" value={weight} onChange={e => setWeight(e.target.value)} />
-        </div>
-      </div>
-      <Button variant="ghost" size="sm" icon={<Plus size={13} />} onClick={addExercise} className="mb-3">
-        Übung hinzufügen
-      </Button>
-
-      {exercises.length > 0 && (
-        <div className="space-y-1 mb-4">
-          {exercises.map((ex, i) => (
-            <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                 style={{ background: 'rgba(255,255,255,0.03)' }}>
-              <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>{ex.name}</span>
-              {ex.sets > 0 && <Badge variant="neutral">{ex.sets}×{ex.reps}</Badge>}
-              {ex.weightKg > 0 && <Badge variant="neutral">{ex.weightKg}kg</Badge>}
-              <button onClick={() => setExercises(es => es.filter((_, j) => j !== i))}>
-                <X size={12} style={{ color: 'var(--text-muted)' }} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <Button variant="primary" size="sm" disabled={!name.trim()} loading={save.isPending} onClick={() => save.mutate()}>
-          Speichern
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onClose}>Abbrechen</Button>
-      </div>
-    </Card>
   )
 }

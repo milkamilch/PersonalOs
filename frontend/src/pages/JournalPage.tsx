@@ -1,46 +1,49 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { JournalEntry } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Button, Card } from '../components/ui'
 
+const MOOD_E = ['', '😞', '😕', '🙂', '😊', '😄']
 const MOODS = [
-  { value: 1, emoji: '😔', label: 'Schlecht'      },
-  { value: 2, emoji: '😕', label: 'Mäßig'         },
-  { value: 3, emoji: '😐', label: 'Okay'           },
-  { value: 4, emoji: '😊', label: 'Gut'            },
-  { value: 5, emoji: '😄', label: 'Super'          },
+  { value: 1, emoji: '😞', label: 'Schlecht' },
+  { value: 2, emoji: '😕', label: 'Mäßig' },
+  { value: 3, emoji: '🙂', label: 'Okay' },
+  { value: 4, emoji: '😊', label: 'Gut' },
+  { value: 5, emoji: '😄', label: 'Super' },
 ]
+
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
+}
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 
-function moodColor(mood: number) {
-  if (mood >= 5) return 'var(--green-fg)'
-  if (mood >= 4) return '#30d158'
-  if (mood >= 3) return 'var(--yellow-fg)'
-  if (mood >= 2) return 'var(--orange-fg)'
-  return 'var(--red-fg)'
-}
-
 export default function JournalPage() {
   const qc = useQueryClient()
-  const [view, setView] = useState<'today' | 'history'>('today')
-  const [mood, setMood]       = useState(3)
+  const [showEditor, setShowEditor] = useState(false)
+  const [mood, setMood] = useState(3)
   const [content, setContent] = useState('')
-  const [synced, setSynced]   = useState(false)
-  const [saved, setSaved]     = useState(false)
+  const [synced, setSynced] = useState(false)
+  const [saved, setSaved] = useState(false)
+
   const { data: today } = useQuery<JournalEntry>({
     queryKey: ['journalToday'],
     queryFn: () => endpoints.journalToday().then(r => r.data),
   })
-
   const { data: entries = [] } = useQuery<JournalEntry[]>({
     queryKey: ['journalEntries'],
     queryFn: () => endpoints.journalEntries(60).then(r => r.data),
-    enabled: view === 'history',
   })
-
   const { data: moodTrend = [] } = useQuery<{ entry_date: string; mood: number }[]>({
     queryKey: ['moodTrend'],
     queryFn: () => endpoints.moodTrend().then(r => r.data),
@@ -55,163 +58,132 @@ export default function JournalPage() {
   }, [today, synced])
 
   const save = useMutation({
-    mutationFn: (data: { entryDate: string; mood: number; content: string }) =>
-      endpoints.upsertJournal(data),
+    mutationFn: (data: { entryDate: string; mood: number; content: string }) => endpoints.upsertJournal(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['journalToday'] })
       qc.invalidateQueries({ queryKey: ['journalEntries'] })
       qc.invalidateQueries({ queryKey: ['moodTrend'] })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+      setShowEditor(false)
     },
   })
 
-  const avgMood = moodTrend.length > 0
-    ? moodTrend.reduce((s, e) => s + e.mood, 0) / moodTrend.length
-    : 0
+  const trend14 = moodTrend.slice(-14)
+  const avgMood = trend14.length > 0 ? trend14.reduce((s, e) => s + e.mood, 0) / trend14.length : 0
+  const sparkPath = (() => {
+    if (trend14.length < 2) return ''
+    return 'M ' + trend14.map((e, i) => `${(i / (trend14.length - 1)) * 100},${48 - ((e.mood - 1) / 4) * 42 - 3}`).join(' L ')
+  })()
+  const areaPath = sparkPath ? `${sparkPath} L 100,50 L 0,50 Z` : ''
 
   return (
-    <div className="page-root page-medium">
-      <PageHeader title="Journal" subtitle="Ein Moment der Reflektion — täglich." />
+    <div className="content">
+      <PageHead
+        eyebrow={`${entries.length} Einträge`}
+        title="Journal"
+        sub="Reflexion ist der Hebel der Veränderung."
+        action={<button className="btn primary" onClick={() => setShowEditor(v => !v)}><Plus size={14} /> Neuer Eintrag</button>}
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-8 p-1 rounded-xl w-fit"
-           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-        {(['today','history'] as const).map(t => (
-          <button key={t} onClick={() => setView(t)}
-                  className="px-5 py-1.5 rounded-[10px] text-sm font-medium transition-all"
-                  style={{ background: view === t ? 'var(--bg-surface)' : 'transparent',
-                           color: view === t ? 'var(--text-primary)' : 'var(--text-muted)',
-                           boxShadow: view === t ? 'var(--shadow-xs)' : 'none' }}>
-            {t === 'today' ? 'Heute' : 'Verlauf'}
-          </button>
-        ))}
-      </div>
-
-      {view === 'today' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-          {/* Left — editor */}
-          <div>
-            {/* Mood picker */}
-            <p className="text-xs font-semibold uppercase tracking-widest mb-3"
-               style={{ color: 'var(--text-muted)' }}>
-              Wie geht es dir heute?
-            </p>
-            <div className="grid grid-cols-5 gap-2 mb-8">
+      {showEditor && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h">
+            <span className="accent-dot" />
+            <span className="title">{new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+          </div>
+          <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               {MOODS.map(m => (
                 <button key={m.value} onClick={() => setMood(m.value)}
-                        className="flex flex-col items-center gap-2 py-4 rounded-2xl transition-all"
-                        style={{
-                          background: mood === m.value ? 'var(--accent-soft)' : 'var(--bg-surface)',
-                          border: `1px solid ${mood === m.value ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
-                          boxShadow: mood === m.value ? '0 0 0 3px rgba(10,132,255,0.1)' : 'none',
-                        }}>
-                  <span className="text-2xl leading-none">{m.emoji}</span>
-                  <span className="text-xs font-medium whitespace-nowrap"
-                        style={{ color: mood === m.value ? 'var(--accent-fg)' : 'var(--text-muted)' }}>
-                    {m.label}
-                  </span>
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 0', borderRadius: 10,
+                    background: mood === m.value ? 'var(--accent-soft)' : 'var(--surface-sunk)',
+                    border: `1.5px solid ${mood === m.value ? 'var(--accent)' : 'var(--line)'}`, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 20 }}>{m.emoji}</span>
+                  <span style={{ fontSize: 10.5, color: mood === m.value ? 'var(--accent)' : 'var(--fg-4)', fontWeight: 500 }}>{m.label}</span>
                 </button>
               ))}
             </div>
-
-            {/* Entry */}
-            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
-               style={{ color: 'var(--text-muted)' }}>
-              {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-            <textarea
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Was war heute besonders? Was beschäftigt dich? Was bist du dankbar für?"
-              rows={10}
-              className="w-full rounded-2xl px-5 py-4 text-sm resize-none outline-none transition-all"
-              style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-                lineHeight: '1.75',
-                caretColor: 'var(--accent)',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
-              onBlur={e  => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-            />
-
-            <div className="flex items-center justify-between mt-3">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {content.length} Zeichen
-              </span>
-              <Button variant={saved ? 'success' : 'primary'} size="sm"
-                      loading={save.isPending}
-                      onClick={() => save.mutate({ entryDate: todayStr(), mood, content })}>
+            <textarea value={content} onChange={e => setContent(e.target.value)}
+              placeholder="Was war heute besonders? Was beschäftigt dich? Wofür bist du dankbar?"
+              rows={6}
+              style={{ background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '10px 14px', fontSize: 14, resize: 'vertical', outline: 'none', color: 'var(--fg)', lineHeight: 1.65 }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="btn primary" onClick={() => save.mutate({ entryDate: todayStr(), mood, content })}>
                 {saved ? '✓ Gespeichert' : 'Speichern'}
-              </Button>
+              </button>
+              <button className="btn ghost" onClick={() => setShowEditor(false)}>Abbrechen</button>
+              <span style={{ fontSize: 11.5, color: 'var(--fg-4)', marginLeft: 'auto' }}>{content.length} Zeichen</span>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Right — stats */}
-          <div className="space-y-4">
-            {/* Trend chart */}
-            {moodTrend.length > 0 && (
-              <Card className="p-5">
-                <p className="text-xs font-semibold uppercase tracking-widest mb-4"
-                   style={{ color: 'var(--text-muted)' }}>Stimmungsverlauf</p>
-                <div className="flex items-end gap-1" style={{ height: 64 }}>
-                  {moodTrend.slice(0, 30).reverse().map((e, i) => (
-                    <div key={i} className="flex-1 rounded-sm transition-all"
-                         style={{ height: `${(e.mood / 5) * 100}%`, background: moodColor(e.mood), opacity: 0.75, minHeight: 4 }} />
-                  ))}
+      <div className="bento" style={{ marginBottom: 16 }}>
+        <div className="col-4 card">
+          <div className="card-b">
+            <div style={{ fontSize: 11.5, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>Heute</div>
+            {today ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                <span style={{ fontSize: 36 }}>{MOOD_E[today.mood ?? 3]}</span>
+                <div>
+                  <div className="display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>
+                    {today.mood ?? 3}<small style={{ fontSize: 13, color: 'var(--fg-3)' }}>/5</small>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                    {today.content ? today.content.slice(0, 40) + (today.content.length > 40 ? '…' : '') : 'Kein Text'}
+                  </div>
                 </div>
-                <div className="flex justify-between mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <span>30 Tage</span>
-                  <span>Ø {avgMood.toFixed(1)} {MOODS[Math.round(avgMood) - 1]?.emoji}</span>
-                </div>
-              </Card>
-            )}
-
-            {/* Last entries quick view */}
-            {entries.slice(0, 5).map(e => (
-              <div key={e.id} className="px-4 py-3 rounded-2xl"
-                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {new Date(e.entry_date).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </span>
-                  <span>{MOODS[e.mood - 1]?.emoji}</span>
-                </div>
-                {e.content && (
-                  <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-                    {e.content}
-                  </p>
-                )}
               </div>
-            ))}
+            ) : (
+              <div style={{ marginTop: 16, color: 'var(--fg-4)', fontSize: 13 }}>Noch kein Eintrag heute.</div>
+            )}
           </div>
         </div>
-      )}
+        <div className="col-8 card">
+          <div className="card-h">
+            <span className="accent-dot" />
+            <span className="title">Stimmungsverlauf · 14 Tage</span>
+            <div className="spacer" />
+            {avgMood > 0 && <span className="meta">Schnitt {avgMood.toFixed(1)} / 5</span>}
+          </div>
+          <div className="card-b" style={{ padding: '12px 20px' }}>
+            {sparkPath ? (
+              <svg viewBox="0 0 100 50" preserveAspectRatio="none" style={{ width: '100%', height: 56 }}>
+                <path d={areaPath} fill="var(--accent-soft)" />
+                <path d={sparkPath} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+              </svg>
+            ) : (
+              <div className="empty">Noch nicht genug Daten für den Verlauf.</div>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {view === 'history' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {entries.length === 0 && (
-            <p className="col-span-3 text-sm text-center py-12" style={{ color: 'var(--text-muted)' }}>
-              Noch keine Einträge.
-            </p>
-          )}
-          {entries.map(e => (
-            <Card key={e.id} className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(e.entry_date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </span>
-                <span className="text-xl">{MOODS[e.mood - 1]?.emoji}</span>
+      <div className="card">
+        <div className="card-h">
+          <span className="accent-dot" />
+          <span className="title">Letzte Einträge</span>
+        </div>
+        <div className="card-b" style={{ padding: 0 }}>
+          {entries.length === 0 && <div className="empty" style={{ padding: 60 }}>Noch keine Einträge.</div>}
+          {entries.slice(0, 20).map((e, i) => (
+            <div key={e.id} style={{ padding: '20px', borderTop: i > 0 ? '1px solid var(--line)' : 'none', display: 'flex', gap: 20 }}>
+              <div style={{ width: 100, flexShrink: 0 }}>
+                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11.5, color: 'var(--fg-4)' }}>
+                  {new Date(e.entry_date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                </div>
+                <div style={{ fontSize: 24, marginTop: 6 }}>{MOOD_E[e.mood ?? 3]}</div>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {e.content ? (e.content.length > 200 ? e.content.slice(0, 200) + '…' : e.content) : '—'}
-              </p>
-            </Card>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: 'var(--fg-2)', lineHeight: 1.55 }}>
+                  {e.content ? (e.content.length > 240 ? e.content.slice(0, 240) + '…' : e.content) : <span style={{ color: 'var(--fg-5)' }}>Kein Text</span>}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }

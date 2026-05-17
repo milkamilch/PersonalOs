@@ -1,263 +1,192 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Flame, CheckCircle2, Circle } from 'lucide-react'
+import { Plus, Flame, Check, TrendingUp } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { Habit, HabitWeekDay } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Button, Input, EmptyState, Card } from '../components/ui'
 
-const COLORS = ['#7c3aed','#4f46e5','#0891b2','#059669','#d97706','#dc2626','#db2777','#6366f1']
-const ICONS  = ['🏃','💪','📚','🧘','🥗','💧','😴','🎯','✍️','🎸','🧠','❤️','🌿','🛁','🚴']
-
-interface HeatmapDay { date: string; done: number; total: number }
-
-function heatColor(done: number, total: number): string {
-  if (total === 0 || done === 0) return 'rgba(255,255,255,0.04)'
-  const pct = done / total
-  if (pct >= 1)   return 'rgba(124,58,237,0.85)'
-  if (pct >= 0.7) return 'rgba(124,58,237,0.55)'
-  if (pct >= 0.4) return 'rgba(124,58,237,0.30)'
-  return 'rgba(124,58,237,0.14)'
-}
-
-export default function HabitsPage() {
-  const qc = useQueryClient()
-  const [showNew, setShowNew] = useState(false)
-  const [name,  setName]  = useState('')
-  const [icon,  setIcon]  = useState('✓')
-  const [color, setColor] = useState('#7c3aed')
-  const [hovered, setHovered] = useState<HeatmapDay | null>(null)
-
-  const { data: habits = [] } = useQuery<Habit[]>({
-    queryKey: ['habits'],
-    queryFn: () => endpoints.habits().then(r => r.data),
-    refetchInterval: 60_000,
-  })
-
-  const { data: week = [] } = useQuery<HabitWeekDay[]>({
-    queryKey: ['habitWeek'],
-    queryFn: () => endpoints.habitWeek().then(r => r.data),
-  })
-
-  const { data: heatmap = [] } = useQuery<HeatmapDay[]>({
-    queryKey: ['habitHeatmap'],
-    queryFn: () => endpoints.habitHeatmap(120).then(r => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const toggle = useMutation({
-    mutationFn: (id: number) => endpoints.toggleHabit(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['habits'] })
-      qc.invalidateQueries({ queryKey: ['habitWeek'] })
-      qc.invalidateQueries({ queryKey: ['habitHeatmap'] })
-    },
-  })
-
-  const create = useMutation({
-    mutationFn: () => endpoints.createHabit({ name, icon, color }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['habits'] })
-      setName(''); setShowNew(false)
-    },
-  })
-
-  const del = useMutation({
-    mutationFn: (id: number) => endpoints.deleteHabit(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }),
-  })
-
-  const todayDone = habits.filter(h => h.done_today === 1).length
-  const total     = habits.length
-
-  // Build 17 columns × 7 rows grid (pad to full weeks)
-  const padded = [...heatmap]
-  while (padded.length % 7 !== 0) padded.unshift({ date: '', done: 0, total: 0 })
-  const weeks: HeatmapDay[][] = []
-  for (let i = 0; i < padded.length; i += 7) weeks.push(padded.slice(i, i + 7))
-
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
   return (
-    <div className="page-root page-medium">
-      <PageHeader
-        title="Gewohnheiten"
-        subtitle={total > 0 ? `${todayDone} / ${total} heute erledigt` : 'Baue Routinen auf, die bleiben.'}
-        actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setShowNew(s => !s)}>Neue Habit</Button>}
-      />
-
-      {/* Heatmap */}
-      {heatmap.length > 0 && (
-        <Card className="mb-6 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              Letzte 4 Monate
-            </p>
-            {hovered && hovered.date && (
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {new Date(hovered.date).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}
-                {' — '}{hovered.done}/{hovered.total}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-1">
-                {week.map((day, di) => (
-                  <div
-                    key={di}
-                    onMouseEnter={() => day.date ? setHovered(day) : undefined}
-                    onMouseLeave={() => setHovered(null)}
-                    style={{
-                      width: 12, height: 12,
-                      borderRadius: 3,
-                      background: day.date ? heatColor(day.done, day.total) : 'transparent',
-                      cursor: day.date ? 'default' : 'default',
-                      transition: 'background 0.1s',
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>0%</span>
-            {[0, 0.14, 0.30, 0.55, 0.85].map((_, i) => (
-              <div key={i} style={{ width: 10, height: 10, borderRadius: 2,
-                background: ['rgba(255,255,255,0.04)','rgba(124,58,237,0.14)','rgba(124,58,237,0.30)','rgba(124,58,237,0.55)','rgba(124,58,237,0.85)'][i] }} />
-            ))}
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>100%</span>
-          </div>
-        </Card>
-      )}
-
-      {/* Week overview */}
-      {week.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
-            Diese Woche
-          </p>
-          <div className="flex gap-2">
-            {week.map((d, i) => {
-              const pct  = d.total > 0 ? d.done / d.total : 0
-              const day  = new Date(d.date).toLocaleDateString('de-DE', { weekday: 'short' })
-              const isToday = d.date === new Date().toISOString().slice(0, 10)
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="w-full rounded-lg overflow-hidden" style={{ height: 48, background: 'rgba(255,255,255,0.04)', position: 'relative' }}>
-                    <div className="absolute bottom-0 w-full rounded-lg transition-all duration-500"
-                         style={{ height: `${pct * 100}%`, background: pct === 1 ? 'var(--accent)' : 'rgba(124,58,237,0.4)' }} />
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold"
-                          style={{ color: pct > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {d.done > 0 ? d.done : ''}
-                    </span>
-                  </div>
-                  <span className="text-xs" style={{ color: isToday ? 'var(--accent-fg)' : 'var(--text-muted)', fontWeight: isToday ? 600 : 400 }}>
-                    {day}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* New habit form */}
-      {showNew && (
-        <Card className="mb-6 p-4">
-          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Neue Gewohnheit</p>
-          <div className="flex gap-2 mb-3">
-            <Input placeholder="Name…" value={name} onChange={e => setName(e.target.value)}
-                   onKeyDown={e => e.key === 'Enter' && name && create.mutate()} className="flex-1" />
-          </div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {ICONS.map(ic => (
-              <button key={ic} onClick={() => setIcon(ic)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all"
-                      style={{ background: icon === ic ? 'var(--accent-soft)' : 'rgba(255,255,255,0.04)',
-                               border: `1px solid ${icon === ic ? 'var(--accent-fg)' : 'transparent'}` }}>
-                {ic}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mb-4">
-            {COLORS.map(c => (
-              <button key={c} onClick={() => setColor(c)}
-                      className="w-6 h-6 rounded-full transition-all"
-                      style={{ background: c, outline: color === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }} />
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="primary" size="sm" disabled={!name.trim()} loading={create.isPending} onClick={() => create.mutate()}>
-              Erstellen
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowNew(false)}>Abbrechen</Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Habit list */}
-      {habits.length === 0 && !showNew && (
-        <EmptyState icon={<CheckCircle2 size={22} />} title="Keine Habits"
-          description="Starte mit kleinen, täglichen Gewohnheiten." />
-      )}
-
-      <div className="space-y-2">
-        {habits.map(h => (
-          <HabitRow key={h.id} habit={h}
-            onToggle={() => toggle.mutate(h.id)}
-            onDelete={() => del.mutate(h.id)}
-          />
-        ))}
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
       </div>
-
-      {/* Streak motivator */}
-      {todayDone === total && total > 0 && (
-        <div className="mt-6 p-4 rounded-2xl text-center"
-             style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
-          <div className="text-2xl mb-1">🎉</div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--accent-fg)' }}>Alle Habits heute erledigt!</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Starke Leistung. Bleib dran.</p>
-        </div>
-      )}
+      {action}
     </div>
   )
 }
 
-function HabitRow({ habit, onToggle, onDelete }: { habit: Habit; onToggle: () => void; onDelete: () => void }) {
-  const done = habit.done_today === 1
+export default function HabitsPage() {
+  const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const [newName, setNewName] = useState('')
+
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: () => endpoints.habits().then(r => r.data) })
+  const { data: weekData = [] } = useQuery<HabitWeekDay[]>({ queryKey: ['habitWeek'], queryFn: () => endpoints.habitWeek().then(r => r.data) })
+  const { data: heatmap = [] } = useQuery<{ date: string; count: number; total: number }[]>({
+    queryKey: ['habitHeatmap'], queryFn: () => endpoints.habitHeatmap(84).then(r => r.data),
+  })
+
+  const toggle = useMutation({ mutationFn: (id: number) => endpoints.toggleHabit(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }) })
+  const create = useMutation({
+    mutationFn: () => endpoints.createHabit({ name: newName, icon: '✅', color: '#1C6BFF' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['habits'] }); setNewName(''); setShowAdd(false) },
+  })
+  const del = useMutation({ mutationFn: (id: number) => endpoints.deleteHabit(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }) })
+
+  const done  = habits.filter(h => h.done_today === 1).length
+  const total = habits.length
+  const DAYS  = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  const todayDow = (new Date().getDay() + 6) % 7
+
+  const heatCells = Array.from({ length: 84 }, (_, i) => {
+    const entry = heatmap[Math.max(0, heatmap.length - 84) + i]
+    if (!entry || !entry.total) return 0
+    const r = entry.count / entry.total
+    return r === 0 ? 0 : r < 0.4 ? 1 : r < 0.7 ? 2 : r < 1 ? 3 : 4
+  })
+
+  const weekAvg = weekData.length > 0
+    ? Math.round(weekData.reduce((s, d) => s + (d.total > 0 ? d.done / d.total : 0), 0) / weekData.length * 100)
+    : 0
+
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl group transition-all duration-150"
-         style={{ background: done ? 'rgba(124,58,237,0.06)' : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${done ? 'rgba(124,58,237,0.2)' : 'var(--border-subtle)'}` }}>
-      <button onClick={onToggle}
-              className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center text-sm transition-all"
-              style={{ background: done ? habit.color : 'rgba(255,255,255,0.04)',
-                       border: `2px solid ${done ? habit.color : 'var(--border-default)'}` }}>
-        {done ? <CheckCircle2 size={14} color="white" /> : <Circle size={14} style={{ color: 'var(--text-muted)' }} />}
-      </button>
+    <div className="content">
+      <PageHead
+        eyebrow="Disziplin"
+        title="Gewohnheiten"
+        sub="Was du jeden Tag tust, wirst du."
+        action={<button className="btn primary" onClick={() => setShowAdd(true)}><Plus size={14} /> Neue Gewohnheit</button>}
+      />
 
-      <span className="text-lg flex-shrink-0">{habit.icon}</span>
+      {showAdd && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-b" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) create.mutate(); if (e.key === 'Escape') setShowAdd(false) }}
+              placeholder="Name der Gewohnheit…"
+              style={{ flex: 1, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <button className="btn primary" onClick={() => newName.trim() && create.mutate()}>Anlegen</button>
+            <button className="btn ghost" onClick={() => setShowAdd(false)}>Abbrechen</button>
+          </div>
+        </div>
+      )}
 
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate"
-           style={{ color: done ? 'var(--text-muted)' : 'var(--text-primary)',
-                    textDecoration: done ? 'line-through' : 'none' }}>
-          {habit.name}
-        </p>
-        {habit.total_done > 0 && (
-          <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            <Flame size={10} style={{ color: '#fb923c' }} />
-            {habit.total_done}× erledigt
-          </p>
-        )}
+      <div className="bento" style={{ marginBottom: 16 }}>
+        <div className="col-3 stat">
+          <div className="l">Heute erledigt</div>
+          <div className="v" style={{ color: done === total && total > 0 ? 'var(--green)' : 'var(--accent)' }}>{done}<span className="unit">/{total}</span></div>
+          <div className={`delta ${done === total && total > 0 ? 'up' : ''}`}>
+            {done === total && total > 0 ? <><TrendingUp size={12} /> Alle erledigt</> : `${total - done} ausstehend`}
+          </div>
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Wochen-Schnitt</div>
+          <div className="v">{weekAvg}<span className="unit">%</span></div>
+          <div className="delta">letzte 7 Tage</div>
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Gesamt Check-ins</div>
+          <div className="v">{habits.reduce((s, h) => s + h.total_done, 0)}</div>
+          <div className="delta">alle Habits</div>
+        </div>
+        <div className="col-3 stat">
+          <div className="l">Aktive Habits</div>
+          <div className="v">{total}</div>
+          <div className="delta">{habits.length > 0 ? `Top: ${habits.reduce((m, h) => h.total_done > m.total_done ? h : m, habits[0]).name.slice(0, 14)}` : '–'}</div>
+        </div>
       </div>
 
-      <button onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--red-fg)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
-        <Trash2 size={13} />
-      </button>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-h">
+          <span className="accent-dot" />
+          <span className="title">Diese Woche</span>
+          <div className="spacer" />
+          <span className="meta">KW {Math.ceil((((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) + 1) / 7)}</span>
+        </div>
+        <div className="card-b" style={{ overflowX: 'auto' }}>
+          {habits.length === 0
+            ? <div className="empty">Noch keine Gewohnheiten. Lege die erste an.</div>
+            : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', fontWeight: 500, fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>Gewohnheit</th>
+                    {DAYS.map((d, i) => (
+                      <th key={d} style={{ width: 40, textAlign: 'center', fontWeight: 500, fontSize: 11, color: i === todayDow ? 'var(--accent)' : 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>{d}</th>
+                    ))}
+                    <th style={{ width: 60, textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>Streak</th>
+                    <th style={{ width: 32 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {habits.map(habit => (
+                    <tr key={habit.id} style={{ borderTop: '1px solid var(--line)' }}>
+                      <td style={{ padding: '10px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 99, background: habit.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13.5, fontWeight: 500 }}>{habit.icon} {habit.name}</span>
+                        </div>
+                      </td>
+                      {DAYS.map((_, i) => {
+                        const isToday = i === todayDow
+                        const filled = isToday ? !!habit.done_today : false
+                        return (
+                          <td key={i} style={{ textAlign: 'center', padding: '10px 0' }}>
+                            <button onClick={() => isToday && toggle.mutate(habit.id)} style={{
+                              width: 22, height: 22, borderRadius: 6,
+                              background: filled ? habit.color : 'var(--surface-sunk)',
+                              border: isToday && !filled ? `1.5px dashed ${habit.color}` : '1.5px solid transparent',
+                              display: 'inline-grid', placeItems: 'center',
+                              cursor: isToday ? 'pointer' : 'default', opacity: i > todayDow ? 0.3 : 1,
+                            }}>
+                              {filled && <Check size={12} color="white" />}
+                            </button>
+                          </td>
+                        )
+                      })}
+                      <td style={{ textAlign: 'right', padding: '10px 0', fontSize: 12.5, color: 'var(--fg-2)' }}>
+                        {habit.total_done > 0
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Flame size={11} color="var(--amber)" /> {habit.total_done}</span>
+                          : <span style={{ color: 'var(--fg-4)' }}>—</span>}
+                      </td>
+                      <td>
+                        <button onClick={() => del.mutate(habit.id)} style={{ color: 'var(--fg-5)', padding: 4, fontSize: 11 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-5)')}>✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-h">
+          <span className="accent-dot" />
+          <span className="title">Konstanz · 12 Wochen</span>
+          <div className="spacer" />
+          <span className="meta">{weekAvg > 0 ? `${weekAvg} % Quote` : '–'}</span>
+        </div>
+        <div className="card-b">
+          <div className="heat" style={{ gridAutoColumns: '14px', gridTemplateRows: 'repeat(7, 14px)' }}>
+            {heatCells.map((v, i) => <div key={i} className={`cell ${v ? `l${v}` : ''}`} style={{ width: 14, height: 14 }} />)}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 11, color: 'var(--fg-4)' }}>
+            <span>vor 12 Wochen</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              weniger
+              <span style={{ display: 'inline-flex', gap: 2 }}>
+                {[0, 1, 2, 3, 4].map(l => <span key={l} className={`cell ${l ? `l${l}` : ''}`} style={{ width: 10, height: 10 }} />)}
+              </span>
+              mehr
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

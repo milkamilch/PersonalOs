@@ -24,6 +24,7 @@ export interface GitHubRepo {
   openIssuesCount: number
   htmlUrl: string
   updatedAt: string
+  language?: string
 }
 
 export interface GitHubIssue {
@@ -197,11 +198,14 @@ export interface MediaItem {
   type: MediaType
   title: string
   creator: string
+  author?: string
   status: MediaStatus
   rating: number | null
   notes: string
   finished_at: string | null
   created_at: string
+  current_page?: number
+  total_pages?: number
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────
@@ -235,6 +239,7 @@ export interface ReadingStats {
   todayMin: number
   weekMin: number
   weekPages: number
+  yearPages?: number
   streak: number
 }
 

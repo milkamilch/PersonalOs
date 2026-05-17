@@ -1,191 +1,163 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Star, BookOpen, Film, Tv } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { MediaItem, MediaStatus } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Button, Input, Select, EmptyState, Badge } from '../components/ui'
 
-const STATUS_LABELS: Record<MediaStatus, string> = {
-  want: 'Geplant', in_progress: 'Aktiv', done: 'Fertig', dropped: 'Abgebrochen'
-}
-import type { BadgeVariant } from '../components/ui'
-const STATUS_COLORS: Record<MediaStatus, BadgeVariant> = {
-  want: 'neutral', in_progress: 'yellow', done: 'green', dropped: 'red'
+const KIND_E: Record<string, string> = { book: '📖', movie: '🎬', series: '📺' }
+const KIND_N: Record<string, string> = { book: 'Buch', movie: 'Film', series: 'Serie' }
+const ST_CONFIG: Record<MediaStatus, { c: string; n: string }> = {
+  want:        { c: '#9A9A9F', n: 'Watchlist'  },
+  in_progress: { c: '#1C6BFF', n: 'Läuft'      },
+  done:        { c: '#2F8F4E', n: 'Fertig'      },
+  dropped:     { c: '#C8344A', n: 'Abgebrochen' },
 }
 
-type Tab = 'book' | 'movie' | 'series'
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+type Tab = 'all' | 'in_progress' | 'want' | 'done'
 
 export default function MediaPage() {
   const qc = useQueryClient()
-  const [tab, setTab]     = useState<Tab>('book')
-  const [filter, setFilter] = useState<MediaStatus | 'all'>('all')
-  const [showNew, setShowNew] = useState(false)
-  const [newTitle, setNewTitle]   = useState('')
-  const [newCreator, setNewCreator] = useState('')
-  const [newStatus, setNewStatus] = useState<MediaStatus>('want')
+  const [tab, setTab] = useState<Tab>('all')
+  const [typeFilter, setTypeFilter] = useState<'book' | 'movie' | 'series' | 'all'>('all')
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ title: '', creator: '', type: 'book' as 'book' | 'movie' | 'series', status: 'want' as MediaStatus })
 
   const { data: items = [] } = useQuery<MediaItem[]>({
-    queryKey: ['media', tab, filter],
+    queryKey: ['media', typeFilter, tab],
     queryFn: () => endpoints.mediaItems({
-      type: tab,
-      ...(filter !== 'all' ? { status: filter } : {}),
+      ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
+      ...(tab !== 'all' ? { status: tab } : {}),
     }).then(r => r.data),
   })
 
   const create = useMutation({
-    mutationFn: () => endpoints.createMedia({ type: tab, title: newTitle, creator: newCreator, status: newStatus }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); setNewTitle(''); setNewCreator(''); setShowNew(false) },
+    mutationFn: () => endpoints.createMedia(form),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); setForm({ title: '', creator: '', type: 'book', status: 'want' }); setShowAdd(false) },
   })
-
   const update = useMutation({
-    mutationFn: ({ id, ...b }: { id: number } & object) => endpoints.updateMedia(id, b),
+    mutationFn: ({ id, ...b }: { id: number; [key: string]: unknown }) => endpoints.updateMedia(id, b),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['media'] }),
   })
-
   const del = useMutation({
     mutationFn: (id: number) => endpoints.deleteMedia(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['media'] }),
   })
 
-  const TypeIcon = tab === 'book' ? BookOpen : tab === 'movie' ? Film : Tv
-  const typeName = tab === 'book' ? 'Bücher' : tab === 'movie' ? 'Filme' : 'Serien'
+  const TABS: { v: Tab; l: string }[] = [
+    { v: 'all',         l: 'Alle'          },
+    { v: 'in_progress', l: 'Läuft gerade'  },
+    { v: 'want',        l: 'Watchlist'     },
+    { v: 'done',        l: 'Abgeschlossen' },
+  ]
 
   return (
-    <div className="page-root page-medium">
-      <PageHeader
+    <div className="content">
+      <PageHead
+        eyebrow={`${items.length} Einträge`}
         title="Medien"
-        subtitle="Bücher, Filme und Serien — gelesen, geschaut, geplant."
-        actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setShowNew(s => !s)}>Hinzufügen</Button>}
+        sub="Was du konsumierst, formt dich."
+        action={<button className="btn primary" onClick={() => setShowAdd(v => !v)}><Plus size={14} /> Hinzufügen</button>}
       />
 
-      {/* Type tabs */}
-      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-        {(['book','movie','series'] as Tab[]).map(t => {
-          const Ic = t === 'book' ? BookOpen : t === 'movie' ? Film : Tv
-          const label = t === 'book' ? 'Bücher' : t === 'movie' ? 'Filme' : 'Serien'
+      {showAdd && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h"><span className="accent-dot" /><span className="title">Neuer Eintrag</span></div>
+          <div className="card-b" style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Titel"
+              style={{ flex: 1, minWidth: 160, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <input value={form.creator} onChange={e => setForm({ ...form, creator: e.target.value })} placeholder="Autor / Regisseur"
+              style={{ flex: 1, minWidth: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as typeof form.type })}
+              style={{ background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }}>
+              <option value="book">📖 Buch</option>
+              <option value="movie">🎬 Film</option>
+              <option value="series">📺 Serie</option>
+            </select>
+            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as MediaStatus })}
+              style={{ background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }}>
+              <option value="want">Watchlist</option>
+              <option value="in_progress">Läuft</option>
+              <option value="done">Fertig</option>
+              <option value="dropped">Abgebrochen</option>
+            </select>
+            <button className="btn primary" onClick={() => form.title.trim() && create.mutate()}>Anlegen</button>
+            <button className="btn ghost" onClick={() => setShowAdd(false)}>Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.v} onClick={() => setTab(t.v)} style={{
+            padding: '6px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 500,
+            background: tab === t.v ? 'var(--fg)' : 'var(--surface)',
+            color: tab === t.v ? 'var(--bg)' : 'var(--fg-3)', border: '1px solid var(--line)', cursor: 'pointer',
+          }}>{t.l}</button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {(['all', 'book', 'movie', 'series'] as const).map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)} style={{
+            padding: '4px 12px', borderRadius: 99, fontSize: 11.5, fontWeight: 500,
+            background: typeFilter === t ? 'var(--accent-soft)' : 'transparent',
+            color: typeFilter === t ? 'var(--accent)' : 'var(--fg-4)', border: `1px solid ${typeFilter === t ? 'var(--accent)' : 'var(--line)'}`, cursor: 'pointer',
+          }}>{t === 'all' ? 'Alle Typen' : KIND_E[t] + ' ' + KIND_N[t]}</button>
+        ))}
+      </div>
+
+      <div className="bento">
+        {items.length === 0 && <div className="col-12"><div className="empty" style={{ padding: 80 }}>Keine Einträge in dieser Kategorie.</div></div>}
+        {items.map(m => {
+          const st = ST_CONFIG[m.status] ?? ST_CONFIG.want
           return (
-            <button key={t} onClick={() => setTab(t)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                    style={{ background: tab === t ? 'rgba(255,255,255,0.08)' : 'transparent',
-                             color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-              <Ic size={13} />{label}
-            </button>
+            <div key={m.id} className="col-3 card">
+              <div style={{ aspectRatio: '2/3', background: `linear-gradient(135deg, ${st.c}1A, var(--surface-sunk))`,
+                display: 'grid', placeItems: 'center', fontSize: 48, borderBottom: '1px solid var(--line)' }}>
+                {KIND_E[m.type] ?? '🎞️'}
+              </div>
+              <div className="card-b" style={{ padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <span className="pill" style={{ background: `${st.c}1A`, color: st.c, fontSize: 10.5 }}>
+                    <span className="dot" />{st.n}
+                  </span>
+                  <span style={{ fontSize: 10.5, color: 'var(--fg-4)' }}>{KIND_N[m.type] ?? ''}</span>
+                </div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 2 }}>{m.title}</div>
+                {m.creator && <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>{m.creator}</div>}
+                {m.rating != null && (
+                  <div style={{ fontSize: 13, color: 'var(--amber)', marginTop: 8 }}>
+                    {'★'.repeat(m.rating)}<span style={{ color: 'var(--fg-5)' }}>{'★'.repeat(5 - m.rating)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  {m.status !== 'done' && (
+                    <button className="btn ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}
+                      onClick={() => update.mutate({ id: m.id, status: 'done' as MediaStatus })}>✓ Fertig</button>
+                  )}
+                  <button onClick={() => del.mutate(m.id)} style={{ color: 'var(--fg-5)', fontSize: 11, marginLeft: 'auto', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-5)')}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
           )
         })}
-      </div>
-
-      {/* Status filter */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {(['all','want','in_progress','done','dropped'] as const).map(s => (
-          <button key={s} onClick={() => setFilter(s)}
-                  className="px-3 py-1 rounded-lg text-xs transition-all"
-                  style={{ background: filter === s ? 'var(--accent-soft)' : 'rgba(255,255,255,0.03)',
-                           color: filter === s ? 'var(--accent-fg)' : 'var(--text-muted)',
-                           border: `1px solid ${filter === s ? 'var(--accent-fg)' : 'transparent'}` }}>
-            {s === 'all' ? 'Alle' : STATUS_LABELS[s]}
-          </button>
-        ))}
-      </div>
-
-      {/* New item form */}
-      {showNew && (
-        <div className="p-4 rounded-2xl mb-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-default)' }}>
-          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            {typeName === 'Bücher' ? 'Buch hinzufügen' : typeName === 'Filme' ? 'Film hinzufügen' : 'Serie hinzufügen'}
-          </p>
-          <div className="space-y-2">
-            <Input placeholder={tab === 'book' ? 'Titel' : 'Titel'} value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-            <Input placeholder={tab === 'book' ? 'Autor' : 'Regisseur / Studio'} value={newCreator} onChange={e => setNewCreator(e.target.value)} />
-            <Select value={newStatus} onChange={e => setNewStatus(e.target.value as MediaStatus)}>
-              {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </Select>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <Button variant="primary" size="sm" disabled={!newTitle.trim()} loading={create.isPending} onClick={() => create.mutate()}>Speichern</Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowNew(false)}>Abbrechen</Button>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      {items.length === 0 && !showNew && (
-        <EmptyState icon={<TypeIcon size={22} />} title={`Keine ${typeName}`}
-          description={`Füge ${tab === 'book' ? 'Bücher' : tab === 'movie' ? 'Filme' : 'Serien'} zu deiner Liste hinzu.`} />
-      )}
-
-      <div className="space-y-2">
-        {items.map(item => (
-          <MediaRow key={item.id} item={item}
-            onStatusChange={(s) => update.mutate({ id: item.id, ...(s && { status: s }) })}
-            onRating={(r) => update.mutate({ id: item.id, ...(r !== undefined && { rating: r }) })}
-            onDelete={() => del.mutate(item.id)}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function MediaRow({ item, onStatusChange, onRating, onDelete }: {
-  item: MediaItem
-  onStatusChange: (s: MediaStatus) => void
-  onRating: (r: number | null) => void
-  onDelete: () => void
-}) {
-  const [showStatus, setShowStatus] = useState(false)
-
-  return (
-    <div className="px-4 py-3 rounded-2xl group transition-all"
-         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
-            {item.creator && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {item.creator}</span>}
-          </div>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <button onClick={() => setShowStatus(s => !s)}>
-              <Badge variant={STATUS_COLORS[item.status] ?? 'neutral'}>{STATUS_LABELS[item.status]}</Badge>
-            </button>
-            {item.finished_at && (
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Fertig {new Date(item.finished_at).toLocaleDateString('de-DE')}
-              </span>
-            )}
-          </div>
-          {showStatus && (
-            <div className="flex gap-1.5 mt-2 flex-wrap">
-              {(Object.keys(STATUS_LABELS) as MediaStatus[]).map(s => (
-                <button key={s} onClick={() => { onStatusChange(s); setShowStatus(false) }}
-                        className="px-2 py-0.5 rounded-lg text-xs transition-all"
-                        style={{ background: item.status === s ? 'var(--accent-soft)' : 'rgba(255,255,255,0.04)',
-                                 color: item.status === s ? 'var(--accent-fg)' : 'var(--text-muted)' }}>
-                  {STATUS_LABELS[s]}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Stars */}
-          <div className="flex gap-0.5">
-            {[1,2,3,4,5].map(n => (
-              <button key={n} onClick={() => onRating(item.rating === n ? null : n)}>
-                <Star size={13} fill={n <= (item.rating ?? 0) ? '#fbbf24' : 'transparent'}
-                      style={{ color: n <= (item.rating ?? 0) ? '#fbbf24' : 'var(--text-muted)' }} />
-              </button>
-            ))}
-          </div>
-          <button onClick={onDelete}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all ml-1"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--red-fg)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
-            <Trash2 size={13} />
-          </button>
-        </div>
       </div>
     </div>
   )

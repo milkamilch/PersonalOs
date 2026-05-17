@@ -1,37 +1,40 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pin, Trash2, X, Check } from 'lucide-react'
+import { Check, Pin, Plus, Trash2, X } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { QuickNote, NoteColor } from '../api/types'
-import PageHeader from '../components/PageHeader'
+import type { NoteColor, QuickNote } from '../api/types'
 
-const COLORS: { id: NoteColor; label: string; bg: string; border: string }[] = [
-  { id: 'default', label: 'Standard', bg: 'var(--bg-surface)',  border: 'var(--border-subtle)' },
-  { id: 'yellow',  label: 'Gelb',     bg: 'rgba(255,214,10,0.08)',  border: 'rgba(255,214,10,0.25)' },
-  { id: 'green',   label: 'Grün',     bg: 'rgba(48,209,88,0.08)',   border: 'rgba(48,209,88,0.25)' },
-  { id: 'red',     label: 'Rot',      bg: 'rgba(255,69,58,0.08)',   border: 'rgba(255,69,58,0.25)' },
-  { id: 'blue',    label: 'Blau',     bg: 'rgba(10,132,255,0.08)',  border: 'rgba(10,132,255,0.25)' },
-]
-
-const COLOR_DOT: Record<NoteColor, string> = {
-  default: 'var(--text-muted)',
-  yellow:  'var(--yellow)',
-  green:   'var(--green)',
-  red:     'var(--red)',
-  blue:    'var(--accent)',
+const NOTE_BG: Record<NoteColor, string> = {
+  default: 'var(--surface)',
+  yellow:  'color-mix(in srgb, #C58A00 14%, var(--surface))',
+  blue:    'color-mix(in srgb, #1C6BFF 10%, var(--surface))',
+  green:   'color-mix(in srgb, #2F8F4E 10%, var(--surface))',
+  red:     'color-mix(in srgb, #C8344A 10%, var(--surface))',
 }
+const NOTE_DOT: Record<NoteColor, string> = {
+  default: 'var(--fg-4)', yellow: '#C58A00', blue: '#1C6BFF', green: '#2F8F4E', red: '#C8344A',
+}
+const COLOR_OPTIONS: NoteColor[] = ['default', 'yellow', 'blue', 'green', 'red']
 
-function colorStyle(c: NoteColor) {
-  const col = COLORS.find(x => x.id === c) ?? COLORS[0]
-  return { background: col.bg, border: `1px solid ${col.border}` }
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
 }
 
 export default function NotesPage() {
   const qc = useQueryClient()
-  const [editId, setEditId] = useState<number | null>(null)
-  const [draft, setDraft] = useState<{ title: string; content: string; color: NoteColor } | null>(null)
   const [creating, setCreating] = useState(false)
   const [newNote, setNewNote] = useState({ title: '', content: '', color: 'default' as NoteColor })
+  const [editId, setEditId] = useState<number | null>(null)
+  const [draft, setDraft] = useState<{ title: string; content: string; color: NoteColor } | null>(null)
 
   const { data: notes = [] } = useQuery<QuickNote[]>({
     queryKey: ['notes'],
@@ -51,190 +54,114 @@ export default function NotesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 
-  function startEdit(n: QuickNote) {
-    setEditId(n.id)
-    setDraft({ title: n.title, content: n.content, color: n.color })
-  }
-
-  function saveEdit() {
-    if (editId && draft) updateMut.mutate({ id: editId, b: draft })
-  }
-
-  function togglePin(n: QuickNote) {
-    updateMut.mutate({ id: n.id, b: { pinned: n.pinned ? 0 : 1 } })
-  }
+  function startEdit(n: QuickNote) { setEditId(n.id); setDraft({ title: n.title, content: n.content, color: n.color }) }
+  function saveEdit() { if (editId && draft) updateMut.mutate({ id: editId, b: draft }) }
+  function togglePin(n: QuickNote) { updateMut.mutate({ id: n.id, b: { pinned: n.pinned ? 0 : 1 } }) }
 
   const pinned = notes.filter(n => n.pinned)
   const unpinned = notes.filter(n => !n.pinned)
 
+  function NoteCard({ n }: { n: QuickNote }) {
+    const isEditing = editId === n.id
+    const c = isEditing && draft ? draft.color : n.color
+    return (
+      <div className="card" style={{ background: NOTE_BG[c], cursor: 'pointer', position: 'relative' }}
+        onClick={() => !isEditing && startEdit(n)}>
+        {isEditing && draft ? (
+          <div style={{ padding: 16 }} onClick={e => e.stopPropagation()}>
+            <input value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="Titel"
+              style={{ background: 'transparent', border: 0, outline: 0, fontSize: 14, fontWeight: 600, color: 'var(--fg)', width: '100%', marginBottom: 8 }} autoFocus />
+            <textarea value={draft.content} onChange={e => setDraft({ ...draft, content: e.target.value })} rows={5}
+              style={{ background: 'transparent', border: 0, outline: 0, fontSize: 13, color: 'var(--fg-2)', resize: 'none', width: '100%', lineHeight: 1.55 }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {COLOR_OPTIONS.map(col => (
+                  <button key={col} onClick={() => setDraft({ ...draft, color: col })}
+                    style={{ width: 16, height: 16, borderRadius: '50%', background: NOTE_DOT[col],
+                      border: `2px solid ${draft.color === col ? 'var(--fg)' : 'transparent'}`, cursor: 'pointer', opacity: draft.color === col ? 1 : 0.5 }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => { setEditId(null); setDraft(null) }} style={{ padding: 4, color: 'var(--fg-4)' }}><X size={14} /></button>
+                <button onClick={saveEdit} style={{ padding: 4, color: 'var(--accent)' }}><Check size={14} /></button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: 16 }}>
+            {n.title && <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, paddingRight: 48 }}>{n.title}</div>}
+            <div style={{ fontSize: 12.5, color: 'var(--fg-2)', lineHeight: 1.55, WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden', display: '-webkit-box' }}>{n.content}</div>
+            <div style={{ fontSize: 10.5, marginTop: 10, color: 'var(--fg-4)' }}>{new Date(n.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}</div>
+            <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 4 }}>
+              <button onClick={e => { e.stopPropagation(); togglePin(n) }}
+                style={{ padding: 5, borderRadius: 6, background: 'var(--surface-sunk)', color: n.pinned ? 'var(--accent)' : 'var(--fg-4)' }}>
+                <Pin size={11} />
+              </button>
+              <button onClick={e => { e.stopPropagation(); deleteMut.mutate(n.id) }}
+                style={{ padding: 5, borderRadius: 6, background: 'var(--surface-sunk)', color: 'var(--rose)' }}>
+                <Trash2 size={11} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="page-root">
-      <PageHeader title="Notizen" subtitle="Schnelle Notizen und Ideen." />
+    <div className="content">
+      <PageHead
+        eyebrow={`${notes.length} Notizen · ${pinned.length} gepinnt`}
+        title="Notizen"
+        sub="Der schnellste Weg zwischen Gedanke und Erinnerung."
+        action={<button className="btn primary" onClick={() => setCreating(v => !v)}><Plus size={14} /> Neue Notiz</button>}
+      />
 
-      {/* New note button */}
-      <button
-        onClick={() => setCreating(true)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-6 text-sm font-medium transition-all active:scale-95"
-        style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}
-      >
-        <Plus size={16} /> Neue Notiz
-      </button>
-
-      {/* Create form */}
       {creating && (
-        <div className="mb-6 p-4 rounded-2xl space-y-3" style={colorStyle(newNote.color)}>
-          <input
-            autoFocus
-            value={newNote.title}
-            onChange={e => setNewNote(n => ({ ...n, title: e.target.value }))}
-            placeholder="Titel (optional)"
-            className="w-full bg-transparent outline-none text-sm font-semibold"
-            style={{ color: 'var(--text-primary)' }}
-          />
-          <textarea
-            value={newNote.content}
-            onChange={e => setNewNote(n => ({ ...n, content: e.target.value }))}
-            placeholder="Notiz schreiben…"
-            rows={4}
-            className="w-full bg-transparent outline-none text-sm resize-none"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1.5">
-              {COLORS.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setNewNote(n => ({ ...n, color: c.id }))}
-                  className="w-5 h-5 rounded-full border-2 transition-all"
-                  style={{
-                    background: COLOR_DOT[c.id],
-                    borderColor: newNote.color === c.id ? 'var(--text-primary)' : 'transparent',
-                    opacity: newNote.color === c.id ? 1 : 0.5,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setCreating(false)} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>
-                <X size={16} />
-              </button>
-              <button
-                onClick={() => createMut.mutate(newNote)}
-                disabled={!newNote.content.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
-                style={{ background: 'var(--accent)', color: '#000' }}
-              >
-                <Check size={14} /> Speichern
-              </button>
+        <div className="card" style={{ marginBottom: 16, background: NOTE_BG[newNote.color] }}>
+          <div style={{ padding: 16 }}>
+            <input value={newNote.title} onChange={e => setNewNote(n => ({ ...n, title: e.target.value }))} placeholder="Titel (optional)" autoFocus
+              style={{ background: 'transparent', border: 0, outline: 0, fontSize: 14, fontWeight: 600, color: 'var(--fg)', width: '100%', marginBottom: 8 }} />
+            <textarea value={newNote.content} onChange={e => setNewNote(n => ({ ...n, content: e.target.value }))} placeholder="Notiz schreiben…" rows={4}
+              style={{ background: 'transparent', border: 0, outline: 0, fontSize: 13, color: 'var(--fg-2)', resize: 'none', width: '100%', lineHeight: 1.55 }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {COLOR_OPTIONS.map(col => (
+                  <button key={col} onClick={() => setNewNote(n => ({ ...n, color: col }))}
+                    style={{ width: 18, height: 18, borderRadius: '50%', background: NOTE_DOT[col],
+                      border: `2px solid ${newNote.color === col ? 'var(--fg)' : 'transparent'}`, cursor: 'pointer', opacity: newNote.color === col ? 1 : 0.5 }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn ghost" onClick={() => setCreating(false)}>Abbrechen</button>
+                <button className="btn primary" onClick={() => createMut.mutate(newNote)} disabled={!newNote.content.trim()}>Speichern</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Pinned */}
       {pinned.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Angeheftet</p>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-            {pinned.map(n => <NoteCard key={n.id} note={n} editId={editId} draft={draft} setDraft={setDraft} onEdit={startEdit} onSave={saveEdit} onCancel={() => { setEditId(null); setDraft(null) }} onPin={togglePin} onDelete={id => deleteMut.mutate(id)} />)}
-          </div>
-        </div>
-      )}
-
-      {/* All notes */}
-      {unpinned.length > 0 && (
-        <div>
-          {pinned.length > 0 && <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Alle Notizen</p>}
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-            {unpinned.map(n => <NoteCard key={n.id} note={n} editId={editId} draft={draft} setDraft={setDraft} onEdit={startEdit} onSave={saveEdit} onCancel={() => { setEditId(null); setDraft(null) }} onPin={togglePin} onDelete={id => deleteMut.mutate(id)} />)}
-          </div>
-        </div>
-      )}
-
-      {notes.length === 0 && !creating && (
-        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>
-          <p className="text-sm">Noch keine Notizen.</p>
-          <p className="text-xs mt-1">Klicke auf "Neue Notiz" um loszulegen.</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-interface NoteCardProps {
-  note: QuickNote
-  editId: number | null
-  draft: { title: string; content: string; color: NoteColor } | null
-  setDraft: (d: { title: string; content: string; color: NoteColor } | null) => void
-  onEdit: (n: QuickNote) => void
-  onSave: () => void
-  onCancel: () => void
-  onPin: (n: QuickNote) => void
-  onDelete: (id: number) => void
-}
-
-function NoteCard({ note, editId, draft, setDraft, onEdit, onSave, onCancel, onPin, onDelete }: NoteCardProps) {
-  const isEditing = editId === note.id
-  const c = isEditing && draft ? draft.color : note.color
-
-  return (
-    <div
-      className="relative p-4 rounded-2xl group transition-all"
-      style={colorStyle(c)}
-      onClick={() => !isEditing && onEdit(note)}
-    >
-      {isEditing && draft ? (
-        <div className="space-y-2" onClick={e => e.stopPropagation()}>
-          <input
-            autoFocus
-            value={draft.title}
-            onChange={e => setDraft({ ...draft, title: e.target.value })}
-            placeholder="Titel"
-            className="w-full bg-transparent outline-none text-sm font-semibold"
-            style={{ color: 'var(--text-primary)' }}
-          />
-          <textarea
-            value={draft.content}
-            onChange={e => setDraft({ ...draft, content: e.target.value })}
-            rows={5}
-            className="w-full bg-transparent outline-none text-sm resize-none"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex gap-1.5">
-              {COLORS.map(col => (
-                <button key={col.id} onClick={() => setDraft({ ...draft, color: col.id })}
-                  className="w-4 h-4 rounded-full border-2 transition-all"
-                  style={{ background: COLOR_DOT[col.id], borderColor: draft.color === col.id ? 'var(--text-primary)' : 'transparent', opacity: draft.color === col.id ? 1 : 0.5 }} />
-              ))}
-            </div>
-            <div className="flex gap-1.5">
-              <button onClick={onCancel} className="p-1 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={14} /></button>
-              <button onClick={onSave} className="p-1 rounded-lg" style={{ color: 'var(--accent)' }}><Check size={14} /></button>
-            </div>
-          </div>
-        </div>
-      ) : (
         <>
-          {note.title && <p className="text-sm font-semibold mb-1 pr-6" style={{ color: 'var(--text-primary)' }}>{note.title}</p>}
-          <p className="text-sm whitespace-pre-wrap line-clamp-6" style={{ color: 'var(--text-secondary)' }}>{note.content}</p>
-          <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-            {new Date(note.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}
-          </p>
-
-          {/* Hover actions */}
-          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-            <button onClick={() => onPin(note)} className="p-1.5 rounded-lg transition-all"
-              style={{ color: note.pinned ? 'var(--accent)' : 'var(--text-muted)', background: 'var(--bg-elevated)' }}>
-              <Pin size={12} />
-            </button>
-            <button onClick={() => onDelete(note.id)} className="p-1.5 rounded-lg transition-all"
-              style={{ color: 'var(--red)', background: 'var(--bg-elevated)' }}>
-              <Trash2 size={12} />
-            </button>
+          <div style={{ fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 500, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Pin size={11} /> Gepinnt
+          </div>
+          <div className="bento" style={{ marginBottom: 24 }}>
+            {pinned.map(n => <div key={n.id} className="col-6"><NoteCard n={n} /></div>)}
           </div>
         </>
       )}
+
+      {unpinned.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 500, marginBottom: 10 }}>Alle Notizen</div>
+          <div className="bento">
+            {unpinned.map(n => <div key={n.id} className="col-4"><NoteCard n={n} /></div>)}
+          </div>
+        </>
+      )}
+
+      {notes.length === 0 && !creating && <div className="empty" style={{ padding: 80 }}>Noch keine Notizen. Erstelle deine erste.</div>}
     </div>
   )
 }

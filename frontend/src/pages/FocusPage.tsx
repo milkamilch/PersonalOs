@@ -1,39 +1,38 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Play, Pause, RotateCcw, Coffee, Brain, Flame } from 'lucide-react'
-import PageHeader from '../components/PageHeader'
 import { endpoints } from '../api/client'
 
 type Phase = 'focus' | 'break' | 'long'
 
-const PRESETS = {
-  focus: { label: 'Fokus',       duration: 25 * 60, color: 'var(--accent)',  icon: Brain },
-  break: { label: 'Pause',       duration:  5 * 60, color: 'var(--green-fg)', icon: Coffee },
-  long:  { label: 'Lange Pause', duration: 15 * 60, color: 'var(--yellow-fg)', icon: Coffee },
+const PRESETS: Record<Phase, { label: string; duration: number; color: string }> = {
+  focus: { label: 'Fokus',       duration: 25 * 60, color: 'var(--accent)'  },
+  break: { label: 'Pause',       duration:  5 * 60, color: '#2F8F4E'        },
+  long:  { label: 'Lange Pause', duration: 15 * 60, color: '#C58A00'        },
 }
 
-interface FocusStats {
-  today_count:   number
-  today_seconds: number
-  week_count:    number
-  week_seconds:  number
-}
+interface FocusStats { today_count: number; today_seconds: number; week_count: number; week_seconds: number }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
-function fmtMin(s: number) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
+function fmtMin(s: number) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m` }
+
+function PageHead({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
+  return (
+    <div className="page-head">
+      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+      <h1>{title}</h1>
+      {sub && <div className="sub">{sub}</div>}
+    </div>
+  )
 }
 
 export default function FocusPage() {
   const qc = useQueryClient()
-  const [phase, setPhase]   = useState<Phase>('focus')
+  const [phase, setPhase] = useState<Phase>('focus')
   const [timeLeft, setTimeLeft] = useState(PRESETS.focus.duration)
-  const [running, setRunning]   = useState(false)
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [running, setRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
-  const elapsedRef   = useRef<number>(0)
+  const elapsedRef = useRef<number>(0)
 
   const { data: stats } = useQuery<FocusStats>({
     queryKey: ['focusStats'],
@@ -42,9 +41,11 @@ export default function FocusPage() {
   })
 
   const preset = PRESETS[phase]
-  const mins   = Math.floor(timeLeft / 60)
-  const secs   = timeLeft % 60
-  const pct    = 1 - timeLeft / preset.duration
+  const mins = Math.floor(timeLeft / 60)
+  const secs = timeLeft % 60
+  const pct = 1 - timeLeft / preset.duration
+  const r = 120, c = 2 * Math.PI * r
+  const dash = c * (1 - pct)
 
   const stop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -54,25 +55,17 @@ export default function FocusPage() {
   const finish = useCallback(() => {
     stop()
     if (phase === 'focus') {
-      // Persist the session
       endpoints.saveFocusSession(PRESETS.focus.duration)
         .then(() => qc.invalidateQueries({ queryKey: ['focusStats'] }))
         .catch(() => {})
-
       const newSessions = (stats?.today_count ?? 0) + 1
-      if (newSessions % 4 === 0) {
-        setPhase('long'); setTimeLeft(PRESETS.long.duration)
-      } else {
-        setPhase('break'); setTimeLeft(PRESETS.break.duration)
-      }
-    } else {
-      setPhase('focus'); setTimeLeft(PRESETS.focus.duration)
-    }
+      if (newSessions % 4 === 0) { setPhase('long'); setTimeLeft(PRESETS.long.duration) }
+      else { setPhase('break'); setTimeLeft(PRESETS.break.duration) }
+    } else { setPhase('focus'); setTimeLeft(PRESETS.focus.duration) }
     elapsedRef.current = 0
     if (Notification.permission === 'granted') {
       new Notification(phase === 'focus' ? 'Fokus-Session beendet! 🎉' : 'Pause vorbei — weitermachen!', {
         body: phase === 'focus' ? 'Zeit für eine Pause.' : 'Nächste Fokus-Session startet.',
-        icon: '/icon-192.png',
       })
     }
   }, [phase, stats, stop, qc])
@@ -87,135 +80,110 @@ export default function FocusPage() {
         setTimeLeft(remaining)
         elapsedRef.current = elapsed
       }, 250)
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+    } else { if (intervalRef.current) clearInterval(intervalRef.current) }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [running, finish, preset.duration])
 
-  function switchPhase(p: Phase) {
-    stop(); setPhase(p); setTimeLeft(PRESETS[p].duration); elapsedRef.current = 0
-  }
-  function reset() {
-    stop(); setTimeLeft(preset.duration); elapsedRef.current = 0
-  }
+  function switchPhase(p: Phase) { stop(); setPhase(p); setTimeLeft(PRESETS[p].duration); elapsedRef.current = 0 }
+  function reset() { stop(); setTimeLeft(preset.duration); elapsedRef.current = 0 }
   function toggle() {
     if (!running && Notification.permission === 'default') Notification.requestPermission()
     setRunning(r => !r)
   }
 
-  const R    = 88
-  const circ = 2 * Math.PI * R
+  const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
   return (
-    <div className="page-root" style={{ maxWidth: 520 }}>
-      <PageHeader title="Fokus" subtitle="Pomodoro-Timer für tiefe Arbeit." />
+    <div className="content">
+      <PageHead
+        eyebrow={`${stats?.today_count ?? 0} Sessions heute · ${fmtMin(stats?.today_seconds ?? 0)}`}
+        title="Fokus"
+        sub="Tiefe entsteht in der Pause vom Lärm."
+      />
 
-      {/* Phase selector */}
-      <div className="flex gap-2 mb-8">
-        {(Object.keys(PRESETS) as Phase[]).map(p => {
-          const Ico = PRESETS[p].icon
-          return (
-            <button key={p} onClick={() => switchPhase(p)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                    style={phase === p
-                      ? { background: `color-mix(in srgb, ${PRESETS[p].color} 15%, transparent)`, color: PRESETS[p].color }
-                      : { color: 'var(--text-muted)' }}>
-              <Ico size={14} />{PRESETS[p].label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Timer ring */}
-      <div className="flex flex-col items-center gap-8 mb-8">
-        <div className="relative" style={{ width: 220, height: 220 }}>
-          <svg width="220" height="220" style={{ transform: 'rotate(-90deg)' }}>
-            <circle cx="110" cy="110" r={R} fill="none" strokeWidth="6"
-                    stroke="rgba(255,255,255,0.06)" />
-            <circle cx="110" cy="110" r={R} fill="none" strokeWidth="6"
-                    stroke={preset.color}
-                    strokeDasharray={circ}
-                    strokeDashoffset={circ * (1 - pct)}
-                    strokeLinecap="round"
-                    style={{ transition: 'stroke-dashoffset 0.25s linear' }} />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-mono font-semibold tabular-nums"
-                  style={{ fontSize: 52, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {pad(mins)}:{pad(secs)}
-            </span>
-            <span className="text-sm mt-1" style={{ color: preset.color }}>{preset.label}</span>
+      <div className="bento">
+        <div className="col-7">
+          <div className="card">
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">Timer · {preset.duration / 60} Min</span>
+              <div className="spacer" />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(Object.keys(PRESETS) as Phase[]).map(p => (
+                  <button key={p} onClick={() => switchPhase(p)}
+                    style={{ padding: '4px 10px', borderRadius: 99, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
+                      background: phase === p ? PRESETS[p].color : 'var(--surface-sunk)',
+                      color: phase === p ? 'white' : 'var(--fg-3)', border: '1px solid var(--line)' }}>
+                    {PRESETS[p].duration / 60}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="card-b" style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
+              <div style={{ position: 'relative', width: 280, height: 280 }}>
+                <svg width="280" height="280" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="140" cy="140" r={r} fill="none" stroke="var(--surface-sunk)" strokeWidth="6" />
+                  <circle cx="140" cy="140" r={r} fill="none" stroke={preset.color} strokeWidth="6"
+                    strokeDasharray={c} strokeDashoffset={dash} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+                  <div>
+                    <div className="display" style={{ fontSize: 64, fontWeight: 500, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {pad(mins)}<span style={{ color: 'var(--fg-4)' }}>:</span>{pad(secs)}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 500 }}>
+                      {running ? 'läuft' : timeLeft === preset.duration ? 'bereit' : 'pausiert'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn" onClick={reset}>Zurücksetzen</button>
+                <button className="btn primary" onClick={toggle} style={{ minWidth: 140, background: preset.color }}>
+                  {running ? '⏸ Pause' : '▶ Starten'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-4">
-          <button onClick={reset} className="p-3 rounded-xl transition-all active:scale-95"
-                  style={{ color: 'var(--text-muted)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-            <RotateCcw size={18} />
-          </button>
-          <button onClick={toggle}
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95"
-                  style={{ background: preset.color, color: '#000', boxShadow: `0 4px 20px color-mix(in srgb, ${preset.color} 40%, transparent)` }}>
-            {running ? <Pause size={24} /> : <Play size={24} />}
-          </button>
-          <div className="w-12 h-12" />
-        </div>
-      </div>
+        <div className="col-5" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="bento" style={{ margin: 0, gap: 12 }}>
+            <div className="col-6 stat">
+              <div className="l">Heute</div>
+              <div className="v">{stats?.today_count ?? 0}<span className="unit">×</span></div>
+              <div className="delta">{fmtMin(stats?.today_seconds ?? 0)}</div>
+            </div>
+            <div className="col-6 stat">
+              <div className="l">Diese Woche</div>
+              <div className="v">{stats?.week_count ?? 0}<span className="unit">×</span></div>
+              <div className="delta">{fmtMin(stats?.week_seconds ?? 0)}</div>
+            </div>
+          </div>
 
-      {/* Stats — today + week */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="p-4 rounded-2xl flex items-center gap-3"
-             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <Flame size={18} style={{ color: 'var(--accent)' }} />
-          <div>
-            <p className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-              {stats?.today_count ?? 0}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sessions heute</p>
+          <div className="card">
+            <div className="card-h"><span className="accent-dot" /><span className="title">Diese Woche</span></div>
+            <div className="card-b">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+                {weekDays.map((d, i) => {
+                  const today = new Date().getDay()
+                  const isToday = (today === 0 ? 6 : today - 1) === i
+                  return (
+                    <div key={d} style={{ textAlign: 'center' }}>
+                      <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: 6 }}>
+                        <div style={{ width: 18, height: isToday ? `${Math.max(20, (stats?.today_count ?? 0) / 8 * 100)}%` : '20%',
+                          background: isToday ? preset.color : 'var(--surface-sunk)',
+                          border: isToday ? 'none' : '1px solid var(--line)', borderRadius: 4 }} />
+                      </div>
+                      <div style={{ fontSize: 10.5, color: isToday ? preset.color : 'var(--fg-4)', fontWeight: isToday ? 600 : 500 }}>{d}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="p-4 rounded-2xl flex items-center gap-3"
-             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <Brain size={18} style={{ color: 'var(--green-fg)' }} />
-          <div>
-            <p className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-              {fmtMin(stats?.today_seconds ?? 0)}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Fokuszeit heute</p>
-          </div>
-        </div>
       </div>
-
-      {stats && (stats.week_count > 0) && (
-        <div className="p-3 rounded-2xl flex items-center justify-between mb-4"
-             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Diese Woche</span>
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            {stats.week_count} Sessions · {fmtMin(stats.week_seconds)}
-          </span>
-        </div>
-      )}
-
-      {/* Tips */}
-      {!running && timeLeft === preset.duration && (
-        <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-            {phase === 'focus' ? 'Für maximale Konzentration:' : 'Für eine gute Pause:'}
-          </p>
-          <ul className="space-y-1">
-            {(phase === 'focus'
-              ? ['Handy auf stumm stellen', 'Klares Ziel für diese Session', 'Nichts anderes geöffnet lassen']
-              : ['Aufstehen und bewegen', 'Frische Luft oder kurz dehnen', 'Kein Social Media']
-            ).map((t, i) => (
-              <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-                <span style={{ color: preset.color }}>·</span> {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   )
 }

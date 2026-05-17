@@ -1,26 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, Square, Trash2, Clock, Briefcase } from 'lucide-react'
+import { Play, Square, Trash2 } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { TimeEntry, TimeSummary } from '../api/types'
-import PageHeader from '../components/PageHeader'
-import { Input, Card, EmptyState } from '../components/ui'
 
-function fmtDuration(s: number) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
-
-function fmtTime(iso: string) {
-  try { return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) } catch { return '' }
-}
-
+function fmtDuration(s: number) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); if (h > 0) return `${h}h ${m}m`; return `${m}m` }
+function fmtTime(iso: string) { try { return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) } catch { return '' } }
 function fmtDate(iso: string) {
   try {
-    const d = new Date(iso)
-    const today = new Date()
+    const d = new Date(iso); const today = new Date()
     if (d.toDateString() === today.toDateString()) return 'Heute'
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
     if (d.toDateString() === yesterday.toDateString()) return 'Gestern'
@@ -28,11 +16,21 @@ function fmtDate(iso: string) {
   } catch { return '' }
 }
 
+function PageHead({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
+  return (
+    <div className="page-head">
+      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+      <h1>{title}</h1>
+      {sub && <div className="sub">{sub}</div>}
+    </div>
+  )
+}
+
 export default function TimePage() {
   const qc = useQueryClient()
-  const [project, setProject]     = useState('')
-  const [description, setDesc]    = useState('')
-  const [elapsed, setElapsed]     = useState(0)
+  const [project, setProject] = useState('')
+  const [description, setDesc] = useState('')
+  const [elapsed, setElapsed] = useState(0)
 
   const { data: running } = useQuery({
     queryKey: ['timeRunning'],
@@ -49,13 +47,9 @@ export default function TimePage() {
     refetchInterval: 30_000,
   })
 
-  // Live elapsed counter
   useEffect(() => {
     if (!running?.running) { setElapsed(0); return }
-    const update = () => {
-      const diff = Math.floor((Date.now() - new Date(running.started_at).getTime()) / 1000)
-      setElapsed(diff)
-    }
+    const update = () => setElapsed(Math.floor((Date.now() - new Date(running.started_at).getTime()) / 1000))
     update()
     const id = setInterval(update, 1000)
     return () => clearInterval(id)
@@ -76,142 +70,102 @@ export default function TimePage() {
 
   const isRunning = running?.running === true
 
-  // Group entries by date
   const grouped = entries.reduce<Record<string, TimeEntry[]>>((acc, e) => {
     const date = e.started_at.slice(0, 10)
-    if (!acc[date]) acc[date] = []
-    acc[date].push(e)
+    ;(acc[date] ||= []).push(e)
     return acc
   }, {})
 
+  const maxH = summary ? Math.max(...(summary.byProject?.map(p => p.total_s / 3600) ?? [1]), 1) : 1
+
   return (
-    <div className="page-root page-medium">
-      <PageHeader title="Zeiterfassung" subtitle="Track deine Arbeitszeit und Projekte." />
+    <div className="content">
+      <PageHead
+        eyebrow={`Diese Woche · ${fmtDuration(summary?.weekS ?? 0)}`}
+        title="Zeiterfassung"
+        sub="Du erfährst, was dir wichtig ist, wenn du es misst."
+      />
 
-      {/* Stats */}
-      {summary && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {[
-            { label: 'Heute', value: fmtDuration(summary.todayS) },
-            { label: 'Diese Woche', value: fmtDuration(summary.weekS) },
-            { label: 'Dieser Monat', value: fmtDuration(summary.monthS) },
-          ].map(s => (
-            <Card key={s.label} className="p-3 text-center">
-              <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{s.value}</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Timer control */}
-      <Card className="p-4 mb-6">
+      <div className="bento" style={{ marginBottom: 16 }}>
         {isRunning ? (
-          <div className="flex items-center gap-4">
-            <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--red)' }} />
-            <div className="flex-1 min-w-0">
-              {running.project && <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{running.project}</p>}
-              {running.description && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{running.description}</p>}
-            </div>
-            <span className="text-2xl font-mono font-semibold tabular-nums flex-shrink-0"
-                  style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {fmtDuration(elapsed)}
-            </span>
-            <button onClick={() => stop.mutate()}
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
-                    style={{ background: 'var(--red)', color: 'white' }}>
-              <Square size={18} />
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input placeholder="Projekt" value={project} onChange={e => setProject(e.target.value)} className="w-36 flex-shrink-0" />
-              <Input placeholder="Was arbeitest du?" value={description} onChange={e => setDesc(e.target.value)}
-                     onKeyDown={e => e.key === 'Enter' && start.mutate()} className="flex-1" />
-              <button onClick={() => start.mutate()}
-                      className="w-12 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
-                      style={{ background: 'var(--green)', color: 'white' }}>
-                <Play size={18} />
+          <div className="col-8 card" style={{ background: 'var(--fg)', color: 'var(--bg)', border: 0 }}>
+            <div className="card-b" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 99, background: '#2F8F4E', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 4 }}>Läuft</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{running.description || 'Kein Titel'}</div>
+                {running.project && <div style={{ fontSize: 12.5, opacity: 0.6, marginTop: 2 }}>{running.project}</div>}
+              </div>
+              <div className="display" style={{ fontSize: 34, fontWeight: 500, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>
+                {fmtDuration(elapsed)}
+              </div>
+              <button className="btn" onClick={() => stop.mutate()} style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--bg)', border: 'none' }}>
+                <Square size={14} /> Stop
               </button>
             </div>
           </div>
+        ) : (
+          <div className="col-8 card">
+            <div className="card-b" style={{ display: 'flex', gap: 8 }}>
+              <input value={project} onChange={e => setProject(e.target.value)} placeholder="Projekt"
+                style={{ width: 130, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)', flexShrink: 0 }} />
+              <input value={description} onChange={e => setDesc(e.target.value)} placeholder="Was arbeitest du?"
+                onKeyDown={e => e.key === 'Enter' && start.mutate()}
+                style={{ flex: 1, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+              <button className="btn primary" onClick={() => start.mutate()}><Play size={14} /> Start</button>
+            </div>
+          </div>
         )}
-      </Card>
+        <div className="col-4 stat">
+          <div className="l">Heute</div>
+          <div className="v">{fmtDuration(summary?.todayS ?? 0)}</div>
+          <div className="delta">{summary?.byProject?.length ?? 0} Projekte</div>
+        </div>
+      </div>
 
-      {/* By project this week */}
-      {summary && summary.byProject.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>Diese Woche nach Projekt</p>
-          <div className="space-y-2">
-            {summary.byProject.map(p => {
-              const pct = summary.weekS > 0 ? (p.total_s / summary.weekS) * 100 : 0
-              return (
-                <div key={p.project} className="px-3 py-2.5 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{p.project || 'Ohne Projekt'}</span>
-                    <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtDuration(p.total_s)}</span>
+      <div className="bento">
+        <div className="col-7 card">
+          <div className="card-h"><span className="accent-dot" /><span className="title">Einträge</span></div>
+          <div className="card-b" style={{ padding: 0 }}>
+            {entries.length === 0 && !isRunning && <div className="empty" style={{ padding: 60 }}>Noch keine Zeiteinträge.</div>}
+            {Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a)).flatMap(([date, dayEntries]) =>
+              dayEntries.map((e, i) => (
+                <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 20px', borderTop: (i > 0 || date !== Object.keys(grouped).sort((a, b) => b.localeCompare(a))[0]) ? '1px solid var(--line)' : 'none' }}>
+                  <span style={{ width: 56, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: 'var(--fg-4)', flexShrink: 0 }}>{i === 0 ? fmtDate(date + 'T00:00:00') : ''}</span>
+                  {e.project && <span style={{ width: 8, height: 8, borderRadius: 99, background: 'var(--accent)', flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500 }}>{e.description || 'Ohne Beschreibung'}</div>
+                    {e.project && <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>{e.project}</div>}
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
-                  </div>
+                  <span style={{ fontSize: 11.5, color: 'var(--fg-4)', fontFamily: 'JetBrains Mono', flexShrink: 0 }}>{fmtTime(e.started_at)}–{e.stopped_at ? fmtTime(e.stopped_at) : '…'}</span>
+                  {e.duration_s != null && <span className="display" style={{ fontSize: 13.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums', minWidth: 60, textAlign: 'right', flexShrink: 0 }}>{fmtDuration(e.duration_s)}</span>}
+                  <button onClick={() => del.mutate(e.id)} style={{ color: 'var(--fg-5)', cursor: 'pointer' }}
+                    onMouseEnter={el => (el.currentTarget.style.color = 'var(--rose)')}
+                    onMouseLeave={el => (el.currentTarget.style.color = 'var(--fg-5)')}>
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-              )
-            })}
+              ))
+            )}
           </div>
         </div>
-      )}
 
-      {/* Entry log */}
-      {entries.length === 0 && !isRunning && (
-        <EmptyState icon={<Clock size={22} />} title="Noch keine Einträge" description="Starte einen Timer um deine Zeit zu erfassen." />
-      )}
-
-      <div className="space-y-4">
-        {Object.entries(grouped)
-          .sort(([a], [b]) => b.localeCompare(a))
-          .map(([date, dayEntries]) => (
-            <div key={date}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                  {fmtDate(date + 'T00:00:00')}
-                </p>
-                <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                  {fmtDuration(dayEntries.reduce((sum, e) => sum + (e.duration_s ?? 0), 0))}
-                </p>
+        <div className="col-5 card">
+          <div className="card-h"><span className="accent-dot" /><span className="title">Verteilung · Woche</span></div>
+          <div className="card-b">
+            {(summary?.byProject ?? []).length === 0 && <div className="empty">Keine Daten diese Woche.</div>}
+            {(summary?.byProject ?? []).map((p, i) => (
+              <div key={p.project} style={{ padding: '10px 0', borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: 'var(--accent)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{p.project || 'Ohne Projekt'}</span>
+                  <span className="display" style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(p.total_s)}</span>
+                </div>
+                <div className="bar thin"><div className="fill" style={{ width: `${(p.total_s / 3600 / maxH) * 100}%` }} /></div>
               </div>
-              <div className="space-y-1.5">
-                {dayEntries.map(e => (
-                  <div key={e.id} className="flex items-center gap-3 px-3.5 py-3 rounded-xl group"
-                       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
-                    {e.project && (
-                      <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg flex-shrink-0"
-                            style={{ background: 'rgba(10,132,255,0.1)', color: 'var(--accent)' }}>
-                        <Briefcase size={10} />{e.project}
-                      </span>
-                    )}
-                    <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-secondary)' }}>
-                      {e.description || 'Ohne Beschreibung'}
-                    </span>
-                    <span className="text-xs tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-                      {fmtTime(e.started_at)}–{e.stopped_at ? fmtTime(e.stopped_at) : '…'}
-                    </span>
-                    {e.duration_s != null && (
-                      <span className="text-xs font-medium tabular-nums flex-shrink-0"
-                            style={{ color: 'var(--text-primary)', minWidth: 40, textAlign: 'right' }}>
-                        {fmtDuration(e.duration_s)}
-                      </span>
-                    )}
-                    <button onClick={() => del.mutate(e.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 transition-all"
-                            style={{ color: 'var(--red)' }}>
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

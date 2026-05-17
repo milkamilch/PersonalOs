@@ -1,500 +1,411 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Wifi, CheckSquare, GitBranch, AlertCircle, ExternalLink,
-  Plus, Trash2, Newspaper, Repeat2, Wallet, Target,
-  CircleCheck, TrendingDown, BookOpen, ChevronRight, StickyNote, Calendar
-} from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Plus, Flame, Check, ExternalLink, TrendingUp } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { ServerStatus, Todo, NewsItem, Habit, FinanceSummary, Goal, JournalEntry, QuickNote, CalendarEvent } from '../api/types'
+import type { Habit, Todo, FinanceSummary, Goal, JournalEntry, QuickNote, CalendarEvent, ServerStatus } from '../api/types'
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-function fmt(n: number) {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
-}
-function timeAgo(s: string) {
-  try {
-    const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000)
-    if (d === 0) return 'heute'
-    if (d === 1) return 'gestern'
-    return `vor ${d}d`
-  } catch { return '' }
-}
+const fmt = (n: number) =>
+  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-// ── Widget shell ──────────────────────────────────────────────────────────
-function Widget({ children, className = '', href }: { children: React.ReactNode; className?: string; href?: string }) {
+const WMO: Record<number, { label: string; icon: string }> = {
+  0: { label: 'Klar', icon: '☀️' }, 1: { label: 'Meist klar', icon: '🌤️' },
+  2: { label: 'Teilw. bewölkt', icon: '⛅' }, 3: { label: 'Bedeckt', icon: '☁️' },
+  45: { label: 'Nebel', icon: '🌫️' }, 61: { label: 'Regen', icon: '🌧️' },
+  80: { label: 'Schauer', icon: '🌦️' }, 95: { label: 'Gewitter', icon: '⛈️' },
+}
+const wmo = (c: number) => WMO[c] ?? { label: '–', icon: '🌡️' }
+const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
+
+// ── Card shell ────────────────────────────────────────────────────────────
+function Card({ title, meta, children, href, color }: {
+  title: string; meta?: React.ReactNode; children: React.ReactNode; href?: string; color?: string
+}) {
   const inner = (
-    <div className={`rounded-2xl flex flex-col overflow-hidden ${className}`}
-         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-      {children}
+    <div className="card" style={href ? { cursor: 'pointer' } : {}}>
+      <div className="card-h">
+        <span className="accent-dot" style={color ? { background: color } : {}} />
+        <span className="title">{title}</span>
+        <div className="spacer" />
+        {meta && <span className="meta">{meta}</span>}
+      </div>
+      <div className="card-b">{children}</div>
     </div>
   )
-  if (href) return <Link to={href} style={{ textDecoration: 'none', color: 'inherit' }}>{inner}</Link>
+  if (href) return <Link to={href} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>{inner}</Link>
   return inner
 }
 
-function WHead({ icon: Icon, title, color, right }: {
-  icon: React.ElementType; title: string; color?: string; right?: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
-         style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-      <div className="flex items-center gap-2">
-        <Icon size={12} style={{ color: color ?? 'var(--text-muted)' }} />
-        <span className="text-[10px] font-semibold tracking-[0.08em] uppercase"
-              style={{ color: 'var(--text-muted)' }}>{title}</span>
-      </div>
-      {right ?? <ChevronRight size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />}
-    </div>
-  )
-}
-
-// ── Greeting ──────────────────────────────────────────────────────────────
-function GreetingBar() {
-  const [time, setTime] = useState(new Date())
+// ── Hero ──────────────────────────────────────────────────────────────────
+function Hero() {
+  const [now, setNow] = useState(new Date())
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 30_000)
+    const id = setInterval(() => setNow(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
-
-  const h = time.getHours()
-  const greeting = h < 12 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Abend'
-  const dateStr = time.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
-  const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
-
+  const h = now.getHours()
+  const greet = h < 5 ? 'Gute Nacht' : h < 11 ? 'Guten Morgen' : h < 14 ? 'Mittag' : h < 18 ? 'Guten Tag' : 'Guten Abend'
+  const dateStr = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
+  const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+  const kw = Math.ceil((((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1) / 7)
   return (
-    <div className="flex items-baseline justify-between mb-5 flex-shrink-0 px-1">
+    <div className="hero">
       <div>
-        <h1 className="font-semibold" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          {greeting}, Lars
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{dateStr}</p>
+        <div className="greet">{greet}, Lars. <em>Willkommen zurück.</em></div>
+        <div className="sub">{dateStr}</div>
       </div>
-      <span className="text-2xl font-light tabular-nums" style={{ color: 'var(--text-secondary)' }}>{timeStr}</span>
+      <div className="clock">{timeStr}<small>KW {String(kw).padStart(2, '0')}</small></div>
     </div>
   )
 }
 
-// ── Quick-stats row ───────────────────────────────────────────────────────
-function QuickStats() {
-  const now = new Date()
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+// ── Stats ─────────────────────────────────────────────────────────────────
+function StatsRow() {
+  const month = new Date().toISOString().slice(0, 7)
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: () => endpoints.habits().then(r => r.data) })
+  const { data: todos = [] } = useQuery<Todo[]>({ queryKey: ['todos'], queryFn: () => endpoints.todos().then(r => r.data) })
+  const { data: summary } = useQuery<FinanceSummary>({ queryKey: ['financeSummary', month], queryFn: () => endpoints.financeSummary(month).then(r => r.data) })
+  const { data: goals = [] } = useQuery<Goal[]>({ queryKey: ['goals', 'active'], queryFn: () => endpoints.goals({ status: 'active' }).then(r => r.data) })
 
-  const { data: habits = [] } = useQuery<Habit[]>({
-    queryKey: ['habits'],
-    queryFn: () => endpoints.habits().then(r => r.data),
-  })
-  const { data: todos = [] } = useQuery<Todo[]>({
-    queryKey: ['todos'],
-    queryFn: () => endpoints.todos().then(r => r.data),
-  })
-  const { data: summary } = useQuery<FinanceSummary>({
-    queryKey: ['financeSummary', month],
-    queryFn: () => endpoints.financeSummary(month).then(r => r.data),
-  })
-  const { data: goals = [] } = useQuery<Goal[]>({
-    queryKey: ['goals', 'active'],
-    queryFn: () => endpoints.goals({ status: 'active' }).then(r => r.data),
-  })
-
-  const habitsDone  = habits.filter(h => h.done_today === 1).length
-  const openTodos   = todos.filter(t => !t.done).length
-  const budget      = summary?.monthlyIncome ?? 0
-  const spent       = summary?.expenses ?? 0
-  const remaining   = budget - spent
-  const budgetOver  = budget > 0 && spent > budget
-
-  const stats = [
-    {
-      label: 'Habits',
-      value: `${habitsDone}/${habits.length}`,
-      icon: Repeat2,
-      color: habitsDone === habits.length && habits.length > 0 ? 'var(--green)' : 'var(--accent)',
-      href: '/habits',
-    },
-    {
-      label: 'Todos',
-      value: openTodos,
-      icon: CheckSquare,
-      color: openTodos === 0 ? 'var(--green)' : 'var(--accent)',
-      href: '/todos',
-    },
-    {
-      label: 'Budget',
-      value: budget > 0 ? fmt(remaining) : '—',
-      icon: budgetOver ? TrendingDown : Wallet,
-      color: budgetOver ? 'var(--red)' : budget > 0 && spent / budget > 0.8 ? 'var(--yellow)' : 'var(--green)',
-      href: '/finance',
-    },
-    {
-      label: 'Ziele',
-      value: goals.length,
-      icon: Target,
-      color: 'var(--accent)',
-      href: '/goals',
-    },
-  ]
+  const habitsDone = habits.filter(h => h.done_today === 1).length
+  const openTodos  = todos.filter(t => !t.done).length
+  const income     = summary?.monthlyIncome ?? 0
+  const expenses   = summary?.expenses ?? 0
+  const remaining  = income - expenses
 
   return (
-    <div className="grid grid-cols-4 gap-2 mb-5 flex-shrink-0">
-      {stats.map(s => (
-        <Link key={s.label} to={s.href} style={{ textDecoration: 'none' }}>
-          <div className="flex flex-col items-center justify-center py-3 rounded-2xl gap-1 transition-all active:scale-95"
-               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-            <s.icon size={16} style={{ color: s.color }} />
-            <p className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{s.value}</p>
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
-          </div>
-        </Link>
-      ))}
-    </div>
-  )
-}
-
-// ── Habits ────────────────────────────────────────────────────────────────
-function HabitsWidget() {
-  const qc = useQueryClient()
-  const { data: habits = [] } = useQuery<Habit[]>({
-    queryKey: ['habits'],
-    queryFn: () => endpoints.habits().then(r => r.data),
-    refetchInterval: 60_000,
-  })
-  const toggle = useMutation({
-    mutationFn: (id: number) => endpoints.toggleHabit(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }),
-  })
-
-  const done  = habits.filter(h => h.done_today === 1).length
-  const total = habits.length
-
-  return (
-    <Widget href="/habits">
-      <WHead icon={Repeat2} title={`Habits · ${done}/${total}`} color="var(--accent)"
-        right={done === total && total > 0
-          ? <span style={{ color: 'var(--green)', fontSize: 11 }}>Alle ✓</span>
-          : <ChevronRight size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />}
-      />
-      <div className="p-3 space-y-1">
-        {habits.length === 0 && (
-          <p className="text-xs py-2 text-center" style={{ color: 'var(--text-muted)' }}>Noch keine Habits</p>
-        )}
-        {habits.slice(0, 6).map(h => (
-          <button key={h.id}
-                  onClick={e => { e.preventDefault(); toggle.mutate(h.id) }}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl transition-all text-left active:scale-[0.98]"
-                  style={{ background: h.done_today ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'rgba(255,255,255,0.02)' }}>
-            <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center"
-                 style={{ background: h.done_today ? h.color : 'rgba(255,255,255,0.05)',
-                          border: `1.5px solid ${h.done_today ? h.color : 'rgba(255,255,255,0.12)'}` }}>
-              {h.done_today === 1 && <CircleCheck size={11} color="white" />}
-            </div>
-            <span className="text-sm flex-1 truncate"
-                  style={{ color: h.done_today ? 'var(--text-muted)' : 'var(--text-secondary)',
-                           textDecoration: h.done_today ? 'line-through' : 'none' }}>
-              {h.icon} {h.name}
-            </span>
-          </button>
-        ))}
-        {total > 0 && (
-          <div className="h-1 rounded-full overflow-hidden mt-2" style={{ background: 'rgba(255,255,255,0.05)' }}>
-            <div className="h-full rounded-full transition-all duration-500"
-                 style={{ width: `${(done / total) * 100}%`,
-                          background: done === total ? 'var(--green)' : 'var(--accent)' }} />
-          </div>
-        )}
-      </div>
-    </Widget>
-  )
-}
-
-// ── Todos ─────────────────────────────────────────────────────────────────
-function TodosWidget() {
-  const qc = useQueryClient()
-  const [text, setText] = useState('')
-
-  const { data: todos = [] } = useQuery<Todo[]>({
-    queryKey: ['todos'],
-    queryFn: () => endpoints.todos().then(r => r.data),
-  })
-  const create = useMutation({
-    mutationFn: () => endpoints.createTodo(text),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos'] }); setText('') },
-  })
-  const done = useMutation({
-    mutationFn: ({ id, d }: { id: number; d: boolean }) => endpoints.doneTodo(id, d),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }),
-  })
-  const del = useMutation({
-    mutationFn: (id: number) => endpoints.deleteTodo(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }),
-  })
-
-  const open = todos.filter(t => !t.done)
-
-  return (
-    <Widget>
-      <WHead icon={CheckSquare} title={`Todos · ${open.length} offen`} color="var(--accent)"
-        right={
-          <Link to="/todos" style={{ color: 'var(--text-muted)' }}>
-            <ChevronRight size={12} style={{ opacity: 0.4 }} />
-          </Link>
-        }
-      />
-      <div className="p-3 space-y-1">
-        <div className="flex gap-2 mb-2">
-          <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && text.trim() && create.mutate()}
-            placeholder="Neue Aufgabe…"
-            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-          />
-          <button onClick={() => text.trim() && create.mutate()}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95"
-                  style={{ background: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)' }}>
-            <Plus size={16} />
-          </button>
+    <div className="bento" style={{ marginBottom: 24 }}>
+      <div className="col-3 stat">
+        <div className="l">Habits heute</div>
+        <div className="v">{habitsDone}<span className="unit">/{habits.length}</span></div>
+        <div className={`delta ${habitsDone === habits.length && habits.length > 0 ? 'up' : ''}`}>
+          {habitsDone === habits.length && habits.length > 0 ? <><TrendingUp size={12} /> Alle erledigt</> : `${habits.length - habitsDone} offen`}
         </div>
-        {open.length === 0 && (
-          <p className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>Alles erledigt ✓</p>
+      </div>
+      <div className="col-3 stat">
+        <div className="l">Offene Aufgaben</div>
+        <div className="v">{openTodos}</div>
+        <div className="delta">{openTodos === 0 ? 'Alles erledigt ✓' : `${todos.filter(t => t.done).length} erledigt`}</div>
+      </div>
+      <div className="col-3 stat">
+        <div className="l">Budget übrig</div>
+        <div className="v" style={{ color: remaining < 0 ? 'var(--rose)' : 'var(--accent)', fontSize: income > 0 ? 22 : 28 }}>
+          {income > 0 ? fmt(remaining) : '—'}
+        </div>
+        <div className={`delta ${remaining < 0 ? 'down' : ''}`}>{income > 0 ? `von ${fmt(income)}` : 'Nicht konfiguriert'}</div>
+      </div>
+      <div className="col-3 stat">
+        <div className="l">Aktive Ziele</div>
+        <div className="v">{goals.length}</div>
+        <div className="delta">{goals.length > 0 ? `Ø ${Math.round(goals.reduce((s, g) => s + g.progress, 0) / goals.length)} %` : 'Noch keine'}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Habits widget ─────────────────────────────────────────────────────────
+function HabitsCard() {
+  const qc = useQueryClient()
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: () => endpoints.habits().then(r => r.data) })
+  const toggle = useMutation({ mutationFn: (id: number) => endpoints.toggleHabit(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }) })
+  const done = habits.filter(h => h.done_today === 1).length
+  return (
+    <Card href="/habits" title="Gewohnheiten" meta={`${done} / ${habits.length} heute`}>
+      <div style={{ marginTop: -8 }}>
+        {habits.length === 0 && <div className="empty">Noch keine Habits</div>}
+        {habits.slice(0, 6).map(h => (
+          <div key={h.id} className={`habit-row ${h.done_today ? 'on' : ''}`}
+            onClick={e => { e.preventDefault(); toggle.mutate(h.id) }}>
+            <div className={`check ${h.done_today ? 'on' : ''}`}>
+              {!!h.done_today && <Check size={12} />}
+            </div>
+            <span className="name">{h.icon} {h.name}</span>
+            {h.total_done > 0 && <span className="streak"><Flame size={11} /> {h.total_done}</span>}
+          </div>
+        ))}
+        {habits.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div className="bar"><div className="fill" style={{ width: `${(done / habits.length) * 100}%` }} /></div>
+          </div>
         )}
+      </div>
+    </Card>
+  )
+}
+
+// ── Todos widget ──────────────────────────────────────────────────────────
+function TodosCard() {
+  const qc = useQueryClient()
+  const [draft, setDraft] = useState('')
+  const { data: todos = [] } = useQuery<Todo[]>({ queryKey: ['todos'], queryFn: () => endpoints.todos().then(r => r.data) })
+  const create = useMutation({ mutationFn: () => endpoints.createTodo(draft), onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos'] }); setDraft('') } })
+  const done = useMutation({ mutationFn: ({ id, d }: { id: number; d: boolean }) => endpoints.doneTodo(id, d), onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }) })
+  const open = todos.filter(t => !t.done)
+  return (
+    <Card title="Aufgaben" meta={`${open.length} offen`}>
+      <div style={{ marginTop: -8 }}>
+        <div className="composer">
+          <Plus size={13} style={{ color: 'var(--fg-4)', flexShrink: 0 }} />
+          <input placeholder="Neue Aufgabe…" value={draft} onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && draft.trim()) create.mutate() }} />
+          <span className="kbd">⏎</span>
+        </div>
+        {open.length === 0 && <div className="empty">Alles erledigt ✓</div>}
         {open.slice(0, 5).map(t => (
-          <div key={t.id}
-               className="flex items-center gap-2.5 px-2 py-2 rounded-xl group"
-               style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <button onClick={() => done.mutate({ id: t.id, d: true })}
-                    className="w-4 h-4 rounded border flex-shrink-0 transition-colors active:scale-90"
-                    style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
-            <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{t.text}</span>
-            <button onClick={() => del.mutate(t.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color: 'var(--red)' }}>
-              <Trash2 size={12} />
-            </button>
+          <div key={t.id} className="todo" onClick={() => done.mutate({ id: t.id, d: true })} style={{ cursor: 'pointer' }}>
+            <div className="box" />
+            <span className="text">{t.text}</span>
           </div>
         ))}
       </div>
-    </Widget>
+    </Card>
+  )
+}
+
+// ── Heute (Calendar) ──────────────────────────────────────────────────────
+function TodayCard() {
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: events = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ['calendarToday', today],
+    queryFn: () => endpoints.calendarEvents(today, today).then(r => r.data),
+  })
+  const label = new Date().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+  return (
+    <Card href="/calendar" title="Heute" meta={`${events.length} Termine · ${label}`}>
+      {events.length === 0
+        ? <div className="empty">Keine Termine heute</div>
+        : events.map(e => (
+          <div key={e.id} className="agenda-item">
+            <div className="time">{e.start_time ?? '–'}</div>
+            <div className="bar" style={{ background: e.color ?? 'var(--accent)' }} />
+            <div className="body">
+              <div className="t">{e.title}</div>
+              {e.notes && <div className="s">{e.notes}</div>}
+            </div>
+          </div>
+        ))
+      }
+    </Card>
   )
 }
 
 // ── Finance ───────────────────────────────────────────────────────────────
-function FinanceWidget() {
-  const now = new Date()
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  const { data: summary } = useQuery<FinanceSummary>({
-    queryKey: ['financeSummary', month],
-    queryFn: () => endpoints.financeSummary(month).then(r => r.data),
-  })
-
+function FinanceCard() {
+  const month = new Date().toISOString().slice(0, 7)
+  const { data: summary } = useQuery<FinanceSummary>({ queryKey: ['financeSummary', month], queryFn: () => endpoints.financeSummary(month).then(r => r.data) })
   const income   = summary?.monthlyIncome ?? 0
   const expenses = summary?.expenses ?? 0
-  const pct      = income > 0 ? Math.min(expenses / income, 1) : 0
-  const over     = income > 0 && expenses > income
-  const barColor = over ? 'var(--red)' : pct > 0.8 ? 'var(--yellow)' : 'var(--green)'
-
+  const pct = income > 0 ? Math.min(expenses / income, 1) : 0
+  if (!income) return (
+    <Card href="/finance" title="Finanzen · Mai">
+      <div className="empty">Einkommen nicht konfiguriert</div>
+    </Card>
+  )
   return (
-    <Widget href="/finance">
-      <WHead icon={Wallet} title="Finanzen" color="var(--yellow)" />
-      <div className="p-4 space-y-3">
-        {income === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Einkommen noch nicht konfiguriert</p>
-        ) : (
-          <>
-            <div className="flex justify-between items-baseline">
-              <div>
-                <p className="text-xl font-semibold tabular-nums"
-                   style={{ color: over ? 'var(--red)' : 'var(--text-primary)' }}>
-                  {fmt(expenses)}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>ausgegeben</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium" style={{ color: over ? 'var(--red)' : 'var(--green)' }}>
-                  {over ? '−' : '+'}{fmt(Math.abs(income - expenses))}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{over ? 'überzogen' : 'übrig'}</p>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                <span>0</span><span>{Math.round(pct * 100)}%</span><span>{fmt(income)}</span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                <div className="h-full rounded-full transition-all duration-700"
-                     style={{ width: `${pct * 100}%`, background: barColor }} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              {(summary?.byCategory ?? []).filter(c => c.spent > 0).slice(0, 3).map(c => (
-                <div key={c.id} className="flex items-center gap-2">
-                  <span className="text-xs">{c.icon}</span>
-                  <span className="text-xs flex-1 truncate" style={{ color: 'var(--text-muted)' }}>{c.name}</span>
-                  <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>{fmt(c.spent)}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+    <Card href="/finance" title={`Finanzen · ${new Date().toLocaleDateString('de-DE', { month: 'long' })}`}
+      meta={<span className={`pill ${pct > 0.9 ? 'danger' : pct > 0.75 ? 'warn' : 'success'}`}><span className="dot" />{pct > 0.9 ? 'kritisch' : pct > 0.75 ? 'knapp' : 'im Plan'}</span>}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <div>
+          <div className="display" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.03em' }}>{fmt(income - expenses)}</div>
+          <div style={{ color: 'var(--fg-3)', fontSize: 12.5, marginTop: 2 }}>übrig · {Math.round((1 - pct) * 100)} %</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="mono" style={{ fontSize: 12, color: 'var(--fg-3)' }}>{fmt(expenses)} / {fmt(income)}</div>
+          <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>verbraucht</div>
+        </div>
       </div>
-    </Widget>
+      <div className="bar" style={{ height: 6 }}>
+        <div className="fill" style={{ width: `${pct * 100}%`, background: pct > 0.9 ? 'var(--rose)' : pct > 0.75 ? 'var(--amber)' : 'var(--accent)' }} />
+      </div>
+      {(summary?.byCategory ?? []).filter(c => c.spent > 0).slice(0, 4).map(c => (
+        <div key={c.id} className="tx">
+          <div className="ic">{c.icon}</div>
+          <div className="who"><div className="t">{c.name}</div></div>
+          <div className="amt out">{fmt(c.spent)}</div>
+        </div>
+      ))}
+    </Card>
   )
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────
-function GoalsWidget() {
-  const { data: goals = [] } = useQuery<Goal[]>({
-    queryKey: ['goals', 'active'],
-    queryFn: () => endpoints.goals({ status: 'active' }).then(r => r.data),
-  })
-
-  const HORIZON_COLOR: Record<string, string> = {
-    week: 'var(--green)', month: 'var(--accent)', year: '#a78bfa', life: 'var(--yellow)'
-  }
-
+function GoalsCard() {
+  const { data: goals = [] } = useQuery<Goal[]>({ queryKey: ['goals', 'active'], queryFn: () => endpoints.goals({ status: 'active' }).then(r => r.data) })
+  const HORIZON_COLORS: Record<string, string> = { week: 'var(--green)', month: 'var(--accent)', year: '#8E5BFF', life: 'var(--amber)' }
+  const HORIZON_LABEL: Record<string, string> = { week: 'Woche', month: 'Monat', year: 'Jahr', life: 'Langfristig' }
   return (
-    <Widget href="/goals">
-      <WHead icon={Target} title="Aktive Ziele" color="var(--accent)" />
-      <div className="p-3 space-y-2">
-        {goals.length === 0 && (
-          <p className="text-xs py-2 text-center" style={{ color: 'var(--text-muted)' }}>Keine aktiven Ziele</p>
-        )}
+    <Card href="/goals" title="Ziele" meta={`${goals.length} aktiv`}>
+      <div style={{ paddingTop: 4, paddingBottom: 4 }}>
+        {goals.length === 0 && <div className="empty">Keine aktiven Ziele</div>}
         {goals.slice(0, 4).map(g => (
-          <div key={g.id} className="px-2 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                   style={{ background: HORIZON_COLOR[g.horizon] ?? 'var(--accent)' }} />
-              <span className="text-sm flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>{g.title}</span>
-              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{g.progress}%</span>
+          <div key={g.id} className="goal">
+            <div className="gh">
+              <span className="name">{g.title}</span>
+              <span className="pct">{g.progress}<small style={{ color: 'var(--fg-4)', fontSize: 11 }}>%</small></span>
             </div>
-            <div className="h-1 rounded-full overflow-hidden ml-3.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <div className="h-full rounded-full transition-all"
-                   style={{ width: `${g.progress}%`, background: HORIZON_COLOR[g.horizon] ?? 'var(--accent)' }} />
+            <div style={{ marginBottom: 6 }}>
+              <span className="horizon">{HORIZON_LABEL[g.horizon] ?? g.horizon}</span>
+            </div>
+            <div className="bar thin">
+              <div className="fill" style={{ width: `${g.progress}%`, background: HORIZON_COLORS[g.horizon] ?? 'var(--accent)' }} />
             </div>
           </div>
         ))}
       </div>
-    </Widget>
+    </Card>
   )
 }
 
-// ── Journal mood ──────────────────────────────────────────────────────────
-function JournalWidget() {
-  const { data: today } = useQuery<JournalEntry | null>({
-    queryKey: ['journalToday'],
-    queryFn: () => endpoints.journalToday().then(r => r.data).catch(() => null),
-  })
-
-  const MOOD_EMOJI = ['', '😞', '😕', '😐', '🙂', '😄']
-  const MOOD_COLOR = ['', 'var(--red)', 'var(--yellow)', 'var(--text-muted)', 'var(--green)', '#34d399']
-
+// ── Journal ───────────────────────────────────────────────────────────────
+function JournalCard() {
+  const { data: today } = useQuery<JournalEntry | null>({ queryKey: ['journalToday'], queryFn: () => endpoints.journalToday().then(r => r.data).catch(() => null) })
+  const EMOJI = ['', '😞', '😕', '🙂', '😊', '😄']
+  const LABELS = ['', 'Schlecht', 'Mau', 'OK', 'Gut', 'Stark']
+  const mood = today?.mood ?? 0
+  const r = 22, c = 2 * Math.PI * r, off = c - (mood / 5) * c
   return (
-    <Widget href="/journal">
-      <WHead icon={BookOpen} title="Journal" color="var(--green)" />
-      <div className="p-4 flex items-center gap-3">
-        {today ? (
-          <>
-            <span className="text-3xl">{MOOD_EMOJI[today.mood]}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium" style={{ color: MOOD_COLOR[today.mood] }}>
-                Stimmung {today.mood}/5
-              </p>
-              {today.content && (
-                <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-muted)' }}>
-                  {today.content}
-                </p>
-              )}
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {timeAgo(today.created_at)}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-3 w-full">
-            <BookOpen size={20} style={{ color: 'var(--text-muted)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Heute noch kein Eintrag</p>
-            <span className="ml-auto text-xs font-medium" style={{ color: 'var(--accent)' }}>Eintragen →</span>
+    <Card href="/journal" title="Journal" meta={today ? `Mood ${mood}/5` : undefined}>
+      {today ? (
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div className="ring">
+            <svg width="56" height="56">
+              <circle cx="28" cy="28" r={r} fill="none" stroke="var(--surface-sunk)" strokeWidth="4" />
+              <circle cx="28" cy="28" r={r} fill="none" stroke="var(--accent)" strokeWidth="4"
+                strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
+            </svg>
+            <div className="val">{mood}<small style={{ fontSize: 9, color: 'var(--fg-4)' }}>/5</small></div>
           </div>
-        )}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500 }}>Stimmung: {LABELS[mood]} {EMOJI[mood]}</div>
+            {today.content && <div style={{ fontSize: 12.5, color: 'var(--fg-3)', marginTop: 4, lineHeight: 1.5 }}>„{today.content.slice(0, 100)}{today.content.length > 100 ? '…' : ''}"</div>}
+          </div>
+        </div>
+      ) : (
+        <div className="empty" style={{ padding: '16px 0' }}>
+          Heute noch kein Eintrag — <Link to="/journal" style={{ color: 'var(--accent)' }}>Jetzt eintragen →</Link>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────
+function NotesCard() {
+  const { data: notes = [] } = useQuery<QuickNote[]>({ queryKey: ['notes'], queryFn: () => endpoints.notes().then(r => r.data) })
+  const shown = [...notes.filter(n => n.pinned).slice(0, 2), ...notes.filter(n => !n.pinned)].slice(0, 3)
+  const NOTE_BG: Record<string, string> = {
+    default: 'var(--surface-sunk)', yellow: 'rgba(197,138,0,0.08)',
+    green: 'rgba(47,143,78,0.08)', red: 'rgba(200,52,74,0.08)', blue: 'rgba(28,107,255,0.08)',
+  }
+  return (
+    <Card href="/notes" title="Notizen" meta={`${notes.length} gespeichert`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {shown.length === 0 && <div className="empty">Noch keine Notizen</div>}
+        {shown.map(n => (
+          <div key={n.id} className={`note ${n.pinned ? 'pin' : ''}`} style={{ background: NOTE_BG[n.color] ?? NOTE_BG.default }}>
+            {n.title && <div className="t">{n.title}</div>}
+            <div>{n.content.slice(0, 80)}{n.content.length > 80 ? '…' : ''}</div>
+          </div>
+        ))}
       </div>
-    </Widget>
+    </Card>
+  )
+}
+
+// ── Server ────────────────────────────────────────────────────────────────
+function ServerCard() {
+  const { data: status, error } = useQuery<ServerStatus>({
+    queryKey: ['serverStatus'], queryFn: () => endpoints.serverStatus().then(r => r.data),
+    refetchInterval: 30_000, retry: false,
+  })
+  return (
+    <Card href="/server" title="Server"
+      meta={status
+        ? <span className={`pill ${status.reachable ? 'success' : 'danger'}`}><span className="dot" />{status.reachable ? `Online · ${status.responseTimeMs}ms` : 'Offline'}</span>
+        : undefined}>
+      {error && <div className="empty">Nicht konfiguriert</div>}
+      {status && (
+        <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+          <span className="mono">{status.host}</span>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── GitHub ────────────────────────────────────────────────────────────────
+function GithubCard() {
+  const { data: repos = [], error } = useQuery<any[]>({ queryKey: ['githubRepos'], queryFn: () => endpoints.githubRepos().then(r => r.data), retry: false })
+  return (
+    <Card href="/github" title="GitHub" meta={repos.length > 0 ? `${repos.length} Repos` : undefined}>
+      {error && <div className="empty">Token nicht konfiguriert</div>}
+      {repos.slice(0, 4).map((r: any) => (
+        <div key={r.id ?? r.full_name} className="repo">
+          <span className="lang" />
+          <span className="name">{r.name ?? (r.full_name ?? '').split('/')[1]}</span>
+          <span className="meta">
+            {(r.open_issues_count ?? r.openIssuesCount ?? 0) > 0 && (
+              <span style={{ color: 'var(--amber)' }}>{r.open_issues_count ?? r.openIssuesCount} Issues</span>
+            )}
+          </span>
+        </div>
+      ))}
+    </Card>
   )
 }
 
 // ── Weather ───────────────────────────────────────────────────────────────
-const WMO: Record<number, { label: string; icon: string }> = {
-  0: { label: 'Klar', icon: '☀️' }, 1: { label: 'Meist klar', icon: '🌤️' },
-  2: { label: 'Teilw. bewölkt', icon: '⛅' }, 3: { label: 'Bedeckt', icon: '☁️' },
-  45: { label: 'Nebel', icon: '🌫️' }, 48: { label: 'Nebel', icon: '🌫️' },
-  51: { label: 'Nieselregen', icon: '🌦️' }, 61: { label: 'Regen', icon: '🌧️' },
-  71: { label: 'Schnee', icon: '❄️' }, 80: { label: 'Schauer', icon: '🌦️' },
-  95: { label: 'Gewitter', icon: '⛈️' },
-}
-function wmo(code: number) { return WMO[code] ?? { label: 'Unbekannt', icon: '🌡️' } }
-
-function WeatherWidget() {
-  const LAT = 51.5142  // Dortmund default — uses browser geolocation if available
-  const LON = 7.4652
+function WeatherCard() {
   const { data, isLoading } = useQuery({
     queryKey: ['weather'],
     queryFn: async () => {
-      let lat = LAT, lon = LON
+      let lat = 51.5142, lon = 7.4652
       try {
         const pos = await new Promise<GeolocationPosition>((res, rej) =>
           navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 }))
         lat = pos.coords.latitude; lon = pos.coords.longitude
-      } catch { /* use default */ }
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&wind_speed_unit=kmh&timezone=auto&forecast_days=4`
-      const r = await fetch(url)
+      } catch { /* fallback */ }
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&wind_speed_unit=kmh&timezone=auto&forecast_days=4`)
       return r.json()
     },
-    staleTime: 30 * 60_000,
-    retry: 1,
+    staleTime: 30 * 60_000, retry: 1,
   })
-
-  const cur  = data?.current
+  const cur = data?.current
   const days = data?.daily
-
-  const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
-
   return (
-    <Widget>
-      <WHead icon={Wifi} title="Wetter" color="var(--accent)"
-        right={<span />}
-      />
-      <div className="p-4">
-        {isLoading && <div className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />}
+    <div className="card">
+      <div className="card-h">
+        <span className="accent-dot" />
+        <span className="title">Wetter</span>
+      </div>
+      <div className="card-b">
+        {isLoading && <div className="skeleton" style={{ height: 64 }} />}
         {cur && (
           <>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-4xl">{wmo(cur.weathercode).icon}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              <span style={{ fontSize: 40 }}>{wmo(cur.weathercode).icon}</span>
               <div>
-                <p className="text-2xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                  {Math.round(cur.temperature_2m)}°C
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {wmo(cur.weathercode).label} · Wind {Math.round(cur.windspeed_10m)} km/h
-                </p>
+                <div className="display" style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  {Math.round(cur.temperature_2m)}<small style={{ fontSize: 18, color: 'var(--fg-3)' }}>°C</small>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--fg-3)', marginTop: 4 }}>
+                  {wmo(cur.weathercode).label} · {Math.round(cur.windspeed_10m)} km/h
+                </div>
               </div>
             </div>
             {days && (
-              <div className="grid grid-cols-4 gap-1">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                 {days.time.slice(0, 4).map((d: string, i: number) => (
-                  <div key={d} className="flex flex-col items-center py-2 rounded-xl gap-1"
-                       style={{ background: i === 0 ? 'rgba(10,132,255,0.08)' : 'rgba(255,255,255,0.02)' }}>
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                  <div key={d} style={{
+                    background: i === 0 ? 'var(--accent-soft)' : 'var(--surface-sunk)',
+                    color: i === 0 ? 'var(--accent)' : 'var(--fg-2)',
+                    borderRadius: 10, padding: '10px 6px', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                       {i === 0 ? 'Heute' : DAYS[new Date(d).getDay()]}
-                    </span>
-                    <span className="text-lg">{wmo(days.weathercode[i]).icon}</span>
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                      {Math.round(days.temperature_2m_max[i])}°
-                    </span>
-                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                      {Math.round(days.temperature_2m_min[i])}°
-                    </span>
+                    </div>
+                    <div style={{ fontSize: 18 }}>{wmo(days.weathercode[i]).icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{Math.round(days.temperature_2m_max[i])}°</div>
                   </div>
                 ))}
               </div>
@@ -502,150 +413,7 @@ function WeatherWidget() {
           </>
         )}
       </div>
-    </Widget>
-  )
-}
-
-// ── Notes ─────────────────────────────────────────────────────────────────
-function NotesWidget() {
-  const { data: notes = [] } = useQuery<QuickNote[]>({
-    queryKey: ['notes'],
-    queryFn: () => endpoints.notes().then(r => r.data),
-  })
-
-  const pinned   = notes.filter(n => n.pinned)
-  const recent   = notes.filter(n => !n.pinned).slice(0, 3)
-  const shown    = [...pinned.slice(0, 2), ...recent].slice(0, 3)
-
-  const COLOR_BG: Record<string, string> = {
-    default: 'rgba(255,255,255,0.03)',
-    yellow:  'rgba(255,214,10,0.08)',
-    green:   'rgba(48,209,88,0.08)',
-    red:     'rgba(255,69,58,0.08)',
-    blue:    'rgba(10,132,255,0.08)',
-  }
-
-  return (
-    <Widget href="/notes">
-      <WHead icon={StickyNote} title={`Notizen · ${notes.length}`} color="var(--yellow)" />
-      <div className="p-3 space-y-1.5">
-        {shown.length === 0 && (
-          <p className="text-xs py-2 text-center" style={{ color: 'var(--text-muted)' }}>Noch keine Notizen</p>
-        )}
-        {shown.map(n => (
-          <div key={n.id} className="px-3 py-2.5 rounded-xl"
-               style={{ background: COLOR_BG[n.color] ?? COLOR_BG.default }}>
-            {n.title && <p className="text-xs font-semibold mb-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{n.title}</p>}
-            <p className="text-xs line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{n.content}</p>
-          </div>
-        ))}
-      </div>
-    </Widget>
-  )
-}
-
-// ── Server ────────────────────────────────────────────────────────────────
-function ServerWidget() {
-  const { data: status, error } = useQuery<ServerStatus>({
-    queryKey: ['serverStatus'],
-    queryFn: () => endpoints.serverStatus().then(r => r.data),
-    refetchInterval: 30_000,
-    retry: false,
-  })
-
-  return (
-    <Widget href="/server">
-      <WHead icon={Wifi} title="Server" color="var(--green)"
-        right={status
-          ? <span className="text-[10px] font-semibold" style={{ color: status.reachable ? 'var(--green)' : 'var(--red)' }}>
-              {status.reachable ? 'ONLINE' : 'OFFLINE'}
-            </span>
-          : <ChevronRight size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />}
-      />
-      <div className="px-4 py-3 flex items-center gap-3">
-        {error && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nicht konfiguriert</p>}
-        {status && (
-          <>
-            <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
-                 style={{ background: status.reachable ? 'var(--green)' : 'var(--red)' }} />
-            <span className="text-sm flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>
-              {status.host}
-            </span>
-            {status.reachable && status.responseTimeMs != null && (
-              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                {status.responseTimeMs}ms
-              </span>
-            )}
-          </>
-        )}
-      </div>
-    </Widget>
-  )
-}
-
-// ── GitHub ────────────────────────────────────────────────────────────────
-function GitHubWidget() {
-  const { data: rawRepos = [], error } = useQuery<any[]>({
-    queryKey: ['githubRepos'],
-    queryFn: () => endpoints.githubRepos().then(r => r.data),
-    retry: false,
-  })
-
-  return (
-    <Widget href="/github">
-      <WHead icon={GitBranch} title="GitHub" color="var(--text-secondary)" />
-      <div className="p-2 space-y-0.5">
-        {error && <p className="text-xs px-2 py-2" style={{ color: 'var(--text-muted)' }}>Token nicht konfiguriert</p>}
-        {rawRepos.slice(0, 4).map((r: any) => (
-          <div key={r.id ?? r.full_name}
-               className="flex items-center gap-2 px-2 py-2 rounded-xl"
-               style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <GitBranch size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-secondary)' }}>
-              {r.name ?? (r.full_name ?? '').split('/')[1]}
-            </span>
-            {(r.open_issues_count ?? r.openIssuesCount ?? 0) > 0 && (
-              <span className="flex items-center gap-0.5 text-xs flex-shrink-0"
-                    style={{ color: 'var(--yellow)' }}>
-                <AlertCircle size={10} />{r.open_issues_count ?? r.openIssuesCount}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-    </Widget>
-  )
-}
-
-// ── Today ─────────────────────────────────────────────────────────────────
-function TodayWidget() {
-  const today = new Date().toISOString().slice(0, 10)
-  const { data: events = [] } = useQuery<CalendarEvent[]>({
-    queryKey: ['calendarToday', today],
-    queryFn: () => endpoints.calendarEvents(today, today).then(r => r.data),
-    staleTime: 2 * 60_000,
-  })
-
-  return (
-    <Widget href="/calendar">
-      <WHead icon={Calendar} title={`Heute · ${new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}`} color="var(--accent)" />
-      <div className="p-3 space-y-1">
-        {events.length === 0 && (
-          <p className="text-xs py-2 text-center" style={{ color: 'var(--text-muted)' }}>Keine Termine heute</p>
-        )}
-        {events.map(e => (
-          <div key={e.id} className="flex items-center gap-2 px-2 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: e.color ?? 'var(--accent)' }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{e.title}</p>
-              {e.start_time && (
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{e.start_time}{e.end_time ? ` – ${e.end_time}` : ''}</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Widget>
+    </div>
   )
 }
 
@@ -656,95 +424,72 @@ const FEEDS: { key: FeedKey; label: string }[] = [
   { key: 'bvb', label: 'BVB' }, { key: 'vikings', label: 'Vikings' },
 ]
 
-function NewsWidget() {
+function NewsCard() {
   const [tab, setTab] = useState<FeedKey>('de')
-  const { data: items = [], isLoading } = useQuery<NewsItem[]>({
+  const { data: items = [], isLoading } = useQuery({
     queryKey: ['news', tab],
     queryFn: () => endpoints.news(tab).then(r => r.data),
-    staleTime: 5 * 60_000,
-    retry: 1,
+    staleTime: 5 * 60_000, retry: 1,
   })
-
   return (
-    <Widget>
-      <WHead icon={Newspaper} title="Nachrichten" color="var(--text-secondary)"
-        right={
-          <div className="flex gap-1">
-            {FEEDS.map(f => (
-              <button key={f.key} onClick={() => setTab(f.key)}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all"
-                      style={{
-                        background: tab === f.key ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        color: tab === f.key ? 'var(--text-primary)' : 'var(--text-muted)',
-                      }}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-        }
-      />
-      <div className="overflow-y-auto p-2 space-y-1" style={{ maxHeight: 380 }}>
-        {isLoading && [...Array(4)].map((_, i) => (
-          <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        ))}
-        {items.slice(0, 8).map((item, i) => (
+    <div className="card">
+      <div className="card-h">
+        <span className="accent-dot" />
+        <span className="title">Nachrichten</span>
+        <div className="spacer" />
+        <div style={{ display: 'flex', gap: 2 }}>
+          {FEEDS.map(f => (
+            <button key={f.key} onClick={() => setTab(f.key)}
+              style={{
+                padding: '2px 8px', borderRadius: 6, fontSize: 10.5, fontWeight: 500,
+                background: tab === f.key ? 'var(--surface-sunk)' : 'transparent',
+                color: tab === f.key ? 'var(--fg)' : 'var(--fg-4)',
+                border: 0, cursor: 'pointer',
+              }}>{f.label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ maxHeight: 320, overflowY: 'auto', padding: 'var(--pad-card)' }}>
+        {isLoading && [...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 40, marginBottom: 8 }} />)}
+        {items.slice(0, 6).map((item: any, i: number) => (
           <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
-             className="block p-3 rounded-xl transition-colors"
-             style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.02)' }}
-             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-medium leading-snug line-clamp-2"
-                 style={{ color: 'var(--text-secondary)' }}>{item.title}</p>
-              <ExternalLink size={10} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
-            </div>
-            {item.pubDate && (
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                {(() => { try { return new Date(item.pubDate).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return '' } })()}
-              </p>
-            )}
+            style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, padding: '8px 0', borderTop: i > 0 ? '1px solid var(--line)' : 'none', textDecoration: 'none' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+            <span style={{ fontSize: 12.5, color: 'var(--fg-2)', lineHeight: 1.45, flex: 1 }}>{item.title}</span>
+            <ExternalLink size={10} style={{ color: 'var(--fg-4)', flexShrink: 0, marginTop: 2 }} />
           </a>
         ))}
       </div>
-    </Widget>
+    </div>
   )
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   return (
-    <div className="overflow-y-auto" style={{ background: 'var(--bg-base)', minHeight: '100%' }}>
-      <div style={{ padding: '20px 16px 96px', maxWidth: 1280, margin: '0 auto' }}>
-        <GreetingBar />
-        <QuickStats />
-
-        {/* Desktop: 3-column grid | Tablet: 2-column | Mobile: single column */}
-        <div className="grid gap-4"
-             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))' }}>
-
-          {/* Column 1: Habits + Todos */}
-          <div className="space-y-4">
-            <HabitsWidget />
-            <TodosWidget />
+    <div className="content">
+      <Hero />
+      <StatsRow />
+      <div className="bento">
+        <div className="col-8" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TodayCard />
+          <div className="bento" style={{ gap: 16 }}>
+            <div className="col-6"><HabitsCard /></div>
+            <div className="col-6"><TodosCard /></div>
           </div>
-
-          {/* Column 2: Today + Finance + Journal + Notes + Goals */}
-          <div className="space-y-4">
-            <TodayWidget />
-            <FinanceWidget />
-            <JournalWidget />
-            <NotesWidget />
-            <GoalsWidget />
+          <div className="bento" style={{ gap: 16 }}>
+            <div className="col-6"><GoalsCard /></div>
+            <div className="col-6"><FinanceCard /></div>
           </div>
-
-          {/* Column 3: Weather + Server + GitHub + News */}
-          <div className="space-y-4">
-            <WeatherWidget />
-            <ServerWidget />
-            <GitHubWidget />
-            <NewsWidget />
-          </div>
-
+        </div>
+        <div className="col-4" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <WeatherCard />
+          <JournalCard />
+          <NotesCard />
+          <ServerCard />
+          <GithubCard />
+          <NewsCard />
         </div>
       </div>
     </div>

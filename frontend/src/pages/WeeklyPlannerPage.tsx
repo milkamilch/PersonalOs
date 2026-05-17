@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Download, ChevronRight, RefreshCw, Plus, X } from 'lucide-react'
-import PageHeader from '../components/PageHeader'
 import { endpoints } from '../api/client'
+
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  )
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -511,8 +523,8 @@ function dateToInput(d: Date) { return d.toISOString().slice(0, 10) }
 // ── Color map ──────────────────────────────────────────────────────────────
 
 const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string }> = {
-  sleep:          { bg: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.06)' },
-  routine:        { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.1)'  },
+  sleep:          { bg: 'rgba(255,255,255,0.03)', color: 'var(--fg-4)',   border: 'rgba(255,255,255,0.06)' },
+  routine:        { bg: 'rgba(255,255,255,0.05)', color: 'var(--fg-4)',   border: 'rgba(255,255,255,0.1)'  },
   food:           { bg: 'rgba(255,214,10,0.08)',  color: '#ffd60a',             border: 'rgba(255,214,10,0.2)'   },
   run:            { bg: 'rgba(255,69,58,0.1)',    color: '#ff453a',             border: 'rgba(255,69,58,0.3)'    },
   strength:       { bg: 'rgba(191,90,242,0.1)',   color: '#bf5af2',             border: 'rgba(191,90,242,0.3)'   },
@@ -520,10 +532,10 @@ const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string 
   uni:            { bg: 'rgba(10,132,255,0.12)',  color: 'var(--accent)',       border: 'rgba(10,132,255,0.3)'   },
   coding:         { bg: 'rgba(48,209,88,0.1)',    color: 'var(--green)',        border: 'rgba(48,209,88,0.25)'   },
   reading:        { bg: 'rgba(255,214,10,0.08)',  color: '#ffd60a',             border: 'rgba(255,214,10,0.2)'   },
-  free:           { bg: 'transparent',            color: 'var(--text-muted)',   border: 'transparent'            },
-  recovery:       { bg: 'rgba(48,209,88,0.06)',   color: 'var(--text-muted)',   border: 'rgba(48,209,88,0.15)'   },
+  free:           { bg: 'transparent',            color: 'var(--fg-4)',   border: 'transparent'            },
+  recovery:       { bg: 'rgba(48,209,88,0.06)',   color: 'var(--fg-4)',   border: 'rgba(48,209,88,0.15)'   },
   appointment:    { bg: 'rgba(255,159,10,0.1)',   color: '#ff9f0a',             border: 'rgba(255,159,10,0.3)'   },
-  travel:         { bg: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',   border: 'rgba(255,255,255,0.08)' },
+  travel:         { bg: 'rgba(255,255,255,0.03)', color: 'var(--fg-4)',   border: 'rgba(255,255,255,0.08)' },
   haushalt:       { bg: 'rgba(64,200,224,0.08)',  color: '#40c8e0',             border: 'rgba(64,200,224,0.25)'  },
   study:          { bg: 'rgba(10,132,255,0.1)',   color: '#409cff',             border: 'rgba(10,132,255,0.28)'  },
   thesis:         { bg: 'rgba(255,55,95,0.08)',   color: '#ff375f',             border: 'rgba(255,55,95,0.25)'   },
@@ -720,9 +732,9 @@ export default function WeeklyPlannerPage() {
 
   if (step === 'wizard') {
     return (
-      <div className="page-root" style={{ maxWidth: 580 }}>
-        <PageHeader title="Wochenplaner" subtitle="Generiere deine perfekte Woche." />
-        <div className="space-y-5">
+      <div className="content" style={{ maxWidth: 580 }}>
+        <PageHead title="Wochenplaner" sub="Generiere deine perfekte Woche." />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           <Section title="Woche">
             <Row label="Start (Montag)">
@@ -742,65 +754,64 @@ export default function WeeklyPlannerPage() {
           </Section>
 
           {/* ── Feste Termine ─────────────────────────────────── */}
-          <div className="rounded-2xl overflow-hidden"
-               style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,159,10,0.3)' }}>
-            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,159,10,0.2)', background: 'rgba(255,159,10,0.06)' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#ff9f0a' }}>📅 Feste Termine</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Werden inkl. Wegzeit in den Plan eingeplant — ohne Überschneidungen</p>
+          <div className="card" style={{ border: '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' }}>
+            <div className="card-h" style={{ background: 'color-mix(in srgb, var(--amber) 8%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--amber) 20%, transparent)' }}>
+              <span className="accent-dot" style={{ background: 'var(--amber)' }} />
+              <span className="title" style={{ color: 'var(--amber)' }}>📅 Feste Termine</span>
             </div>
-            <div className="p-4 space-y-3">
-              <div className="flex gap-2">
+            <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>Werden inkl. Wegzeit eingeplant — ohne Überschneidungen</div>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <select value={apptDayIdx} onChange={e => setApptDayIdx(Number(e.target.value))}
-                        className="px-3 py-2 rounded-xl text-sm outline-none flex-shrink-0" style={inputStyle}>
+                        style={{ ...inputStyle, padding: '8px 12px', borderRadius: 10, fontSize: 13, flexShrink: 0 }}>
                   {DAY_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
                 </select>
                 <input type="text" placeholder="Titel des Termins" value={apptTitle}
                        onChange={e => setApptTitle(e.target.value)}
                        onKeyDown={e => { if (e.key === 'Enter') addAppointment() }}
-                       className="flex-1 px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+                       style={{ ...inputStyle, padding: '8px 12px', borderRadius: 10, fontSize: 13, flex: 1 }} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Uhrzeit</label>
+                  <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-4)', display: 'block', marginBottom: 4 }}>Uhrzeit</label>
                   <input type="time" value={apptStart} onChange={e => setApptStart(e.target.value)}
-                         className="w-full px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
+                         style={{ ...inputStyle, padding: '8px 12px', borderRadius: 10, fontSize: 13, width: '100%' }} />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Dauer</label>
-                  <div className="flex gap-1 flex-wrap">
+                  <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-4)', display: 'block', marginBottom: 4 }}>Dauer</label>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {[30,60,90,120].map(m => <Pill key={m} active={apptDur===m} onClick={() => setApptDur(m)} label={m>=60?`${m/60}h`:`${m}min`} />)}
                   </div>
                 </div>
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Wegzeit je Richtung</label>
-                <div className="flex gap-1 flex-wrap">
+                <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-4)', display: 'block', marginBottom: 4 }}>Wegzeit je Richtung</label>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {[0,10,15,20,30,45,60].map(m => <Pill key={m} active={apptTravel===m} onClick={() => setApptTravel(m)} label={m===0?'Keine':`${m}min`} />)}
                 </div>
               </div>
-              <button onClick={addAppointment} disabled={!apptTitle.trim()}
-                      className="w-full py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-40"
-                      style={{ background: 'rgba(255,159,10,0.15)', color: '#ff9f0a', border: '1px solid rgba(255,159,10,0.3)' }}>
-                <Plus size={14} /> Termin hinzufügen
-                {apptTravel > 0 && <span className="text-[10px] opacity-70">(+{apptTravel}min Weg je Seite)</span>}
+              <button onClick={addAppointment} disabled={!apptTitle.trim()} className="btn"
+                      style={{ width: '100%', justifyContent: 'center', background: 'color-mix(in srgb, var(--amber) 12%, transparent)', color: 'var(--amber)', border: '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' }}>
+                <Plus size={13} /> Termin hinzufügen
+                {apptTravel > 0 && <span style={{ fontSize: 10, opacity: 0.7 }}>(+{apptTravel}min Weg je Seite)</span>}
               </button>
               {appointments.length > 0 && (
-                <div className="space-y-1.5">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {appointments.map(a => (
-                    <div key={a.id} className="flex items-start gap-2 px-3 py-2.5 rounded-xl"
-                         style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
-                      <span className="text-xs font-semibold w-6 mt-0.5" style={{ color: '#ff9f0a' }}>{DAY_SHORT[a.dayIndex]}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{a.title}</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', borderRadius: 10,
+                      background: 'color-mix(in srgb, var(--amber) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--amber) 20%, transparent)' }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, width: 24, color: 'var(--amber)', marginTop: 1 }}>{DAY_SHORT[a.dayIndex]}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--fg-2)' }}>{a.title}</div>
+                        <div style={{ fontSize: 10.5, marginTop: 2, color: 'var(--fg-4)' }}>
                           {minsToTime(a.startMin)} · {a.durationMin}min{a.travelMin > 0 && ` · 🚶 ${a.travelMin}min Weg`}
-                        </p>
+                        </div>
                       </div>
                       <button onClick={() => {
                         endpoints.deleteWeeklyAppointment(a.id).catch(() => {})
                         setAppointments(prev => prev.filter(x => x.id !== a.id))
-                      }} className="p-1 rounded hover:opacity-70 flex-shrink-0">
-                        <X size={12} style={{ color: 'var(--text-muted)' }} />
+                      }} style={{ padding: 4, cursor: 'pointer', color: 'var(--fg-4)', flexShrink: 0 }}>
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
@@ -874,26 +885,25 @@ export default function WeeklyPlannerPage() {
           </Section>
 
           {/* ── Lernen & Schreiben ──────────────────────────── */}
-          <div className="rounded-2xl overflow-hidden"
-               style={{ background: 'var(--bg-surface)', border: '1px solid rgba(64,153,255,0.3)' }}>
-            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(64,153,255,0.2)', background: 'rgba(64,153,255,0.06)' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#409cff' }}>📖 Lernen & Schreiben</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Gesamtstunden/Woche – werden als Blöcke auf Mo–Sa verteilt</p>
+          <div className="card" style={{ border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
+            <div className="card-h" style={{ background: 'color-mix(in srgb, var(--accent) 6%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--accent) 15%, transparent)' }}>
+              <span className="accent-dot" />
+              <span className="title">📖 Lernen & Schreiben</span>
             </div>
-            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            <div>
               <Row label="Lernen / Woche">
-                <div className="flex gap-1 flex-wrap">
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {[0,2,4,6,8,10,14].map(h => <Pill key={h} active={studyHours===h} onClick={() => setStudyHours(h)} label={h===0?'Keins':`${h}h`} />)}
                 </div>
               </Row>
               <Row label="Bachelorarbeit / Hausarbeit / Woche">
-                <div className="flex gap-1 flex-wrap">
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {[0,2,4,6,8,10,14].map(h => <Pill key={h} active={thesisHours===h} onClick={() => setThesisHours(h)} label={h===0?'Keins':`${h}h`} />)}
                 </div>
               </Row>
               {(studyHours > 0 || thesisHours > 0) && (
                 <Row label="Blockgröße">
-                  <div className="flex gap-1">
+                  <div style={{ display: 'flex', gap: 4 }}>
                     {[45,60,90,120].map(m => <Pill key={m} active={studyBlockMin===m} onClick={() => setStudyBlockMin(m)} label={m>=60?`${m/60}h`:`${m}min`} />)}
                   </div>
                 </Row>
@@ -921,10 +931,9 @@ export default function WeeklyPlannerPage() {
             </>}
           </Section>
 
-          <button onClick={generate}
-                  className="w-full py-4 rounded-2xl text-base font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                  style={{ background: 'var(--accent)', color: '#000' }}>
-            Woche generieren <ChevronRight size={18} />
+          <button onClick={generate} className="btn primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15, borderRadius: 16 }}>
+            Woche generieren <ChevronRight size={16} />
           </button>
         </div>
       </div>
@@ -936,46 +945,44 @@ export default function WeeklyPlannerPage() {
   const currentDay = plan[selDay]
 
   return (
-    <div className="page-root">
-      <PageHeader
+    <div className="content">
+      <PageHead
         title="Wochenplan"
-        subtitle={cfg ? `${cfg.weekStart.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })} — Phase ${cfg.phase}` : ''}
-        actions={
-          <div className="flex gap-2">
-            <button onClick={() => setStep('wizard')}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-                    style={{ color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
-              <RefreshCw size={14} /> Neu
+        sub={cfg ? `${cfg.weekStart.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })} — Phase ${cfg.phase}` : ''}
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setStep('wizard')} className="btn">
+              <RefreshCw size={13} /> Neu
             </button>
-            <button onClick={() => cfg && exportICS(plan, cfg)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
-                    style={{ background: 'var(--accent)', color: '#000' }}>
-              <Download size={14} /> .ics Export
+            <button onClick={() => cfg && exportICS(plan, cfg)} className="btn primary">
+              <Download size={13} /> .ics Export
             </button>
           </div>
         }
       />
 
       {/* Day tabs */}
-      <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
         {plan.map((day, i) => {
           const hasTraining = day.events.some(e => e.type === 'run' || e.type === 'strength')
           const isUni   = day.events.some(e => e.type === 'uni')
           const hasAppt = day.events.some(e => e.type === 'appointment')
           const hasStudy = day.events.some(e => e.type === 'study' || e.type === 'thesis')
+          const active = selDay === i
           return (
             <button key={i} onClick={() => setSelDay(i)}
-                    className="flex-shrink-0 flex flex-col items-center py-2.5 px-3 rounded-xl transition-all"
-                    style={selDay === i
-                      ? { background: 'var(--accent)', color: '#000' }
-                      : { background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-              <span className="text-[10px] font-semibold">{DAY_SHORT[i]}</span>
-              <span className="text-xs mt-0.5">{day.date.getDate()}</span>
-              <div className="flex gap-0.5 mt-1">
-                {hasTraining && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff453a' }} />}
-                {isUni  && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : 'var(--accent)' }} />}
-                {hasAppt && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#ff9f0a' }} />}
-                {hasStudy && <div className="w-1.5 h-1.5 rounded-full" style={{ background: selDay === i ? '#000' : '#409cff' }} />}
+                    style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
+                      background: active ? 'var(--accent)' : 'var(--surface)',
+                      border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
+                      color: active ? '#fff' : 'var(--fg-4)' }}>
+              <span style={{ fontSize: 10, fontWeight: 600 }}>{DAY_SHORT[i]}</span>
+              <span style={{ fontSize: 12, marginTop: 2 }}>{day.date.getDate()}</span>
+              <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+                {hasTraining && <div style={{ width: 6, height: 6, borderRadius: 99, background: active ? 'rgba(255,255,255,0.7)' : '#ff453a' }} />}
+                {isUni  && <div style={{ width: 6, height: 6, borderRadius: 99, background: active ? 'rgba(255,255,255,0.7)' : 'var(--accent)' }} />}
+                {hasAppt && <div style={{ width: 6, height: 6, borderRadius: 99, background: active ? 'rgba(255,255,255,0.7)' : 'var(--amber)' }} />}
+                {hasStudy && <div style={{ width: 6, height: 6, borderRadius: 99, background: active ? 'rgba(255,255,255,0.7)' : '#409cff' }} />}
               </div>
             </button>
           )
@@ -985,42 +992,40 @@ export default function WeeklyPlannerPage() {
       {/* Day detail */}
       {currentDay && (
         <div>
-          <p className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, color: 'var(--fg)' }}>
             {DAY_NAMES[currentDay.dayIndex]}, {currentDay.date.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}
-          </p>
-          <div className="space-y-1.5">
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {currentDay.events.map((ev, i) => {
-              const style = TYPE_STYLE[ev.type]
+              const s = TYPE_STYLE[ev.type]
               if (ev.type === 'sleep') return (
-                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-40" style={{ background: style.bg }}>
-                  <span className="text-sm w-5 text-center">{ev.emoji}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>00:00 – {minsToTime(ev.end)} · Schlafen</span>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 10, opacity: 0.4, background: s.bg }}>
+                  <span style={{ fontSize: 14, width: 20, textAlign: 'center' }}>{ev.emoji}</span>
+                  <span style={{ fontSize: 12, color: 'var(--fg-4)' }}>00:00 – {minsToTime(ev.end)} · Schlafen</span>
                 </div>
               )
               if (ev.type === 'travel') return (
-                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-60"
-                     style={{ background: style.bg, border: `1px solid ${style.border}` }}>
-                  <span className="text-sm w-5 text-center">{ev.emoji}</span>
-                  <span className="text-xs flex-1" style={{ color: style.color }}>{ev.title}</span>
-                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 10, opacity: 0.6, background: s.bg, border: `1px solid ${s.border}` }}>
+                  <span style={{ fontSize: 14, width: 20, textAlign: 'center' }}>{ev.emoji}</span>
+                  <span style={{ fontSize: 12, flex: 1, color: s.color }}>{ev.title}</span>
+                  <span style={{ fontSize: 10.5, fontFamily: 'JetBrains Mono', color: 'var(--fg-4)' }}>
                     {minsToTime(ev.start % (24*60))} – {minsToTime(ev.end % (24*60))}
                   </span>
                 </div>
               )
               return (
-                <div key={i} className="px-4 py-3 rounded-2xl"
-                     style={{ background: style.bg, border: `1px solid ${style.border}` }}>
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg flex-shrink-0 mt-0.5">{ev.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-semibold" style={{ color: style.color }}>{ev.title}</span>
-                        <span className="text-[10px] font-medium tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                <div key={i} style={{ padding: '12px 16px', borderRadius: 14, background: s.bg, border: `1px solid ${s.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>{ev.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: s.color }}>{ev.title}</span>
+                        <span style={{ fontSize: 10.5, fontFamily: 'JetBrains Mono', color: 'var(--fg-4)', flexShrink: 0 }}>
                           {minsToTime(ev.start % (24*60))} – {minsToTime(ev.end % (24*60))}
-                          <span className="ml-1 opacity-60">({ev.end - ev.start}min)</span>
+                          <span style={{ opacity: 0.6, marginLeft: 4 }}>({ev.end - ev.start}min)</span>
                         </span>
                       </div>
-                      {ev.desc && <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{ev.desc}</p>}
+                      {ev.desc && <p style={{ fontSize: 12, marginTop: 4, lineHeight: 1.55, color: 'var(--fg-4)' }}>{ev.desc}</p>}
                     </div>
                   </div>
                 </div>
@@ -1029,17 +1034,16 @@ export default function WeeklyPlannerPage() {
           </div>
 
           {/* Day summary */}
-          <div className="mt-6 grid grid-cols-4 gap-2">
+          <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
             {[
-              { label: 'Training',  value: currentDay.events.filter(e => e.type==='run'||e.type==='strength').reduce((s,e)=>s+e.end-e.start,0), color: '#ff453a' },
-              { label: 'Lernen',    value: currentDay.events.filter(e => e.type==='study'||e.type==='thesis'||e.type==='uni').reduce((s,e)=>s+e.end-e.start,0), color: '#409cff' },
-              { label: 'Unterwegs', value: currentDay.events.filter(e => e.type==='travel').reduce((s,e)=>s+e.end-e.start,0), color: 'var(--text-muted)' },
+              { label: 'Training',  value: currentDay.events.filter(e => e.type==='run'||e.type==='strength').reduce((s,e)=>s+e.end-e.start,0), color: 'var(--rose)' },
+              { label: 'Lernen',    value: currentDay.events.filter(e => e.type==='study'||e.type==='thesis'||e.type==='uni').reduce((s,e)=>s+e.end-e.start,0), color: 'var(--accent)' },
+              { label: 'Unterwegs', value: currentDay.events.filter(e => e.type==='travel').reduce((s,e)=>s+e.end-e.start,0), color: 'var(--fg-4)' },
               { label: 'Frei',      value: currentDay.events.filter(e => e.type==='free').reduce((s,e)=>s+e.end-e.start,0), color: 'var(--green)' },
             ].map(s => (
-              <div key={s.label} className="p-3 rounded-2xl text-center"
-                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                <p className="text-base font-semibold tabular-nums" style={{ color: s.color }}>{s.value}min</p>
-                <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
+              <div key={s.label} className="card" style={{ padding: 12, textAlign: 'center' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, fontFamily: 'JetBrains Mono', color: s.color }}>{s.value}min</div>
+                <div style={{ fontSize: 10.5, marginTop: 2, color: 'var(--fg-4)' }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -1047,9 +1051,9 @@ export default function WeeklyPlannerPage() {
       )}
 
       {/* Week overview */}
-      <div className="mt-8">
-        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>Wochenübersicht</p>
-        <div className="space-y-1.5">
+      <div style={{ marginTop: 32 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-4)', marginBottom: 12 }}>Wochenübersicht</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {plan.map((day, i) => {
             const trainMin  = day.events.filter(e => e.type==='run'||e.type==='strength').reduce((s,e)=>s+e.end-e.start,0)
             const studyMin  = day.events.filter(e => e.type==='study'||e.type==='thesis').reduce((s,e)=>s+e.end-e.start,0)
@@ -1058,32 +1062,33 @@ export default function WeeklyPlannerPage() {
             const appts     = day.events.filter(e => e.type==='appointment')
             const hasHaushalt = day.events.some(e => e.type==='haushalt')
             return (
-              <div key={i} onClick={() => setSelDay(i)} className="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all"
-                   style={{ background: selDay===i ? 'rgba(10,132,255,0.1)' : 'var(--bg-surface)',
-                            border: `1px solid ${selDay===i ? 'rgba(10,132,255,0.3)' : 'var(--border-subtle)'}` }}>
-                <span className="text-xs font-semibold w-6" style={{ color: 'var(--text-muted)' }}>{DAY_SHORT[i]}</span>
-                <div className="flex-1 flex flex-wrap gap-1">
+              <div key={i} onClick={() => setSelDay(i)}
+                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, cursor: 'pointer',
+                     background: selDay===i ? 'var(--accent-soft)' : 'var(--surface)',
+                     border: `1px solid ${selDay===i ? 'var(--accent)' : 'var(--line)'}` }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, width: 24, color: 'var(--fg-4)' }}>{DAY_SHORT[i]}</span>
+                <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {isUni && <Tag label="🎓 Uni" color="var(--accent)" />}
-                  {sessions.map((s,j) => <Tag key={j} label={`${s.emoji} ${s.title.split('–')[0].trim()}`} color={s.type==='run'?'#ff453a':'#bf5af2'} />)}
-                  {appts.map((a,j) => <Tag key={`a${j}`} label={`📅 ${a.title}`} color="#ff9f0a" />)}
-                  {studyMin > 0 && <Tag label={`📖 ${Math.round(studyMin/60*10)/10}h`} color="#409cff" />}
+                  {sessions.map((s,j) => <Tag key={j} label={`${s.emoji} ${s.title.split('–')[0].trim()}`} color={s.type==='run'?'var(--rose)':'#8E5BFF'} />)}
+                  {appts.map((a,j) => <Tag key={`a${j}`} label={`📅 ${a.title}`} color="var(--amber)" />)}
+                  {studyMin > 0 && <Tag label={`📖 ${Math.round(studyMin/60*10)/10}h`} color="var(--accent)" />}
                   {hasHaushalt && <Tag label="🏠 Haushalt" color="#40c8e0" />}
                   {i===6 && <Tag label="🌿 Regeneration" color="var(--green)" />}
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  {trainMin > 0 && <span className="text-xs tabular-nums" style={{ color: '#ff453a' }}>{trainMin}min</span>}
-                </div>
+                {trainMin > 0 && <span style={{ fontSize: 11.5, fontFamily: 'JetBrains Mono', color: 'var(--rose)', flexShrink: 0 }}>{trainMin}min</span>}
               </div>
             )
           })}
         </div>
       </div>
 
-      <div className="mt-6 p-4 rounded-2xl" style={{ background: 'rgba(10,132,255,0.06)', border: '1px solid rgba(10,132,255,0.15)' }}>
-        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent)' }}>📲 In Apple Kalender importieren</p>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          .ics exportieren → Datei öffnen → "Zum Kalender hinzufügen". Alle Blöcke inkl. Wegzeiten und Lernzeiten erscheinen automatisch.
-        </p>
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-b">
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>📲 In Apple Kalender importieren</div>
+          <div style={{ fontSize: 12, color: 'var(--fg-3)', lineHeight: 1.55 }}>
+            .ics exportieren → Datei öffnen → "Zum Kalender hinzufügen". Alle Blöcke inkl. Wegzeiten und Lernzeiten erscheinen automatisch.
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -1091,23 +1096,24 @@ export default function WeeklyPlannerPage() {
 
 // ── Small UI helpers ───────────────────────────────────────────────────────
 
-const inputStyle = { background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }
+const inputStyle: React.CSSProperties = { background: 'var(--surface-sunk)', color: 'var(--fg)', border: '1px solid var(--line)', outline: 'none' }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-      <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{title}</p>
+    <div className="card">
+      <div className="card-h">
+        <span className="accent-dot" />
+        <span className="title">{title}</span>
       </div>
-      <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>{children}</div>
+      <div>{children}</div>
     </div>
   )
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3">
-      <span className="text-sm flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 20px', borderTop: '1px solid var(--line)' }}>
+      <span style={{ fontSize: 13.5, flexShrink: 0, color: 'var(--fg-2)' }}>{label}</span>
       {children}
     </div>
   )
@@ -1116,7 +1122,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Pill({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button onClick={onClick} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={active ? { background: 'var(--accent)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+            style={active ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-sunk)', color: 'var(--fg-4)', border: '1px solid var(--line)' }}>
       {label}
     </button>
   )

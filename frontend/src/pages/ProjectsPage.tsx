@@ -1,274 +1,95 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { Project, Todo } from '../api/types'
+import type { Project } from '../api/types'
 
-const COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#db2777', '#0891b2']
-
-export default function ProjectsPage() {
-  const qc = useQueryClient()
-  const [active, setActive] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'todos' | 'notes'>('todos')
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', color: '#7c3aed' })
-  const [todoText, setTodoText] = useState('')
-  const [notes, setNotes] = useState('')
-  const [notesSaved, setNotesSaved] = useState(false)
-
-  const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ['projects'],
-    queryFn: () => endpoints.projects().then(r => r.data),
-  })
-
-  const { data: todos = [] } = useQuery<Todo[]>({
-    queryKey: ['todos', active?.id],
-    queryFn: () => endpoints.todos(active!.id).then(r => r.data),
-    enabled: !!active,
-  })
-
-  const { data: projNotes } = useQuery<string>({
-    queryKey: ['projNotes', active?.id],
-    queryFn: () => endpoints.projectNotes(active!.id).then(r => r.data.content),
-    enabled: !!active,
-  })
-
-  useEffect(() => {
-    if (projNotes !== undefined) setNotes(projNotes)
-  }, [projNotes])
-
-  const createProject = useMutation({
-    mutationFn: () => endpoints.createProject(form),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setShowCreate(false); setForm({ name: '', description: '', color: '#7c3aed' }) },
-  })
-
-  const deleteProject = useMutation({
-    mutationFn: (id: number) => endpoints.deleteProject(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setActive(null) },
-  })
-
-  const createTodo = useMutation({
-    mutationFn: () => endpoints.createTodo(todoText, active!.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos', active?.id] }); setTodoText('') },
-  })
-
-  const doneTodo = useMutation({
-    mutationFn: ({ id, done }: { id: number; done: boolean }) => endpoints.doneTodo(id, done),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos', active?.id] }),
-  })
-
-  const deleteTodo = useMutation({
-    mutationFn: (id: number) => endpoints.deleteTodo(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['todos', active?.id] }),
-  })
-
-  const saveNotes = async () => {
-    await endpoints.saveProjectNotes(active!.id, notes)
-    setNotesSaved(true)
-    setTimeout(() => setNotesSaved(false), 2000)
-  }
-
+function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex h-full">
-      {/* Project list */}
-      <div className="w-72 flex-shrink-0 border-r border-gray-800 p-4 space-y-2 overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-200">Projekte</h2>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="p-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 transition-colors"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-
-        {showCreate && (
-          <div className="bg-gray-800 rounded-xl p-3 space-y-2 mb-2">
-            <input
-              autoFocus
-              placeholder="Projektname"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 outline-none focus:ring-1 ring-violet-500"
-            />
-            <input
-              placeholder="Beschreibung (optional)"
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 outline-none focus:ring-1 ring-violet-500"
-            />
-            <div className="flex gap-1.5">
-              {COLORS.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setForm(f => ({ ...f, color: c }))}
-                  style={{ background: c }}
-                  className={`w-5 h-5 rounded-full transition-transform ${form.color === c ? 'scale-125 ring-2 ring-white/50' : ''}`}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => form.name && createProject.mutate()}
-                className="flex-1 bg-violet-600 hover:bg-violet-500 text-sm py-1.5 rounded-lg transition-colors"
-              >
-                Erstellen
-              </button>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-sm py-1.5 rounded-lg transition-colors"
-              >
-                Abbrechen
-              </button>
-            </div>
-          </div>
-        )}
-
-        {projects.map(p => (
-          <button
-            key={p.id}
-            onClick={() => { setActive(p); setTab('todos'); setNotes('') }}
-            className={`w-full text-left p-3 rounded-xl transition-colors ${
-              active?.id === p.id ? 'bg-gray-800 ring-1 ring-gray-700' : 'hover:bg-gray-800/50'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
-              <span className="font-medium text-sm text-gray-200 truncate">{p.name}</span>
-            </div>
-            {p.description && (
-              <p className="text-xs text-gray-500 mt-1 pl-4.5 truncate">{p.description}</p>
-            )}
-            <div className="flex gap-2 mt-1.5 pl-4.5 text-xs text-gray-500">
-              <span>{p.openTodoCount}/{p.todoCount} Todos</span>
-            </div>
-          </button>
-        ))}
-
-        {projects.length === 0 && !showCreate && (
-          <p className="text-sm text-gray-500 text-center py-8">
-            Noch keine Projekte.<br />Erstelle dein erstes Projekt.
-          </p>
-        )}
+    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
       </div>
-
-      {/* Project detail */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        {!active ? (
-          <div className="h-full flex items-center justify-center text-gray-600">
-            <div className="text-center">
-              <FolderKanbanIcon />
-              <p className="mt-3 text-sm">Wähle ein Projekt aus</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full" style={{ background: active.color }} />
-                <div>
-                  <h1 className="text-xl font-bold text-gray-100">{active.name}</h1>
-                  {active.description && <p className="text-sm text-gray-400">{active.description}</p>}
-                </div>
-              </div>
-              <button
-                onClick={() => deleteProject.mutate(active.id)}
-                className="p-2 text-gray-500 hover:text-red-400 transition-colors"
-                title="Projekt löschen"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 mb-4 bg-gray-800/50 rounded-xl p-1 w-fit">
-              {(['todos', 'notes'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    tab === t ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-300'
-                  }`}
-                >
-                  {t === 'todos' ? 'Todos' : 'Notizen'}
-                </button>
-              ))}
-            </div>
-
-            {tab === 'todos' && (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Neue Aufgabe…"
-                    value={todoText}
-                    onChange={e => setTodoText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && todoText && createTodo.mutate()}
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 outline-none focus:ring-1 ring-violet-500"
-                  />
-                  <button
-                    onClick={() => todoText && createTodo.mutate()}
-                    className="px-3 bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-
-                <div className="space-y-1.5">
-                  {todos.map(t => (
-                    <div key={t.id} className="flex items-center gap-3 p-2.5 bg-gray-800 rounded-lg group">
-                      <button
-                        onClick={() => doneTodo.mutate({ id: t.id, done: !t.done })}
-                        className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${
-                          t.done ? 'bg-violet-600 border-violet-600' : 'border-gray-600 hover:border-violet-500'
-                        }`}
-                      >
-                        {t.done && <svg viewBox="0 0 12 12" className="w-4 h-4 -m-px"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="2" fill="none"/></svg>}
-                      </button>
-                      <span className={`flex-1 text-sm ${t.done ? 'line-through text-gray-600' : 'text-gray-200'}`}>
-                        {t.text}
-                      </span>
-                      <button
-                        onClick={() => deleteTodo.mutate(t.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  {todos.length === 0 && (
-                    <p className="text-sm text-gray-600 py-4 text-center">Noch keine Aufgaben.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {tab === 'notes' && (
-              <div className="space-y-3">
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Notizen zum Projekt…"
-                  className="w-full h-80 bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-200 outline-none focus:ring-1 ring-violet-500 resize-none font-mono"
-                />
-                <button
-                  onClick={saveNotes}
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-sm transition-colors"
-                >
-                  {notesSaved ? '✓ Gespeichert' : 'Speichern'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {action}
     </div>
   )
 }
 
-function FolderKanbanIcon() {
+export default function ProjectsPage() {
+  const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ name: '', description: '', color: '#1C6BFF' })
+
+  const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => endpoints.projects().then(r => r.data) })
+  const create = useMutation({
+    mutationFn: () => endpoints.createProject(form),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setForm({ name: '', description: '', color: '#1C6BFF' }); setShowAdd(false) },
+  })
+  const del = useMutation({ mutationFn: (id: number) => endpoints.deleteProject(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }) })
+
   return (
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="mx-auto">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
+    <div className="content">
+      <PageHead
+        eyebrow={`${projects.length} aktive Projekte`}
+        title="Projekte"
+        sub="Was du dauerhaft im Auge behältst."
+        action={<button className="btn primary" onClick={() => setShowAdd(true)}><Plus size={14} /> Neues Projekt</button>}
+      />
+
+      {showAdd && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h"><span className="accent-dot" /><span className="title">Neues Projekt</span></div>
+          <div className="card-b" style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Name"
+              style={{ flex: 1, minWidth: 180, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Beschreibung (optional)"
+              style={{ flex: 2, minWidth: 240, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })}
+              style={{ width: 40, height: 34, border: '1px solid var(--line-strong)', borderRadius: 8, padding: 2, cursor: 'pointer' }} />
+            <button className="btn primary" onClick={() => form.name.trim() && create.mutate()}>Anlegen</button>
+            <button className="btn ghost" onClick={() => setShowAdd(false)}>Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      <div className="bento">
+        {projects.length === 0 && (
+          <div className="col-12"><div className="empty" style={{ padding: 80 }}>Noch keine Projekte. Lege das erste an.</div></div>
+        )}
+        {projects.map(p => {
+          const done = p.todoCount - p.openTodoCount
+          const pct  = p.todoCount > 0 ? done / p.todoCount : 0
+          return (
+            <div key={p.id} className="col-4 card link">
+              <div className="card-b">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 99, background: p.color, flexShrink: 0 }} />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 4, lineHeight: 1.3 }}>{p.name}</div>
+                {p.description && <div style={{ fontSize: 12.5, color: 'var(--fg-3)', marginBottom: 16, lineHeight: 1.4 }}>{p.description}</div>}
+                <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontFamily: 'Inter Tight', fontSize: 18, fontWeight: 600 }}>{p.openTodoCount}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>offen</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'Inter Tight', fontSize: 18, fontWeight: 600, color: 'var(--fg-3)' }}>{done}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>erledigt</div>
+                  </div>
+                </div>
+                <div className="bar thin"><div className="fill" style={{ width: `${pct * 100}%`, background: p.color }} /></div>
+                <button onClick={e => { e.preventDefault(); del.mutate(p.id) }} style={{ marginTop: 12, color: 'var(--fg-4)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-4)')}>
+                  <Trash2 size={11} /> Löschen
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
