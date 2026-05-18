@@ -193,11 +193,14 @@ function TodayCard() {
 function FinanceCard() {
   const month = new Date().toISOString().slice(0, 7)
   const { data: summary } = useQuery<FinanceSummary>({ queryKey: ['financeSummary', month], queryFn: () => endpoints.financeSummary(month).then(r => r.data) })
-  const income   = summary?.monthlyIncome ?? 0
-  const expenses = summary?.expenses ?? 0
-  const pct = income > 0 ? Math.min(expenses / income, 1) : 0
-  if (!income) return (
-    <Card href="/finance" title="Finanzen · Mai">
+  const actualIncome = summary?.income ?? 0
+  const budgetTarget = summary?.monthlyIncome ?? 0
+  const expenses     = summary?.expenses ?? 0
+  const balance      = summary?.balance ?? (actualIncome - expenses)
+  const ref          = budgetTarget > 0 ? budgetTarget : actualIncome
+  const pct          = ref > 0 ? Math.min(expenses / ref, 1) : 0
+  if (!actualIncome && !budgetTarget) return (
+    <Card href="/finance" title={`Finanzen · ${new Date().toLocaleDateString('de-DE', { month: 'long' })}`}>
       <div className="empty">Einkommen nicht konfiguriert</div>
     </Card>
   )
@@ -206,12 +209,12 @@ function FinanceCard() {
       meta={<span className={`pill ${pct > 0.9 ? 'danger' : pct > 0.75 ? 'warn' : 'success'}`}><span className="dot" />{pct > 0.9 ? 'kritisch' : pct > 0.75 ? 'knapp' : 'im Plan'}</span>}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
         <div>
-          <div className="display" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.03em' }}>{fmt(income - expenses)}</div>
+          <div className="display" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.03em' }}>{fmt(balance)}</div>
           <div style={{ color: 'var(--fg-3)', fontSize: 12.5, marginTop: 2 }}>übrig · {Math.round((1 - pct) * 100)} %</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div className="mono" style={{ fontSize: 12, color: 'var(--fg-3)' }}>{fmt(expenses)} / {fmt(income)}</div>
-          <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>verbraucht</div>
+          <div className="mono" style={{ fontSize: 12, color: 'var(--fg-3)' }}>{fmt(expenses)} Ausgaben</div>
+          <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>{fmt(actualIncome)} Einnahmen</div>
         </div>
       </div>
       <div className="bar" style={{ height: 6 }}>
@@ -471,25 +474,29 @@ export default function DashboardPage() {
     <div className="content">
       <Hero />
       <StatsRow />
-      <div className="bento">
-        <div className="col-8" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <TodayCard />
-          <div className="bento" style={{ gap: 16 }}>
-            <div className="col-6"><HabitsCard /></div>
-            <div className="col-6"><TodosCard /></div>
-          </div>
-          <div className="bento" style={{ gap: 16 }}>
-            <div className="col-6"><GoalsCard /></div>
-            <div className="col-6"><FinanceCard /></div>
-          </div>
-        </div>
+
+      <div className="bento" style={{ marginBottom: 16, alignItems: 'start' }}>
+        <div className="col-8"><TodayCard /></div>
+        <div className="col-4"><WeatherCard /></div>
+      </div>
+
+      <div className="bento" style={{ marginBottom: 16, alignItems: 'start' }}>
+        <div className="col-6"><HabitsCard /></div>
+        <div className="col-6"><TodosCard /></div>
+      </div>
+
+      <div className="bento" style={{ marginBottom: 16, alignItems: 'start' }}>
+        <div className="col-4"><GoalsCard /></div>
+        <div className="col-4"><FinanceCard /></div>
+        <div className="col-4"><JournalCard /></div>
+      </div>
+
+      <div className="bento" style={{ marginBottom: 16, alignItems: 'start' }}>
+        <div className="col-8"><NewsCard /></div>
         <div className="col-4" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <WeatherCard />
-          <JournalCard />
           <NotesCard />
           <ServerCard />
           <GithubCard />
-          <NewsCard />
         </div>
       </div>
     </div>

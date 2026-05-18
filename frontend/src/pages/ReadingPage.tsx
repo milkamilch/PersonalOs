@@ -83,7 +83,7 @@ export default function ReadingPage() {
                 style={{ width: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
               <input value={note} onChange={e => setNote(e.target.value)} placeholder="Notiz (optional)"
                 style={{ flex: 1, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
-              <button className="btn primary" onClick={() => logMut.mutate()} disabled={!selectedBook && !pages}>Speichern</button>
+              <button className="btn primary" onClick={() => logMut.mutate()} disabled={!selectedBook}>Speichern</button>
               <button className="btn ghost" onClick={() => setShowLogForm(false)}>Abbrechen</button>
             </div>
           </div>

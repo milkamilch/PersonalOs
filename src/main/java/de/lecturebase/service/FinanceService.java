@@ -46,7 +46,8 @@ public class FinanceService {
         if (month == null) month = LocalDate.now().toString().substring(0, 7);
         double income   = repo.sumByType("income",  month);
         double expenses = repo.sumByType("expense", month);
-        double target   = Double.parseDouble(repo.getSetting("monthly_income"));
+        String raw = repo.getSetting("monthly_income");
+        double target = (raw == null || raw.isBlank()) ? 0.0 : Double.parseDouble(raw);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("month",         month);
         result.put("income",        income);
@@ -62,4 +63,20 @@ public class FinanceService {
     }
 
     public Map<String, String> getSettings() { return repo.getAllSettings(); }
+
+    public List<Map<String, Object>> recurring() { return repo.findRecurring(); }
+
+    public Map<String, Object> createRecurring(Map<String, Object> body) {
+        Object catId = body.get("categoryId");
+        return repo.createRecurring(
+            (String) body.getOrDefault("name", ""),
+            ((Number) body.getOrDefault("amount", 0)).doubleValue(),
+            (String) body.getOrDefault("type", "expense"),
+            catId != null ? ((Number) catId).longValue() : null,
+            ((Number) body.getOrDefault("dayOfMonth", 1)).intValue());
+    }
+
+    public void deleteRecurring(long id) { repo.deleteRecurring(id); }
+
+    public void toggleRecurring(long id) { repo.toggleRecurring(id); }
 }

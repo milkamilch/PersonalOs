@@ -28,13 +28,14 @@ public class CalendarService {
     }
 
     public Map<String, Object> update(long id, Map<String, String> body) {
+        Map<String, Object> cur = repo.findById(id);
         return repo.update(id,
-            body.getOrDefault("title", ""),
-            body.getOrDefault("event_date", ""),
-            body.get("start_time"),
-            body.get("end_time"),
-            body.getOrDefault("notes", ""),
-            body.getOrDefault("color", "#0a84ff"));
+            body.getOrDefault("title",      (String) cur.get("title")),
+            body.getOrDefault("event_date", (String) cur.get("event_date")),
+            body.getOrDefault("start_time", (String) cur.get("start_time")),
+            body.getOrDefault("end_time",   (String) cur.get("end_time")),
+            body.getOrDefault("notes",      (String) cur.getOrDefault("notes", "")),
+            body.getOrDefault("color",      (String) cur.getOrDefault("color", "#0a84ff")));
     }
 
     public void delete(long id) { repo.delete(id); }

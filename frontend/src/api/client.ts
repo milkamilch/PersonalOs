@@ -71,6 +71,10 @@ export const endpoints = {
   financeSummary: (month?: string) => api.get('/finance/summary', { params: month ? { month } : {} }),
   financeSettings: () => api.get('/finance/settings'),
   saveFinanceSettings: (b: Record<string, string>) => api.post('/finance/settings', b),
+  financeRecurring: () => api.get('/finance/recurring'),
+  createFinanceRecurring: (b: object) => api.post('/finance/recurring', b),
+  deleteFinanceRecurring: (id: number) => api.delete(`/finance/recurring/${id}`),
+  toggleFinanceRecurring: (id: number) => api.post(`/finance/recurring/${id}/toggle`),
 
   // Fitness
   workouts: (limit?: number) => api.get('/fitness/workouts', { params: { limit: limit ?? 30 } }),

@@ -12,9 +12,9 @@ SERVER_USER="root"
 
 SERVER_PASS="${SERVER_SSH_PASS:-}"
 
-MVN="/home/lars/.local/share/JetBrains/Toolbox/apps/intellij-idea/plugins/maven/lib/maven3/bin/mvn"
-JAVA="/home/lars/.local/share/JetBrains/Toolbox/apps/intellij-idea/jbr/bin/java"
-export JAVA_HOME="$(dirname "$(dirname "$JAVA")")"
+MVN="/Users/larswenner/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn"
+JAVA="/Users/larswenner/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home/bin/java"
+export JAVA_HOME="/Users/larswenner/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"
 
 echo "═══════════════════════════════════════"
 echo "  PersonalOS — Deploy"

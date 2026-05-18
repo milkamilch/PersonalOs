@@ -108,4 +108,38 @@ public class FinanceRepository {
             .forEach(r -> result.put((String) r.get("key"), (String) r.get("value")));
         return result;
     }
+
+    public List<Map<String, Object>> findRecurring() {
+        return jdbc.queryForList("""
+            SELECT r.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+            FROM finance_recurring r LEFT JOIN finance_categories c ON c.id = r.category_id
+            ORDER BY r.type DESC, r.day_of_month, r.id
+        """);
+    }
+
+    public Map<String, Object> createRecurring(String name, double amount, String type,
+                                                Long categoryId, int dayOfMonth) {
+        var kh = new GeneratedKeyHolder();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO finance_recurring (name, amount, type, category_id, day_of_month) VALUES (?,?,?,?,?)",
+                Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, name); ps.setDouble(2, amount); ps.setString(3, type);
+            if (categoryId != null) ps.setLong(4, categoryId);
+            else ps.setNull(4, java.sql.Types.INTEGER);
+            ps.setInt(5, dayOfMonth);
+            return ps;
+        }, kh);
+        return jdbc.queryForMap("""
+            SELECT r.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+            FROM finance_recurring r LEFT JOIN finance_categories c ON c.id = r.category_id
+            WHERE r.id = ?
+        """, Objects.requireNonNull(kh.getKey()).longValue());
+    }
+
+    public void deleteRecurring(long id) { jdbc.update("DELETE FROM finance_recurring WHERE id = ?", id); }
+
+    public void toggleRecurring(long id) {
+        jdbc.update("UPDATE finance_recurring SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id = ?", id);
+    }
 }

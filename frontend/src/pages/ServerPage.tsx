@@ -1,7 +1,7 @@
 import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, RotateCcw, Settings, Square, Terminal, WifiOff, X } from 'lucide-react'
+import { Play, RotateCcw, Square, Terminal, WifiOff, X } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { ServerContainer, ServerMetrics } from '../api/types'
 
@@ -69,7 +69,7 @@ export default function ServerPage() {
               ? <span className="pill success" style={{ height: 32, padding: '0 12px' }}><span className="dot" />Online{metrics.uptimeSeconds ? ` · ${fmtUptime(metrics.uptimeSeconds)}` : ''}</span>
               : <span className="pill danger" style={{ height: 32, padding: '0 12px' }}><WifiOff size={11} /> Offline</span>
             }
-            <button className="btn"><Settings size={13} /> Konsole</button>
+            <button className="btn" onClick={() => containers[0] && openLogs(containers[0].name)} disabled={containers.length === 0}><Terminal size={13} /> Logs</button>
           </div>
         }
       />

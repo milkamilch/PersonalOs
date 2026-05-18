@@ -1,9 +1,13 @@
 package de.lecturebase.repository;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
@@ -18,8 +22,16 @@ public class RecurringTodosRepository {
     }
 
     public Map<String, Object> create(String text, String recurrence) {
-        jdbc.update("INSERT INTO recurring_todos (text, recurrence) VALUES (?,?)", text, recurrence);
-        return jdbc.queryForMap("SELECT * FROM recurring_todos ORDER BY id DESC LIMIT 1");
+        var kh = new GeneratedKeyHolder();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO recurring_todos (text, recurrence) VALUES (?,?)",
+                Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, text); ps.setString(2, recurrence);
+            return ps;
+        }, kh);
+        return jdbc.queryForMap("SELECT * FROM recurring_todos WHERE id=?",
+            Objects.requireNonNull(kh.getKey()).longValue());
     }
 
     public void delete(long id) { jdbc.update("DELETE FROM recurring_todos WHERE id=?", id); }

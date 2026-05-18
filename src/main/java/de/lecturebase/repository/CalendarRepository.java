@@ -42,6 +42,10 @@ public class CalendarRepository {
             Objects.requireNonNull(kh.getKey(), "Insert did not return a generated key").longValue());
     }
 
+    public Map<String, Object> findById(long id) {
+        return jdbc.queryForMap("SELECT * FROM calendar_events WHERE id = ?", id);
+    }
+
     public Map<String, Object> update(long id, String title, String eventDate, String startTime,
                                        String endTime, String notes, String color) {
         jdbc.update("UPDATE calendar_events SET title=?, event_date=?, start_time=?, end_time=?, notes=?, color=? WHERE id=?",

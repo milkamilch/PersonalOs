@@ -19,8 +19,10 @@ public class ReadingService {
     }
 
     public Map<String, Object> log(Map<String, Object> body) {
+        Object mid = body.get("mediaId");
+        if (mid == null) throw new IllegalArgumentException("mediaId is required");
         return repo.log(
-            ((Number) body.get("mediaId")).intValue(),
+            ((Number) mid).intValue(),
             ((Number) body.getOrDefault("pagesRead", 0)).intValue(),
             ((Number) body.getOrDefault("minutes", 0)).intValue(),
             (String) body.getOrDefault("sessionDate", LocalDate.now().toString()),

@@ -20,13 +20,14 @@ export default function FitnessPage() {
   const { data: weightLog = [] } = useQuery<BodyWeightEntry[]>({ queryKey: ['weightLog'], queryFn: () => endpoints.weightLog(30).then(r => r.data) })
 
   const createWorkout = useMutation({
-    mutationFn: () => endpoints.createWorkout({ name: workoutName, notes: '', workout_date: new Date().toISOString().slice(0, 10) }),
+    mutationFn: () => endpoints.createWorkout({ name: workoutName, notes: '', workoutDate: new Date().toISOString().slice(0, 10) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); setWorkoutName(''); setShowAddWorkout(false) },
   })
   const logWeight = useMutation({
-    mutationFn: () => endpoints.logWeight({ weight_kg: parseFloat(weightVal), log_date: new Date().toISOString().slice(0, 10) }),
+    mutationFn: () => endpoints.logWeight({ weightKg: parseFloat(weightVal), logDate: new Date().toISOString().slice(0, 10) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weightLog'] }); setWeightVal(''); setShowAddWeight(false) },
   })
+  const delWeight = useMutation({ mutationFn: (id: number) => endpoints.deleteWeight(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['weightLog'] }) })
   const delWorkout = useMutation({ mutationFn: (id: number) => endpoints.deleteWorkout(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }) })
 
   const sortedWeight = [...weightLog].sort((a, b) => a.log_date.localeCompare(b.log_date))
@@ -169,7 +170,7 @@ export default function FitnessPage() {
                   <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
                     <span className="mono" style={{ fontSize: 11.5, color: 'var(--fg-4)', width: 48 }}>{fmtDate(e.log_date)}</span>
                     <span style={{ flex: 1, fontFamily: 'Inter Tight', fontWeight: 600, fontSize: 14 }}>{e.weight_kg.toFixed(1)} kg</span>
-                    <button onClick={() => endpoints.deleteWeight(e.id).then(() => qc.invalidateQueries({ queryKey: ['weightLog'] }))} style={{ color: 'var(--fg-5)', fontSize: 11 }}
+                    <button onClick={() => delWeight.mutate(e.id)} style={{ color: 'var(--fg-5)', fontSize: 11 }}
                       onMouseEnter={el => (el.currentTarget.style.color = 'var(--rose)')}
                       onMouseLeave={el => (el.currentTarget.style.color = 'var(--fg-5)')}>✕</button>
                   </div>

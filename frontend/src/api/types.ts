@@ -155,6 +155,18 @@ export interface FinanceSummary {
   byCategory: Array<FinanceCategory & { spent: number }>
 }
 
+export interface FinanceRecurring {
+  id: number
+  name: string
+  amount: number
+  type: 'income' | 'expense'
+  category_id: number | null
+  category_name: string | null
+  category_icon: string | null
+  day_of_month: number
+  active: number
+}
+
 // ── Fitness ───────────────────────────────────────────────────────────────
 export interface WorkoutExercise {
   id: number

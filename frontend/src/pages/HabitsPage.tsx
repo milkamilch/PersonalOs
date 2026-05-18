@@ -17,7 +17,14 @@ export default function HabitsPage() {
     queryKey: ['habitHeatmap'], queryFn: () => endpoints.habitHeatmap(84).then(r => r.data),
   })
 
-  const toggle = useMutation({ mutationFn: (id: number) => endpoints.toggleHabit(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['habits'] }) })
+  const toggle = useMutation({
+    mutationFn: (id: number) => endpoints.toggleHabit(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['habits'] })
+      qc.invalidateQueries({ queryKey: ['habitWeek'] })
+      qc.invalidateQueries({ queryKey: ['habitHeatmap'] })
+    },
+  })
   const create = useMutation({
     mutationFn: () => endpoints.createHabit({ name: newName, icon: '✅', color: '#1C6BFF' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['habits'] }); setNewName(''); setShowAdd(false) },

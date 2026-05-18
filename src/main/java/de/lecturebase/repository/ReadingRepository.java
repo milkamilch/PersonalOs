@@ -1,9 +1,13 @@
 package de.lecturebase.repository;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
@@ -31,11 +35,17 @@ public class ReadingRepository {
     }
 
     public Map<String, Object> log(int mediaId, int pages, int minutes, String date, String note) {
-        jdbc.update("""
-            INSERT INTO reading_sessions (media_id, pages_read, minutes, session_date, note)
-            VALUES (?,?,?,?,?)
-        """, mediaId, pages, minutes, date, note);
-        return jdbc.queryForMap("SELECT * FROM reading_sessions ORDER BY id DESC LIMIT 1");
+        var kh = new GeneratedKeyHolder();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO reading_sessions (media_id, pages_read, minutes, session_date, note) VALUES (?,?,?,?,?)",
+                Statement.RETURN_GENERATED_KEYS);
+            ps.setInt(1, mediaId); ps.setInt(2, pages); ps.setInt(3, minutes);
+            ps.setString(4, date); ps.setString(5, note);
+            return ps;
+        }, kh);
+        return jdbc.queryForMap("SELECT * FROM reading_sessions WHERE id=?",
+            Objects.requireNonNull(kh.getKey()).longValue());
     }
 
     public void delete(long id) { jdbc.update("DELETE FROM reading_sessions WHERE id=?", id); }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Search, Bell, Settings } from 'lucide-react'
 import Sidebar from './components/Sidebar'
@@ -48,27 +48,115 @@ const ROUTE_LABELS: Record<string, { label: string; group: string }> = {
   '/server':       { label: 'Server',        group: 'Arbeit' },
 }
 
+const PAGES = Object.entries(ROUTE_LABELS).map(([path, { label, group }]) => ({ path, label, group }))
+
+function SearchModal({ onClose }: { onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const nav = useNavigate()
+  const results = q.trim()
+    ? PAGES.filter(p => p.label.toLowerCase().includes(q.toLowerCase()) || p.group.toLowerCase().includes(q.toLowerCase()))
+    : PAGES
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 72, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}>
+      <div style={{ width: '100%', maxWidth: 520, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', margin: '0 16px' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
+          <Search size={15} style={{ color: 'var(--fg-4)', flexShrink: 0 }} />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') onClose()
+              if (e.key === 'Enter' && results.length > 0) { nav(results[0].path); onClose() }
+            }}
+            placeholder="Seite suchen…"
+            style={{ flex: 1, background: 'transparent', border: 0, outline: 0, fontSize: 14.5, color: 'var(--fg)' }} />
+          <kbd style={{ fontSize: 10, color: 'var(--fg-4)', background: 'var(--surface-sunk)', border: '1px solid var(--line)', borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>ESC</kbd>
+        </div>
+        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+          {results.map((p, i) => (
+            <button key={p.path} onClick={() => { nav(p.path); onClose() }}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 16px', textAlign: 'left', cursor: 'pointer', background: 'transparent', color: 'var(--fg)', borderTop: i > 0 ? '1px solid var(--line)' : 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-sunk)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              <span style={{ fontSize: 10, color: 'var(--fg-5)', width: 56, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{p.group || '—'}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 500 }}>{p.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'dark')
+  const [density, setDensity] = useState(() => document.documentElement.dataset.density ?? 'cozy')
+  function applyTheme(t: string) {
+    setTheme(t); document.documentElement.dataset.theme = t; localStorage.setItem('pos_theme', t)
+  }
+  function applyDensity(d: string) {
+    setDensity(d); document.documentElement.dataset.density = d; localStorage.setItem('pos_density', d)
+  }
+  return (
+    <>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={onClose} />
+      <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 50, width: 220, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 14, boxShadow: 'var(--shadow-lg)', padding: 16 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Thema</div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+          {(['light', 'dark'] as const).map(t => (
+            <button key={t} onClick={() => applyTheme(t)}
+              style={{ flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: 'pointer',
+                background: theme === t ? 'var(--accent)' : 'var(--surface-sunk)',
+                color: theme === t ? 'white' : 'var(--fg-3)',
+                border: `1px solid ${theme === t ? 'var(--accent)' : 'var(--line)'}` }}>
+              {t === 'dark' ? '🌙 Dunkel' : '☀️ Hell'}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Dichte</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([{ key: 'compact', label: 'Kompakt' }, { key: 'cozy', label: 'Komfortabel' }] as const).map(d => (
+            <button key={d.key} onClick={() => applyDensity(d.key)}
+              style={{ flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                background: density === d.key ? 'var(--surface-sunk)' : 'transparent',
+                color: density === d.key ? 'var(--fg)' : 'var(--fg-3)',
+                border: `1px solid ${density === d.key ? 'var(--line-strong)' : 'var(--line)'}` }}>
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Topbar() {
   const loc = useLocation()
   const info = ROUTE_LABELS[loc.pathname] ?? { label: loc.pathname.slice(1), group: '' }
+  const [showSearch, setShowSearch] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   return (
-    <div className="topbar">
-      <div className="crumbs">
-        <span>PersonalOS</span>
-        {info.group && (
-          <>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span>{info.group}</span>
-          </>
-        )}
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        <strong>{info.label}</strong>
+    <>
+      <div className="topbar" style={{ position: 'relative' }}>
+        <div className="crumbs">
+          <span>PersonalOS</span>
+          {info.group && (
+            <>
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span>{info.group}</span>
+            </>
+          )}
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <strong>{info.label}</strong>
+        </div>
+        <div className="grow" />
+        <button className="iconbtn" title="Suche" onClick={() => setShowSearch(true)}><Search size={15} strokeWidth={1.6} /></button>
+        <button className="iconbtn" title="Benachrichtigungen"><Bell size={15} strokeWidth={1.6} /></button>
+        <button className="iconbtn" title="Einstellungen" onClick={() => setShowSettings(s => !s)}><Settings size={15} strokeWidth={1.6} /></button>
+        {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       </div>
-      <div className="grow" />
-      <button className="iconbtn" title="Suche"><Search size={15} strokeWidth={1.6} /></button>
-      <button className="iconbtn" title="Benachrichtigungen"><Bell size={15} strokeWidth={1.6} /></button>
-      <button className="iconbtn" title="Einstellungen"><Settings size={15} strokeWidth={1.6} /></button>
-    </div>
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
+    </>
   )
 }
 

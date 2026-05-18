@@ -1,9 +1,13 @@
 package de.lecturebase.repository;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Repository
 public class ContactsRepository {
@@ -26,18 +30,22 @@ public class ContactsRepository {
     }
 
     public Map<String, Object> create(Map<String, Object> body) {
-        jdbc.update("""
-            INSERT INTO contacts (name, email, phone, company, notes, tag, last_contact)
-            VALUES (?,?,?,?,?,?,?)
-        """,
-            body.getOrDefault("name", ""),
-            body.getOrDefault("email", ""),
-            body.getOrDefault("phone", ""),
-            body.getOrDefault("company", ""),
-            body.getOrDefault("notes", ""),
-            body.getOrDefault("tag", ""),
-            body.get("lastContact"));
-        return jdbc.queryForMap("SELECT * FROM contacts ORDER BY id DESC LIMIT 1");
+        var kh = new GeneratedKeyHolder();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO contacts (name, email, phone, company, notes, tag, last_contact) VALUES (?,?,?,?,?,?,?)",
+                Statement.RETURN_GENERATED_KEYS);
+            ps.setObject(1, body.getOrDefault("name", ""));
+            ps.setObject(2, body.getOrDefault("email", ""));
+            ps.setObject(3, body.getOrDefault("phone", ""));
+            ps.setObject(4, body.getOrDefault("company", ""));
+            ps.setObject(5, body.getOrDefault("notes", ""));
+            ps.setObject(6, body.getOrDefault("tag", ""));
+            ps.setObject(7, body.get("lastContact"));
+            return ps;
+        }, kh);
+        return jdbc.queryForMap("SELECT * FROM contacts WHERE id=?",
+            Objects.requireNonNull(kh.getKey()).longValue());
     }
 
     public Map<String, Object> update(long id, Map<String, Object> body) {

@@ -59,4 +59,24 @@ public class FinanceController {
 
     @GetMapping("/settings")
     public Map<String, String> getSettings() { return service.getSettings(); }
+
+    @GetMapping("/recurring")
+    public List<Map<String, Object>> recurring() { return service.recurring(); }
+
+    @PostMapping("/recurring")
+    public Map<String, Object> createRecurring(@RequestBody Map<String, Object> body) {
+        return service.createRecurring(body);
+    }
+
+    @DeleteMapping("/recurring/{id}")
+    public ResponseEntity<Map<String, String>> deleteRecurring(@PathVariable long id) {
+        service.deleteRecurring(id);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
+    }
+
+    @PostMapping("/recurring/{id}/toggle")
+    public ResponseEntity<Map<String, String>> toggleRecurring(@PathVariable long id) {
+        service.toggleRecurring(id);
+        return ResponseEntity.ok(Map.of("status", "toggled"));
+    }
 }

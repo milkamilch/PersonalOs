@@ -1111,7 +1111,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Pill({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button onClick={onClick} className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={active ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-sunk)', color: 'var(--fg-4)', border: '1px solid var(--line)' }}>
+            style={active
+              ? { background: 'var(--accent)', color: '#fff', minWidth: 48, textAlign: 'center' }
+              : { background: 'var(--surface-sunk)', color: 'var(--fg-4)', border: '1px solid var(--line)', minWidth: 48, textAlign: 'center' }}>
       {label}
     </button>
   )
