@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Search, Bell, Settings } from 'lucide-react'
+import { api } from './api/client'
 import Sidebar from './components/Sidebar'
 import MobileNav from './components/MobileNav'
 import DashboardPage from './pages/DashboardPage'
@@ -50,38 +51,93 @@ const ROUTE_LABELS: Record<string, { label: string; group: string }> = {
 
 const PAGES = Object.entries(ROUTE_LABELS).map(([path, { label, group }]) => ({ path, label, group }))
 
+interface ContentResult { type: string; id: number; title: string; sub: string; route: string; icon: string }
+
 function SearchModal({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState('')
+  const [contentResults, setContentResults] = useState<ContentResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [cursor, setCursor] = useState(0)
   const nav = useNavigate()
-  const results = q.trim()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const pageResults = q.trim()
     ? PAGES.filter(p => p.label.toLowerCase().includes(q.toLowerCase()) || p.group.toLowerCase().includes(q.toLowerCase()))
     : PAGES
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (q.trim().length < 2) { setContentResults([]); return }
+    setLoading(true)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get('/search', { params: { q: q.trim() } })
+        setContentResults(res.data)
+      } catch { setContentResults([]) }
+      finally { setLoading(false) }
+    }, 280)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [q])
+
+  const allResults = q.trim().length >= 2
+    ? [...contentResults, ...pageResults.map(p => ({ type: 'page', id: 0, title: p.label, sub: p.group || '—', route: p.path, icon: '→' }))]
+    : pageResults.map(p => ({ type: 'page', id: 0, title: p.label, sub: p.group || '—', route: p.path, icon: '→' }))
+
+  function go(route: string) { nav(route); onClose() }
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 72, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}>
-      <div style={{ width: '100%', maxWidth: 520, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', margin: '0 16px' }}
+      <div style={{ width: '100%', maxWidth: 560, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', margin: '0 16px' }}
         onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
           <Search size={15} style={{ color: 'var(--fg-4)', flexShrink: 0 }} />
-          <input autoFocus value={q} onChange={e => setQ(e.target.value)}
+          <input autoFocus value={q} onChange={e => { setQ(e.target.value); setCursor(0) }}
             onKeyDown={e => {
               if (e.key === 'Escape') onClose()
-              if (e.key === 'Enter' && results.length > 0) { nav(results[0].path); onClose() }
+              if (e.key === 'ArrowDown') { e.preventDefault(); setCursor(c => Math.min(c + 1, allResults.length - 1)) }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)) }
+              if (e.key === 'Enter' && allResults.length > 0) go(allResults[cursor].route)
             }}
-            placeholder="Seite suchen…"
+            placeholder="Suche: Seiten, Todos, Buchungen, Notizen, Kontakte…"
             style={{ flex: 1, background: 'transparent', border: 0, outline: 0, fontSize: 14.5, color: 'var(--fg)' }} />
+          {loading && <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />}
           <kbd style={{ fontSize: 10, color: 'var(--fg-4)', background: 'var(--surface-sunk)', border: '1px solid var(--line)', borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>ESC</kbd>
         </div>
-        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-          {results.map((p, i) => (
-            <button key={p.path} onClick={() => { nav(p.path); onClose() }}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 16px', textAlign: 'left', cursor: 'pointer', background: 'transparent', color: 'var(--fg)', borderTop: i > 0 ? '1px solid var(--line)' : 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-sunk)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              <span style={{ fontSize: 10, color: 'var(--fg-5)', width: 56, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{p.group || '—'}</span>
-              <span style={{ fontSize: 13.5, fontWeight: 500 }}>{p.label}</span>
-            </button>
-          ))}
+        <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+          {q.trim().length >= 2 && contentResults.length > 0 && (
+            <>
+              <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--fg-5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Inhalte</div>
+              {contentResults.map((r, i) => (
+                <button key={`c-${r.type}-${r.id}-${i}`} onClick={() => go(r.route)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '9px 16px', textAlign: 'left', cursor: 'pointer', background: cursor === i ? 'var(--surface-sunk)' : 'transparent', color: 'var(--fg)', border: 'none' }}
+                  onMouseEnter={() => setCursor(i)}>
+                  <span style={{ fontSize: 15, flexShrink: 0, width: 22, textAlign: 'center' }}>{r.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--fg-4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{r.sub}</div>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--fg-5)', flexShrink: 0, background: 'var(--surface-sunk)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--line)' }}>{r.type}</span>
+                </button>
+              ))}
+              <div style={{ borderTop: '1px solid var(--line)', margin: '4px 0' }} />
+            </>
+          )}
+          {q.trim().length >= 2 && contentResults.length === 0 && !loading && (
+            <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--fg-4)' }}>Keine Treffer für „{q}"</div>
+          )}
+          <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--fg-5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Seiten</div>
+          {pageResults.map((p, i) => {
+            const idx = contentResults.length + i
+            return (
+              <button key={p.path} onClick={() => go(p.path)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '9px 16px', textAlign: 'left', cursor: 'pointer', background: cursor === idx ? 'var(--surface-sunk)' : 'transparent', color: 'var(--fg)', border: 'none' }}
+                onMouseEnter={() => setCursor(idx)}>
+                <span style={{ fontSize: 10, color: 'var(--fg-5)', width: 56, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{p.group || '—'}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 500 }}>{p.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

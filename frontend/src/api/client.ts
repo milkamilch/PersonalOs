@@ -149,6 +149,9 @@ export const endpoints = {
   // Habit heatmap
   habitHeatmap: (days?: number) => api.get('/habits/heatmap', days ? { params: { days } } : {}),
 
+  // Global search
+  search: (q: string) => api.get('/search', { params: { q } }),
+
   // Focus sessions
   saveFocusSession: (duration_s: number) => api.post('/focus/session', { duration_s }),
   focusStats: () => api.get('/focus/stats'),
