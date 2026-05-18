@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Play, Square, Trash2 } from 'lucide-react'
@@ -16,15 +17,6 @@ function fmtDate(iso: string) {
   } catch { return '' }
 }
 
-function PageHead({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
-  return (
-    <div className="page-head">
-      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-      <h1>{title}</h1>
-      {sub && <div className="sub">{sub}</div>}
-    </div>
-  )
-}
 
 export default function TimePage() {
   const qc = useQueryClient()
@@ -80,7 +72,7 @@ export default function TimePage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`Diese Woche · ${fmtDuration(summary?.weekS ?? 0)}`}
         title="Zeiterfassung"
         sub="Du erfährst, was dir wichtig ist, wenn du es misst."

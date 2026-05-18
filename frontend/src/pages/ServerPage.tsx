@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Play, RotateCcw, Settings, Square, Terminal, WifiOff, X } from 'lucide-react'
@@ -7,18 +8,6 @@ import type { ServerContainer, ServerMetrics } from '../api/types'
 function fmtBytes(b: number) { if (b >= 1e9) return (b / 1e9).toFixed(1) + ' GB'; if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB'; return (b / 1e3).toFixed(0) + ' KB' }
 function fmtUptime(s: number) { const d = Math.floor(s / 86400); const h = Math.floor((s % 86400) / 3600); if (d > 0) return `${d}d ${h}h`; return `${h}h` }
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 // Simple CPU sparkline (uses random placeholder data since the API gives us current values only)
 function Sparkline({ pct, color }: { pct: number; color: string }) {
@@ -70,7 +59,7 @@ export default function ServerPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={metrics?.host ?? 'VPS · nicht konfiguriert'}
         title="Server"
         sub="Was läuft, läuft. Was nicht, schlägt Alarm."

@@ -1,20 +1,25 @@
+/**
+ * Thin compatibility wrapper around the new shared `Card` in `./ui`.
+ *
+ * Previously this file referenced `--bg-surface` / `--border-subtle` which
+ * no longer exist in the active theme. New imports should use `Card` from
+ * `./ui` directly; this default export is kept so existing imports keep
+ * working without a churn-y find/replace.
+ */
 import type { ReactNode, CSSProperties } from 'react'
+import { Card as UICard } from './ui'
 
-interface CardProps {
+interface Props {
   children: ReactNode
   className?: string
   style?: CSSProperties
   onClick?: () => void
 }
 
-export default function Card({ children, className = '', style, onClick }: CardProps) {
+export default function Card({ children, className, style, onClick }: Props) {
   return (
-    <div
-      onClick={onClick}
-      className={`rounded-2xl p-4 ${onClick ? 'cursor-pointer transition-colors' : ''} ${className}`}
-      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', ...style }}
-    >
+    <UICard padding="default" className={className} style={style} onClick={onClick}>
       {children}
-    </div>
+    </UICard>
   )
 }

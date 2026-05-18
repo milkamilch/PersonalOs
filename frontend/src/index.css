@@ -411,3 +411,62 @@ a { color: inherit; text-decoration: none; }
 .note { padding: 12px 14px; border-radius: 12px; background: var(--surface-sunk); font-size: 12.5px; color: var(--fg-2); line-height: 1.5; position: relative; }
 .note .t { font-weight: 600; font-size: 12.5px; margin-bottom: 2px; color: var(--fg); }
 .note.pin::before { content: ""; position: absolute; top: 10px; right: 10px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* ─────────────────────────────────────────────────────────────────────────
+ * index.css — additive patch
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Append the rules below to the existing `frontend/src/index.css`.
+ * They are **purely additive** — nothing in the file needs to be removed
+ * or rewritten. They cover three small gaps the rebuilt components rely on:
+ *
+ *   1. `.btn.success` / `.btn.warn` variants  (used by `<Button variant>`).
+ *   2. Better focus ring on `.iconbtn`        (was: no focus indicator).
+ *   3. `.field input[type=number]` strip      (hide native spinners — they
+ *       look noisy in the QuickAdd expense flow).
+ *
+ * Why not bake them straight in? Keeping the patch separate makes the
+ * diff for review trivial and reversible.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Button — semantic variants ────────────────────────────────────────── */
+.btn.success {
+  background: var(--green-soft);
+  border-color: transparent;
+  color: var(--green);
+}
+.btn.success:hover { background: color-mix(in srgb, var(--green) 18%, transparent); }
+
+.btn.warn {
+  background: var(--amber-soft);
+  border-color: transparent;
+  color: var(--amber);
+}
+.btn.warn:hover  { background: color-mix(in srgb, var(--amber) 18%, transparent); }
+
+/* ── IconButton focus ring ─────────────────────────────────────────────── */
+.iconbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  background: var(--surface-sunk);
+  color: var(--fg);
+}
+
+/* ── Number-input polish ───────────────────────────────────────────────── */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; }
+
+/* ── A11y: reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

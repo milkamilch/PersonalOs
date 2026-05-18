@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Pin, Plus, Trash2, X } from 'lucide-react'
@@ -16,18 +17,6 @@ const NOTE_DOT: Record<NoteColor, string> = {
 }
 const COLOR_OPTIONS: NoteColor[] = ['default', 'yellow', 'blue', 'green', 'red']
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 export default function NotesPage() {
   const qc = useQueryClient()
@@ -110,7 +99,7 @@ export default function NotesPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`${notes.length} Notizen · ${pinned.length} gepinnt`}
         title="Notizen"
         sub="Der schnellste Weg zwischen Gedanke und Erinnerung."

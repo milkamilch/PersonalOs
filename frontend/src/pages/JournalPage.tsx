@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
@@ -13,18 +14,6 @@ const MOODS = [
   { value: 5, emoji: '😄', label: 'Super' },
 ]
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 
@@ -79,7 +68,7 @@ export default function JournalPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`${entries.length} Einträge`}
         title="Journal"
         sub="Reflexion ist der Hebel der Veränderung."

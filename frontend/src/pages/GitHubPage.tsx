@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, ExternalLink, GitBranch, GitCommit, GitPullRequest } from 'lucide-react'
@@ -18,15 +19,6 @@ const LANG_COLORS: Record<string, string> = {
   Lua: '#8E5BFF', Go: '#00ADD8', Rust: '#D14A2D', CSS: '#9A9A9F',
 }
 
-function PageHead({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
-  return (
-    <div className="page-head">
-      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-      <h1>{title}</h1>
-      {sub && <div className="sub">{sub}</div>}
-    </div>
-  )
-}
 
 export default function GitHubPage() {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
@@ -73,7 +65,7 @@ export default function GitHubPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`${repos.length} Repositories`}
         title="GitHub"
         sub="Code ist Kommunikation mit deinem zukünftigen Ich."

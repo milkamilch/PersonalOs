@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Dumbbell, Heart, Pencil, Plus, X } from 'lucide-react'
@@ -13,18 +14,6 @@ const EVENT_COLORS = ['#1C6BFF', '#2F8F4E', '#C8344A', '#C58A00', '#8E5BFF', '#0
 interface EventForm { title: string; start_time: string; end_time: string; notes: string; color: string }
 const emptyForm = (): EventForm => ({ title: '', start_time: '', end_time: '', notes: '', color: '#1C6BFF' })
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 export default function CalendarPage() {
   const qc = useQueryClient()
@@ -84,7 +73,7 @@ export default function CalendarPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={monthName}
         title="Kalender"
         sub="Ein Monat ist nur ein Vorschlag der Zeit. Trag ihn ein."

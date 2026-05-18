@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Mail, Phone, Plus, Search, Trash2, X } from 'lucide-react'
@@ -11,18 +12,6 @@ const TAG_COLOR: Record<string, string> = {
 
 function tagColor(tag: string | undefined | null) { return TAG_COLOR[tag ?? ''] ?? '#9A9A9F' }
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 const TAGS = ['Freund', 'Familie', 'Arbeit', 'Uni', 'Code', 'Admin', 'Sport', 'Bekannt', 'Kunde']
 
@@ -53,7 +42,7 @@ export default function ContactsPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`${contacts.length} Kontakte`}
         title="Kontakte"
         sub="Beziehungen sind das einzige, was am Ende zählt."

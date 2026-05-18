@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, TrendingDown, TrendingUp } from 'lucide-react'
@@ -6,18 +7,6 @@ import type { Workout, FitnessStats, BodyWeightEntry } from '../api/types'
 
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 export default function FitnessPage() {
   const qc = useQueryClient()
@@ -54,7 +43,7 @@ export default function FitnessPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow="Fitness"
         title="Training"
         sub="Disziplin schlägt Motivation. Jedes Mal."

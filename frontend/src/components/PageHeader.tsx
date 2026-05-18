@@ -1,23 +1,51 @@
+/**
+ * Shared page header — drop-in replacement for the inline `PageHead`
+ * function currently duplicated across **17 page files**
+ * (HabitsPage, GoalsPage, FinancePage, FitnessPage, JournalPage,
+ *  MediaPage, ReadingPage, ContactsPage, CalendarPage, NotesPage,
+ *  TodosPage, ProjectsPage, GitHubPage, ServerPage, FocusPage,
+ *  TimePage, WeeklyPlannerPage).
+ *
+ * Same prop signature → migration is a literal find-and-replace:
+ *
+ *   - // delete the local function PageHead(...) at the top of each page
+ *   + import PageHeader from '../components/PageHeader'
+ *   - <PageHead .../>
+ *   + <PageHeader .../>
+ *
+ * Uses the existing `.page-head`, `.eyebrow`, `.sub` classes from
+ * `index.css` — no new tokens introduced.
+ */
 import type { ReactNode } from 'react'
 
 interface Props {
-  title: string
-  subtitle?: string
-  actions?: ReactNode
+  eyebrow?: string
+  title:    string
+  sub?:     string
+  action?:  ReactNode
 }
 
-export default function PageHeader({ title, subtitle, actions }: Props) {
+export default function PageHeader({ eyebrow, title, sub, action }: Props) {
   return (
-    <div className="flex items-start justify-between mb-8">
-      <div>
-        <h1 className="text-[22px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
-        )}
+    <div
+      className="page-head"
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        gap: 16,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
       </div>
-      {actions && <div className="flex items-center gap-2 ml-4 flex-shrink-0">{actions}</div>}
+      {action && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {action}
+        </div>
+      )}
     </div>
   )
 }

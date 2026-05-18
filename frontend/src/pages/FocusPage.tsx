@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { endpoints } from '../api/client'
@@ -15,15 +16,6 @@ interface FocusStats { today_count: number; today_seconds: number; week_count: n
 function pad(n: number) { return String(n).padStart(2, '0') }
 function fmtMin(s: number) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m` }
 
-function PageHead({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
-  return (
-    <div className="page-head">
-      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-      <h1>{title}</h1>
-      {sub && <div className="sub">{sub}</div>}
-    </div>
-  )
-}
 
 export default function FocusPage() {
   const qc = useQueryClient()
@@ -95,7 +87,7 @@ export default function FocusPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         eyebrow={`${stats?.today_count ?? 0} Sessions heute · ${fmtMin(stats?.today_seconds ?? 0)}`}
         title="Fokus"
         sub="Tiefe entsteht in der Pause vom Lärm."

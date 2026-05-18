@@ -1,19 +1,8 @@
+import PageHeader from '../components/PageHeader'
 import { useState, useEffect } from 'react'
 import { Download, ChevronRight, RefreshCw, Plus, X } from 'lucide-react'
 import { endpoints } from '../api/client'
 
-function PageHead({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -733,7 +722,7 @@ export default function WeeklyPlannerPage() {
   if (step === 'wizard') {
     return (
       <div className="content" style={{ maxWidth: 580 }}>
-        <PageHead title="Wochenplaner" sub="Generiere deine perfekte Woche." />
+        <PageHeader title="Wochenplaner" sub="Generiere deine perfekte Woche." />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           <Section title="Woche">
@@ -946,7 +935,7 @@ export default function WeeklyPlannerPage() {
 
   return (
     <div className="content">
-      <PageHead
+      <PageHeader
         title="Wochenplan"
         sub={cfg ? `${cfg.weekStart.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })} — Phase ${cfg.phase}` : ''}
         action={

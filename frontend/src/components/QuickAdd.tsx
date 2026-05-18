@@ -1,3 +1,17 @@
+/**
+ * QuickAdd — bottom-sheet modal for fast capture (Todo · Habit · Ausgabe).
+ *
+ * Rebuilt against the active design tokens. The previous version used
+ * `--bg-surface`, `--bg-elevated`, `--text-primary`, `--text-muted`,
+ * `--border-subtle`, `--yellow` — none of which exist anymore. On a
+ * light theme it rendered as a dark blob with invisible text.
+ *
+ * Two trigger variants:
+ *   • `inline` (default) — soft accent pill, used in the Topbar or page actions
+ *   • `fab`             — circular floating button, used in MobileNav
+ *
+ * Body keeps the same API/mutations; only the visuals + a11y were touched.
+ */
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { Plus, CheckSquare, Heart, Wallet, X } from 'lucide-react'
@@ -8,43 +22,55 @@ type Mode = 'todo' | 'habit' | 'expense'
 
 const MODES: { id: Mode; icon: React.ElementType; label: string; color: string }[] = [
   { id: 'todo',    icon: CheckSquare, label: 'Todo',    color: 'var(--accent)' },
-  { id: 'habit',   icon: Heart,       label: 'Habit',   color: 'var(--green)' },
-  { id: 'expense', icon: Wallet,      label: 'Ausgabe', color: 'var(--yellow)' },
+  { id: 'habit',   icon: Heart,       label: 'Habit',   color: 'var(--green)'  },
+  { id: 'expense', icon: Wallet,      label: 'Ausgabe', color: 'var(--amber)'  },
 ]
 
-export default function QuickAdd() {
+interface Props {
+  /** `inline` shows a soft accent pill; `fab` shows a circular floating button. */
+  variant?: 'inline' | 'fab'
+}
+
+export default function QuickAdd({ variant = 'inline' }: Props) {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('todo')
   const [text, setText] = useState('')
   const [amount, setAmount] = useState('')
-  const [habitId, setHabitId] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
   const { data: habits = [] } = useQuery<Habit[]>({
     queryKey: ['habits'],
-    queryFn: () => endpoints.habits().then(r => r.data),
-    enabled: open && mode === 'habit',
+    queryFn:  () => endpoints.habits().then(r => r.data),
+    enabled:  open && mode === 'habit',
   })
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 80)
   }, [open, mode])
 
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
   const todoMut = useMutation({
     mutationFn: () => endpoints.createTodo(text),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['todos'] }); reset() },
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['todos'] }); reset() },
   })
   const habitMut = useMutation({
     mutationFn: (id: number) => endpoints.toggleHabit(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['habits'] }); reset() },
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['habits'] }); reset() },
   })
   const expenseMut = useMutation({
     mutationFn: () => endpoints.createTransaction({
-      amount: parseFloat(amount.replace(',', '.')),
+      amount:      parseFloat(amount.replace(',', '.')),
       description: text || 'Schnellausgabe',
-      type: 'expense',
-      tx_date: new Date().toISOString().slice(0, 10),
+      type:        'expense',
+      tx_date:     new Date().toISOString().slice(0, 10),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['financeTransactions'] })
@@ -53,121 +79,247 @@ export default function QuickAdd() {
     },
   })
 
-  function reset() { setText(''); setAmount(''); setHabitId(null); setOpen(false) }
+  function reset() { setText(''); setAmount(''); setOpen(false) }
 
   function submit() {
-    if (mode === 'todo' && text.trim()) todoMut.mutate()
-    else if (mode === 'habit' && habitId) habitMut.mutate(habitId)
-    else if (mode === 'expense' && amount) expenseMut.mutate()
+    if (mode === 'todo'    && text.trim()) todoMut.mutate()
+    else if (mode === 'expense' && amount)  expenseMut.mutate()
   }
 
   const currentMode = MODES.find(m => m.id === mode)!
 
+  // ── Trigger ─────────────────────────────────────────────────────────────
+  const trigger = variant === 'fab' ? (
+    <button
+      onClick={() => setOpen(true)}
+      title="Schnell hinzufügen"
+      aria-label="Schnell hinzufügen"
+      style={{
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'var(--accent)', color: '#fff',
+        display: 'grid', placeItems: 'center',
+        boxShadow: '0 6px 18px color-mix(in srgb, var(--accent) 38%, transparent), 0 1px 2px rgba(10,10,11,0.08)',
+        border: '1px solid color-mix(in srgb, var(--accent) 70%, transparent)',
+        transition: 'transform 120ms',
+      }}
+      onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.94)')}
+      onMouseUp  ={e => (e.currentTarget.style.transform = '')}
+      onMouseLeave={e => (e.currentTarget.style.transform = '')}
+    >
+      <Plus size={20} strokeWidth={2.1} />
+    </button>
+  ) : (
+    <button
+      onClick={() => setOpen(true)}
+      aria-label="Schnell hinzufügen"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        height: 30, padding: '0 12px', borderRadius: 8,
+        background: 'var(--accent-soft)',
+        color: 'var(--accent-fg)',
+        border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+        fontSize: 12.5, fontWeight: 500,
+        transition: 'background 120ms',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 18%, transparent)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent-soft)')}
+    >
+      <Plus size={13} />
+      <span>Neu</span>
+    </button>
+  )
+
+  if (!open) return trigger
+
+  // ── Sheet ───────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Trigger button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all active:scale-95"
+      {trigger}
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Schnell hinzufügen"
+        onClick={() => setOpen(false)}
         style={{
-          background: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-          color: 'var(--accent)',
-          border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
+          position: 'fixed', inset: 0, zIndex: 50,
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          background: 'rgba(10,10,11,0.32)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          animation: 'qa-fade 160ms ease',
         }}
-        title="Schnell hinzufügen"
       >
-        <Plus size={15} />
-        <span className="text-sm font-medium hidden sm:inline">Neu</span>
-      </button>
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: '100%', maxWidth: 460, margin: '0 12px',
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: 'var(--shadow-lg)',
+            overflow: 'hidden',
+            animation: 'qa-slide 220ms cubic-bezier(.2,.7,.2,1)',
+          }}
+        >
+          {/* Sheet handle */}
+          <div style={{ display: 'grid', placeItems: 'center', padding: '8px 0 0' }}>
+            <span style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--line-strong)' }} />
+          </div>
 
-      {/* Overlay */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-             style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-             onClick={() => setOpen(false)}>
-          <div className="w-full sm:max-w-md mx-4 mb-safe rounded-t-3xl sm:rounded-2xl overflow-hidden"
-               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-               onClick={e => e.stopPropagation()}>
+          {/* Mode tabs */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--line)',
+          }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {MODES.map(m => {
+                const active = mode === m.id
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setMode(m.id)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '6px 10px', borderRadius: 8,
+                      fontSize: 12.5, fontWeight: 500,
+                      background: active ? `color-mix(in srgb, ${m.color} 12%, transparent)` : 'transparent',
+                      color: active ? m.color : 'var(--fg-3)',
+                      transition: 'all 120ms',
+                    }}
+                  >
+                    <m.icon size={13} strokeWidth={1.8} />
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Schließen"
+              className="iconbtn"
+              style={{ width: 28, height: 28 }}
+            >
+              <X size={15} strokeWidth={1.7} />
+            </button>
+          </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3"
-                 style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-              <div className="flex gap-1">
-                {MODES.map(m => (
-                  <button key={m.id} onClick={() => setMode(m.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
-                          style={mode === m.id
-                            ? { background: `color-mix(in srgb, ${m.color} 15%, transparent)`, color: m.color }
-                            : { color: 'var(--text-muted)' }}>
-                    <m.icon size={14} />{m.label}
+          {/* Body */}
+          <div style={{
+            padding: 14,
+            paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            {mode === 'todo' && (
+              <input
+                ref={inputRef}
+                value={text}
+                onChange={e => setText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                placeholder="Was zu erledigen?"
+                style={inputStyle}
+              />
+            )}
+
+            {mode === 'habit' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+                {habits.filter(h => !h.done_today).map(h => (
+                  <button
+                    key={h.id}
+                    onClick={() => habitMut.mutate(h.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px',
+                      background: 'var(--surface-sunk)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 12,
+                      textAlign: 'left',
+                      transition: 'transform 120ms, background 120ms',
+                    }}
+                    onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.99)')}
+                    onMouseUp  ={e => (e.currentTarget.style.transform = '')}
+                  >
+                    <span style={{ fontSize: 18 }}>{h.icon}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--fg)' }}>{h.name}</span>
                   </button>
                 ))}
+                {habits.filter(h => !h.done_today).length === 0 && (
+                  <p className="empty" style={{ padding: '24px 0' }}>
+                    Alle Habits für heute erledigt ✓
+                  </p>
+                )}
               </div>
-              <button onClick={() => setOpen(false)} style={{ color: 'var(--text-muted)' }}>
-                <X size={18} />
+            )}
+
+            {mode === 'expense' && (
+              <>
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                    fontSize: 13, color: 'var(--fg-3)', pointerEvents: 'none',
+                  }}>€</span>
+                  <input
+                    ref={inputRef}
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && submit()}
+                    placeholder="0,00"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    style={{ ...inputStyle, paddingLeft: 26, fontFamily: 'Inter Tight, Inter, sans-serif', fontWeight: 500 }}
+                  />
+                </div>
+                <input
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submit()}
+                  placeholder="Beschreibung (optional)"
+                  style={inputStyle}
+                />
+              </>
+            )}
+
+            {mode !== 'habit' && (
+              <button
+                onClick={submit}
+                disabled={mode === 'todo' ? !text.trim() : !amount}
+                className="btn primary"
+                style={{
+                  height: 40, width: '100%', justifyContent: 'center',
+                  background: currentMode.color, borderColor: currentMode.color,
+                  color: '#fff',
+                  opacity: (mode === 'todo' ? text.trim() : amount) ? 1 : 0.4,
+                  cursor: (mode === 'todo' ? text.trim() : amount) ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Hinzufügen
               </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-4 space-y-3" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
-              {mode === 'todo' && (
-                <input ref={inputRef} value={text} onChange={e => setText(e.target.value)}
-                       onKeyDown={e => e.key === 'Enter' && submit()}
-                       placeholder="Was zu erledigen?"
-                       className="w-full px-4 py-3 rounded-xl text-base outline-none"
-                       style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-              )}
-
-              {mode === 'habit' && (
-                <div className="space-y-2">
-                  {habits.filter(h => !h.done_today).map(h => (
-                    <button key={h.id} onClick={() => { setHabitId(h.id); habitMut.mutate(h.id) }}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-[0.98]"
-                            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-                      <span className="text-xl">{h.icon}</span>
-                      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{h.name}</span>
-                    </button>
-                  ))}
-                  {habits.filter(h => !h.done_today).length === 0 && (
-                    <p className="text-center py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
-                      Alle Habits für heute erledigt ✓
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {mode === 'expense' && (
-                <div className="space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}>€</span>
-                    <input ref={inputRef} value={amount} onChange={e => setAmount(e.target.value)}
-                           onKeyDown={e => e.key === 'Enter' && text.trim() && submit()}
-                           placeholder="0,00"
-                           type="number" inputMode="decimal" step="0.01"
-                           className="w-full pl-8 pr-4 py-3 rounded-xl text-base outline-none"
-                           style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-                  </div>
-                  <input value={text} onChange={e => setText(e.target.value)}
-                         onKeyDown={e => e.key === 'Enter' && submit()}
-                         placeholder="Beschreibung (optional)"
-                         className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                         style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
-                </div>
-              )}
-
-              {mode !== 'habit' && (
-                <button onClick={submit}
-                        disabled={mode === 'todo' ? !text.trim() : !amount}
-                        className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
-                        style={{ background: currentMode.color, color: '#000' }}>
-                  Hinzufügen
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
-      )}
+
+        <style>{`
+          @keyframes qa-fade  { from { opacity: 0 } to { opacity: 1 } }
+          @keyframes qa-slide { from { transform: translateY(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+          @media (prefers-reduced-motion: reduce) {
+            [data-qa-anim] { animation: none !important }
+          }
+        `}</style>
+      </div>
     </>
   )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box',
+  padding: '12px 14px',
+  fontSize: 14,
+  background: 'var(--surface-sunk)',
+  border: '1px solid var(--line)',
+  borderRadius: 10,
+  color: 'var(--fg)',
+  outline: 'none',
+  transition: 'border-color 120ms, background 120ms',
 }
