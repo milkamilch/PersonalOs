@@ -28,11 +28,12 @@ interface Props {
 export default function PageHeader({ eyebrow, title, sub, action }: Props) {
   return (
     <div
-      className="page-head"
+      className="page-head page-head-inner"
       style={{
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: 16,
       }}
     >
@@ -42,7 +43,7 @@ export default function PageHeader({ eyebrow, title, sub, action }: Props) {
         {sub && <div className="sub">{sub}</div>}
       </div>
       {action && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
           {action}
         </div>
       )}

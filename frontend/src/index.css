@@ -176,10 +176,22 @@ a { color: inherit; text-decoration: none; }
   .col-3, .col-4, .col-5 { grid-column: span 6; }
   .col-7, .col-8, .col-9 { grid-column: span 12; }
 }
+@media (max-width: 768px) {
+  .bento { gap: 10px; }
+  .col-6 { grid-column: span 12; }
+  .page-head h1 { font-size: 24px; }
+  .page-head { margin-bottom: 20px; }
+  .page-head-inner { flex-wrap: wrap; gap: 12px; }
+}
 @media (max-width: 680px) {
   .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9 { grid-column: span 12; }
-  .content { padding: 20px 14px 80px; }
+  .content { padding: 16px 12px 80px; }
   .sidebar { display: none; }
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .crumbs .breadcrumb-group { display: none; }
+  .topbar .iconbtn { width: 28px; height: 28px; }
+  .card-b { padding: 14px; }
+  .card-h { padding: 12px 14px; }
 }
 
 /* ── Topbar ──────────────────────────────────────────────────────────────── */

@@ -195,12 +195,12 @@ function Topbar() {
     <>
       <div className="topbar" style={{ position: 'relative' }}>
         <div className="crumbs">
-          <span>PersonalOS</span>
+          <span className="breadcrumb-group">PersonalOS</span>
           {info.group && (
-            <>
+            <span className="breadcrumb-group" style={{ display: 'contents' }}>
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <span>{info.group}</span>
-            </>
+            </span>
           )}
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
           <strong>{info.label}</strong>
