@@ -146,4 +146,15 @@ public class FinanceRepository {
     public void markRecurringBooked(long id, String month) {
         jdbc.update("UPDATE finance_recurring SET last_booked_month = ? WHERE id = ?", month, id);
     }
+
+    public List<Map<String, Object>> monthlyTotals(int months) {
+        return jdbc.queryForList("""
+            SELECT strftime('%Y-%m', tx_date) as month,
+                   SUM(CASE WHEN type='income'  THEN amount ELSE 0 END) as income,
+                   SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expenses
+            FROM finance_transactions
+            WHERE tx_date >= DATE('now', ? || ' months')
+            GROUP BY month ORDER BY month
+        """, "-" + months);
+    }
 }

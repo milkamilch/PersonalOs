@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Settings, RefreshCw } from 'lucide-react'
 import { endpoints } from '../api/client'
-import type { FinanceTransaction, FinanceSummary, FinanceCategory, FinanceRecurring } from '../api/types'
+import type { FinanceTransaction, FinanceSummary, FinanceCategory, FinanceRecurring, FinanceMonthlyTotal } from '../api/types'
 
 const fmt = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
 const fmt0 = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -26,6 +26,7 @@ export default function FinancePage() {
   const { data: transactions = [] } = useQuery<FinanceTransaction[]>({ queryKey: ['transactions', month], queryFn: () => endpoints.financeTransactions({ month }).then(r => r.data) })
   const { data: categories = [] } = useQuery<FinanceCategory[]>({ queryKey: ['financeCategories'], queryFn: () => endpoints.financeCategories().then(r => r.data) })
   const { data: recurring = [] } = useQuery<FinanceRecurring[]>({ queryKey: ['financeRecurring'], queryFn: () => endpoints.financeRecurring().then(r => r.data) })
+  const { data: monthlyTotals = [] } = useQuery<FinanceMonthlyTotal[]>({ queryKey: ['financeMonthlyTotals'], queryFn: () => endpoints.financeMonthlyTotals(6).then(r => r.data) })
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ['financeSettings'],
     queryFn: () => endpoints.financeSettings().then(r => r.data),
@@ -373,6 +374,66 @@ export default function FinancePage() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Monthly trend chart */}
+      {monthlyTotals.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-h">
+            <span className="accent-dot" />
+            <span className="title">Verlauf – letzte 6 Monate</span>
+          </div>
+          <div className="card-b">
+            <MonthlyChart data={monthlyTotals} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MonthlyChart({ data }: { data: FinanceMonthlyTotal[] }) {
+  const fmt0 = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expenses]), 1)
+  const barW = 28
+  const gap = 12
+  const groupW = barW * 2 + gap
+  const chartH = 120
+  const totalW = data.length * (groupW + 24)
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, paddingBottom: 8, minWidth: totalW }}>
+        {data.map(d => {
+          const incH = Math.round((d.income / maxVal) * chartH)
+          const expH = Math.round((d.expenses / maxVal) * chartH)
+          const label = new Date(d.month + '-01').toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+          return (
+            <div key={d.month} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: chartH }}>
+                {/* Income bar */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: chartH }}>
+                  {d.income > 0 && <div style={{ fontSize: 9.5, color: 'var(--fg-4)', marginBottom: 3 }}>{fmt0(d.income)}</div>}
+                  <div style={{ width: barW, height: incH, background: 'var(--green)', borderRadius: '4px 4px 0 0', minHeight: d.income > 0 ? 3 : 0 }} />
+                </div>
+                {/* Expenses bar */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: chartH }}>
+                  {d.expenses > 0 && <div style={{ fontSize: 9.5, color: 'var(--fg-4)', marginBottom: 3 }}>{fmt0(d.expenses)}</div>}
+                  <div style={{ width: barW, height: expH, background: 'var(--rose)', borderRadius: '4px 4px 0 0', opacity: 0.75, minHeight: d.expenses > 0 ? 3 : 0 }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--fg-4)', fontWeight: 500 }}>{label}</div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-4)' }}>
+          <div style={{ width: 10, height: 10, background: 'var(--green)', borderRadius: 2 }} /> Einnahmen
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-4)' }}>
+          <div style={{ width: 10, height: 10, background: 'var(--rose)', borderRadius: 2, opacity: 0.75 }} /> Ausgaben
         </div>
       </div>
     </div>

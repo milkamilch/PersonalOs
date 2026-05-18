@@ -65,6 +65,11 @@ public class FinanceController {
     @GetMapping("/settings")
     public Map<String, String> getSettings() { return service.getSettings(); }
 
+    @GetMapping("/monthly-totals")
+    public List<Map<String, Object>> monthlyTotals(@RequestParam(defaultValue = "6") int months) {
+        return service.monthlyTotals(months);
+    }
+
     @GetMapping("/recurring")
     public List<Map<String, Object>> recurring() { return service.recurring(); }
 

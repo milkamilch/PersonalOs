@@ -64,6 +64,8 @@ public class FinanceService {
 
     public Map<String, String> getSettings() { return repo.getAllSettings(); }
 
+    public List<Map<String, Object>> monthlyTotals(int months) { return repo.monthlyTotals(months); }
+
     public List<Map<String, Object>> recurring() { return repo.findRecurring(); }
 
     public Map<String, Object> createRecurring(Map<String, Object> body) {

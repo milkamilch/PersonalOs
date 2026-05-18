@@ -155,6 +155,12 @@ export interface FinanceSummary {
   byCategory: Array<FinanceCategory & { spent: number }>
 }
 
+export interface FinanceMonthlyTotal {
+  month: string
+  income: number
+  expenses: number
+}
+
 export interface FinanceRecurring {
   id: number
   name: string

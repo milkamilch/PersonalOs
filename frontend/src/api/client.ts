@@ -69,6 +69,7 @@ export const endpoints = {
   createTransaction: (b: object) => api.post('/finance/transactions', b),
   deleteTransaction: (id: number) => api.delete(`/finance/transactions/${id}`),
   financeSummary: (month?: string) => api.get('/finance/summary', { params: month ? { month } : {} }),
+  financeMonthlyTotals: (months?: number) => api.get('/finance/monthly-totals', { params: months ? { months } : {} }),
   financeSettings: () => api.get('/finance/settings'),
   saveFinanceSettings: (b: Record<string, string>) => api.post('/finance/settings', b),
   financeRecurring: () => api.get('/finance/recurring'),
