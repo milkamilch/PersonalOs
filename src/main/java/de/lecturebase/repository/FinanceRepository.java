@@ -142,4 +142,8 @@ public class FinanceRepository {
     public void toggleRecurring(long id) {
         jdbc.update("UPDATE finance_recurring SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id = ?", id);
     }
+
+    public void markRecurringBooked(long id, String month) {
+        jdbc.update("UPDATE finance_recurring SET last_booked_month = ? WHERE id = ?", month, id);
+    }
 }

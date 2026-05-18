@@ -1,5 +1,6 @@
 package de.lecturebase.api;
 
+import de.lecturebase.service.FinanceScheduler;
 import de.lecturebase.service.FinanceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,8 +12,12 @@ import java.util.Map;
 public class FinanceController {
 
     private final FinanceService service;
+    private final FinanceScheduler scheduler;
 
-    public FinanceController(FinanceService service) { this.service = service; }
+    public FinanceController(FinanceService service, FinanceScheduler scheduler) {
+        this.service = service;
+        this.scheduler = scheduler;
+    }
 
     @GetMapping("/categories")
     public List<Map<String, Object>> categories() { return service.categories(); }
@@ -78,5 +83,11 @@ public class FinanceController {
     public ResponseEntity<Map<String, String>> toggleRecurring(@PathVariable long id) {
         service.toggleRecurring(id);
         return ResponseEntity.ok(Map.of("status", "toggled"));
+    }
+
+    @PostMapping("/recurring/run-now")
+    public ResponseEntity<Map<String, String>> runRecurringNow() {
+        scheduler.bookRecurring();
+        return ResponseEntity.ok(Map.of("status", "done"));
     }
 }

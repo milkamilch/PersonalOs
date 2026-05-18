@@ -273,17 +273,19 @@ public class DatabaseConfig {
             """);
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS finance_recurring (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name         TEXT    NOT NULL,
-                    amount       REAL    NOT NULL,
-                    type         TEXT    NOT NULL DEFAULT 'expense',
-                    category_id  INTEGER,
-                    day_of_month INTEGER NOT NULL DEFAULT 1,
-                    active       INTEGER NOT NULL DEFAULT 1,
-                    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name              TEXT    NOT NULL,
+                    amount            REAL    NOT NULL,
+                    type              TEXT    NOT NULL DEFAULT 'expense',
+                    category_id       INTEGER,
+                    day_of_month      INTEGER NOT NULL DEFAULT 1,
+                    active            INTEGER NOT NULL DEFAULT 1,
+                    last_booked_month TEXT,
+                    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (category_id) REFERENCES finance_categories(id)
                 )
             """);
+            try { jdbc.execute("ALTER TABLE finance_recurring ADD COLUMN last_booked_month TEXT"); } catch (Exception ignored) {}
 
             // ── Fitness ───────────────────────────────────────────────────
             jdbc.execute("""
