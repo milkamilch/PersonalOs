@@ -1,7 +1,9 @@
 import PageHeader from '../components/PageHeader'
 import { useState, useEffect } from 'react'
-import { Download, ChevronRight, RefreshCw, Plus, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Download, ChevronRight, RefreshCw, Plus, X, Calendar } from 'lucide-react'
 import { endpoints } from '../api/client'
+import type { CalendarEvent } from '../api/types'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -558,6 +560,16 @@ export default function WeeklyPlannerPage() {
   const [thesisHours, setThesisHours] = useState(0)
   const [studyBlockMin, setStudyBlockMin] = useState(90)
 
+  // Calendar events for the selected week — shown as preview before generating
+  const weekEndStr = (() => {
+    const d = new Date(weekStart + 'T00:00:00'); d.setDate(d.getDate() + 6)
+    return d.toISOString().slice(0, 10)
+  })()
+  const { data: calPreview = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ['calendarEvents', weekStart, weekEndStr],
+    queryFn: () => endpoints.calendarEvents(weekStart, weekEndStr).then(r => r.data),
+  })
+
   const [appointments, setAppointments] = useState<FixedAppointment[]>([])
   const [apptDayIdx,  setApptDayIdx]  = useState(0)
   const [apptTitle,   setApptTitle]   = useState('')
@@ -808,6 +820,37 @@ export default function WeeklyPlannerPage() {
               )}
             </div>
           </div>
+
+          {/* ── Kalender-Vorschau ─────────────────────────────── */}
+          {calPreview.length > 0 && (
+            <div className="card" style={{ border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
+              <div className="card-h" style={{ background: 'color-mix(in srgb, var(--accent) 6%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--accent) 18%, transparent)' }}>
+                <Calendar size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                <span className="title" style={{ color: 'var(--accent)' }}>Kalender diese Woche</span>
+                <div className="spacer" />
+                <span className="meta" style={{ fontSize: 10.5, color: 'var(--fg-4)' }}>Werden automatisch eingeplant</span>
+              </div>
+              <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {calPreview.map(e => {
+                  const evDate = new Date(e.event_date + 'T00:00:00')
+                  const weekStartDate = new Date(weekStart + 'T00:00:00')
+                  const diffDays = Math.round((evDate.getTime() - weekStartDate.getTime()) / 86400000)
+                  const dayLabel = DAY_SHORT[Math.max(0, Math.min(6, diffDays))] ?? ''
+                  return (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8,
+                      background: 'color-mix(in srgb, var(--accent) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 15%, transparent)' }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, width: 24, color: 'var(--accent)', flexShrink: 0 }}>{dayLabel}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--fg-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
+                        {e.start_time && <div style={{ fontSize: 10.5, color: 'var(--fg-4)', marginTop: 1 }}>{e.start_time}{e.end_time ? ` – ${e.end_time}` : ''}</div>}
+                      </div>
+                      {!e.start_time && <span style={{ fontSize: 10, color: 'var(--fg-5)', fontStyle: 'italic' }}>Keine Uhrzeit → wird übersprungen</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <Section title="Tagesrhythmus">
             <Row label="Aufwachen">
