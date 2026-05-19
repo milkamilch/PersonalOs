@@ -501,6 +501,16 @@ function minsToTime(m: number): string {
   const hh = Math.floor((m % (24 * 60)) / 60), mm = m % 60
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function snapToMonday(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  const dow = d.getDay() // 0=Sun
+  const offset = dow === 0 ? -6 : 1 - dow
+  d.setDate(d.getDate() + offset)
+  return localDateStr(d)
+}
 function getNextMonday(): Date {
   const d = new Date()
   const dow = d.getDay()
@@ -509,7 +519,7 @@ function getNextMonday(): Date {
   d.setHours(0, 0, 0, 0)
   return d
 }
-function dateToInput(d: Date) { return d.toISOString().slice(0, 10) }
+function dateToInput(d: Date) { return localDateStr(d) }
 
 // ── Color map ──────────────────────────────────────────────────────────────
 
@@ -571,7 +581,7 @@ export default function WeeklyPlannerPage() {
   // Calendar events for the selected week — shown as preview before generating
   const weekEndStr = (() => {
     const d = new Date(weekStart + 'T00:00:00'); d.setDate(d.getDate() + 6)
-    return d.toISOString().slice(0, 10)
+    return localDateStr(d)
   })()
   const { data: calPreview = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['calendarEvents', weekStart, weekEndStr],
@@ -597,7 +607,7 @@ export default function WeeklyPlannerPage() {
     setSyncDone(null)
     setSyncError(null)
     const requests = plan.flatMap(day => {
-      const eventDate = day.date.toISOString().slice(0, 10)
+      const eventDate = localDateStr(day.date)
       return day.events
         .filter(ev => !SYNC_SKIP.has(ev.type))
         .map(ev => endpoints.createCalendarEvent({
@@ -710,8 +720,8 @@ export default function WeeklyPlannerPage() {
     // Load calendar events for this week and merge as fixed appointments
     const weekEnd = new Date(c.weekStart)
     weekEnd.setDate(weekEnd.getDate() + 6)
-    const from = c.weekStart.toISOString().slice(0, 10)
-    const to   = weekEnd.toISOString().slice(0, 10)
+    const from = localDateStr(c.weekStart)
+    const to   = localDateStr(weekEnd)
 
     let allAppts = [...appointments]
     try {
@@ -778,7 +788,7 @@ export default function WeeklyPlannerPage() {
 
           <Section title="Woche">
             <Row label="Start (Montag)">
-              <input type="date" value={weekStart} onChange={e => setWeekStart(e.target.value)}
+              <input type="date" value={weekStart} onChange={e => setWeekStart(snapToMonday(e.target.value))}
                      className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle} />
             </Row>
             <Row label="Trainingsphase">
