@@ -17,25 +17,29 @@ public class CalendarService {
         return repo.findAll();
     }
 
-    public Map<String, Object> create(Map<String, String> body) {
+    public Map<String, Object> create(Map<String, Object> body) {
         return repo.create(
-            body.getOrDefault("title", ""),
-            body.getOrDefault("event_date", ""),
-            body.get("start_time"),
-            body.get("end_time"),
-            body.getOrDefault("notes", ""),
-            body.getOrDefault("color", "#0a84ff"));
+            str(body, "title", ""),
+            str(body, "event_date", ""),
+            (String) body.get("start_time"),
+            (String) body.get("end_time"),
+            str(body, "notes", ""),
+            str(body, "color", "#0a84ff"));
     }
 
-    public Map<String, Object> update(long id, Map<String, String> body) {
+    public Map<String, Object> update(long id, Map<String, Object> body) {
         Map<String, Object> cur = repo.findById(id);
         return repo.update(id,
-            body.getOrDefault("title",      (String) cur.get("title")),
-            body.getOrDefault("event_date", (String) cur.get("event_date")),
-            body.getOrDefault("start_time", (String) cur.get("start_time")),
-            body.getOrDefault("end_time",   (String) cur.get("end_time")),
-            body.getOrDefault("notes",      (String) cur.getOrDefault("notes", "")),
-            body.getOrDefault("color",      (String) cur.getOrDefault("color", "#0a84ff")));
+            str(body, "title",      (String) cur.get("title")),
+            str(body, "event_date", (String) cur.get("event_date")),
+            body.containsKey("start_time") ? (String) body.get("start_time") : (String) cur.get("start_time"),
+            body.containsKey("end_time")   ? (String) body.get("end_time")   : (String) cur.get("end_time"),
+            str(body, "notes",  (String) cur.getOrDefault("notes", "")),
+            str(body, "color",  (String) cur.getOrDefault("color", "#0a84ff")));
+    }
+
+    private String str(Map<String, Object> body, String key, String def) {
+        return body.containsKey(key) && body.get(key) != null ? body.get(key).toString() : def;
     }
 
     public void delete(long id) { repo.delete(id); }

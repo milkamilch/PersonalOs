@@ -22,12 +22,12 @@ public class CalendarController {
     }
 
     @PostMapping("/events")
-    public Map<String, Object> create(@RequestBody Map<String, String> body) {
+    public Map<String, Object> create(@RequestBody Map<String, Object> body) {
         return service.create(body);
     }
 
     @PatchMapping("/events/{id}")
-    public Map<String, Object> update(@PathVariable long id, @RequestBody Map<String, String> body) {
+    public Map<String, Object> update(@PathVariable long id, @RequestBody Map<String, Object> body) {
         return service.update(id, body);
     }
 

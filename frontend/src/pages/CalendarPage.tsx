@@ -39,7 +39,9 @@ export default function CalendarPage() {
   function closeModal() { setModalOpen(false); setEditingEvent(null); setForm(emptyForm()) }
   function submit() {
     if (!form.title.trim()) return
-    const payload = { title: form.title.trim(), event_date: selected, start_time: form.start_time || null, end_time: form.end_time || null, notes: form.notes, color: form.color }
+    const payload: Record<string, string> = { title: form.title.trim(), event_date: selected, notes: form.notes, color: form.color }
+    if (form.start_time) payload.start_time = form.start_time
+    if (form.end_time) payload.end_time = form.end_time
     editingEvent ? updateEvent.mutate({ id: editingEvent.id, b: payload }) : createEvent.mutate(payload)
   }
 
