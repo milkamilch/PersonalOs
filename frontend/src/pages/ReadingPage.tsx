@@ -93,22 +93,31 @@ export default function ReadingPage() {
       <div className="bento" style={{ marginBottom: 16 }}>
         <div className="col-3 stat">
           <div className="l">Heute</div>
-          <div className="v">{stats?.todayMin ?? 0}<span className="unit">min</span></div>
-          <div className="delta">~{Math.round((stats?.todayMin ?? 0) * 0.43)} Seiten</div>
+          {(stats?.todayMin ?? 0) > 0
+            ? <><div className="v">{stats!.todayMin}<span className="unit">min</span></div><div className="delta">~{Math.round(stats!.todayMin * 0.43)} Seiten</div></>
+            : <><div className="v" style={{ color: 'var(--fg-4)' }}>—</div><div className="delta">Noch nicht gelesen</div></>
+          }
         </div>
         <div className="col-3 stat">
           <div className="l">Diese Woche</div>
-          <div className="v">{stats?.weekMin ?? 0}<span className="unit">min</span></div>
-          <div className="delta">{stats?.weekPages ?? 0} Seiten</div>
+          {(stats?.weekMin ?? 0) > 0
+            ? <><div className="v">{stats!.weekMin}<span className="unit">min</span></div><div className="delta">{stats!.weekPages} Seiten</div></>
+            : <><div className="v">{stats?.weekPages ?? 0}<span className="unit">S.</span></div><div className="delta">Seiten · kein Timer</div></>
+          }
         </div>
         <div className="col-3 stat">
           <div className="l">Streak</div>
-          <div className="v" style={{ color: (stats?.streak ?? 0) > 0 ? 'var(--accent)' : undefined }}>{stats?.streak ?? 0}<span className="unit">d</span></div>
-          {(stats?.streak ?? 0) > 0 && <div className="delta up"><Flame size={11} /> Aktiv</div>}
+          <div className="v" style={{ color: (stats?.streak ?? 0) > 0 ? 'var(--accent)' : 'var(--fg-4)' }}>
+            {stats?.streak ?? 0}<span className="unit">d</span>
+          </div>
+          {(stats?.streak ?? 0) > 0
+            ? <div className="delta up"><Flame size={11} /> Aktiv</div>
+            : <div className="delta">Kein Streak</div>
+          }
         </div>
         <div className="col-3 stat">
           <div className="l">{new Date().getFullYear()} gesamt</div>
-          <div className="v">{stats?.yearPages ?? stats?.weekPages ?? 0}</div>
+          <div className="v">{stats?.yearPages ?? 0}</div>
           <div className="delta">Seiten gelesen</div>
         </div>
       </div>
