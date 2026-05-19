@@ -11,12 +11,14 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 export default function ReadingPage() {
   const qc = useQueryClient()
   const [showLogForm, setShowLogForm] = useState(false)
+  const [showAddBook, setShowAddBook] = useState(false)
   const [selectedBook, setSelectedBook] = useState<number | null>(null)
   const [pages, setPages] = useState('')
   const [note, setNote] = useState('')
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef<number>(0)
+  const [bookForm, setBookForm] = useState({ title: '', author: '', totalPages: '' })
 
   useEffect(() => {
     if (!running) return
@@ -31,9 +33,29 @@ export default function ReadingPage() {
   const { data: sessions = [] } = useQuery<ReadingSession[]>({ queryKey: ['readingSessions'], queryFn: () => endpoints.readingSessions({ days: 30 }).then(r => r.data) })
   const { data: books = [] } = useQuery<MediaItem[]>({ queryKey: ['mediaBooks'], queryFn: () => endpoints.mediaItems({ type: 'book' }).then(r => r.data) })
 
+  const addBookMut = useMutation({
+    mutationFn: () => endpoints.createMedia({
+      type: 'book', title: bookForm.title, creator: bookForm.author,
+      status: 'in_progress', notes: '',
+      totalPages: parseInt(bookForm.totalPages) || 0,
+    }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['mediaBooks'] })
+      setSelectedBook((res.data as MediaItem).id)
+      setShowAddBook(false)
+      setShowLogForm(true)
+      setBookForm({ title: '', author: '', totalPages: '' })
+    },
+  })
+
+  const updatePageMut = useMutation({
+    mutationFn: ({ id, page }: { id: number; page: number }) => endpoints.updateMedia(id, { currentPage: page }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaBooks'] }),
+  })
+
   const logMut = useMutation({
     mutationFn: () => endpoints.logReading({ mediaId: selectedBook, pagesRead: parseInt(pages) || 0, minutes: running ? Math.ceil(elapsed / 60) : 0, note }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['readingSessions'] }); qc.invalidateQueries({ queryKey: ['readingStats'] }); setPages(''); setNote(''); setRunning(false); setElapsed(0); setShowLogForm(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['readingSessions'] }); qc.invalidateQueries({ queryKey: ['readingStats'] }); qc.invalidateQueries({ queryKey: ['mediaBooks'] }); setPages(''); setNote(''); setRunning(false); setElapsed(0); setShowLogForm(false) },
   })
   const del = useMutation({
     mutationFn: (id: number) => endpoints.deleteReadingSession(id),
@@ -53,10 +75,30 @@ export default function ReadingPage() {
         sub={'„Wer ein Buch verschlingt, wächst.“'}
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={() => setShowLogForm(v => !v)}><Plus size={13} /> Session loggen</button>
+            <button className="btn ghost" onClick={() => { setShowAddBook(v => !v); setShowLogForm(false) }}><Plus size={13} /> Buch hinzufügen</button>
+            <button className="btn primary" onClick={() => { setShowLogForm(v => !v); setShowAddBook(false) }}><Plus size={13} /> Session loggen</button>
           </div>
         }
       />
+
+      {showAddBook && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h"><span className="accent-dot" /><span className="title">Buch hinzufügen</span></div>
+          <div className="card-b" style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <input value={bookForm.title} onChange={e => setBookForm({ ...bookForm, title: e.target.value })}
+              placeholder="Titel" autoFocus
+              style={{ flex: 2, minWidth: 200, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <input value={bookForm.author} onChange={e => setBookForm({ ...bookForm, author: e.target.value })}
+              placeholder="Autor"
+              style={{ flex: 1, minWidth: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <input value={bookForm.totalPages} onChange={e => setBookForm({ ...bookForm, totalPages: e.target.value })}
+              placeholder="Seiten gesamt" type="number"
+              style={{ width: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
+            <button className="btn primary" onClick={() => bookForm.title.trim() && addBookMut.mutate()}>Hinzufügen</button>
+            <button className="btn ghost" onClick={() => setShowAddBook(false)}>Abbrechen</button>
+          </div>
+        </div>
+      )}
 
       {showLogForm && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -125,9 +167,9 @@ export default function ReadingPage() {
       {inProgress.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="accent-dot" /><span className="title">Aktuell am Lesen</span></div>
-          <div className="card-b" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="card-b" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
             {inProgress.map(b => {
-              const pct = b.total_pages && b.current_page ? b.current_page / b.total_pages : 0
+              const pct = (b.total_pages ?? 0) > 0 && (b.current_page ?? 0) > 0 ? (b.current_page ?? 0) / (b.total_pages ?? 1) : 0
               return (
                 <div key={b.id} style={{ display: 'flex', gap: 14 }}>
                   <div style={{ width: 60, height: 88, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
@@ -137,13 +179,26 @@ export default function ReadingPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 2 }}>{b.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>{b.author}</div>
-                    <div className="bar thin"><div className="fill" style={{ width: `${pct * 100}%` }} /></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' }}>
-                      {b.current_page && b.total_pages ? (
-                        <><span>Seite {b.current_page} / {b.total_pages}</span><span>{Math.round(pct * 100)} %</span></>
-                      ) : <span>Kein Fortschritt</span>}
-                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 8 }}>{b.creator}</div>
+                    {(b.total_pages ?? 0) > 0 ? (
+                      <>
+                        <div className="bar thin"><div className="fill" style={{ width: `${pct * 100}%` }} /></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' }}>
+                          <span>Seite {b.current_page ?? 0} / {b.total_pages}</span>
+                          <span>{Math.round(pct * 100)} %</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="number" placeholder="Aktuelle Seite"
+                          onBlur={e => { const v = parseInt(e.target.value); if (v > 0) updatePageMut.mutate({ id: b.id, page: v }) }}
+                          onKeyDown={e => { if (e.key === 'Enter') { const v = parseInt((e.target as HTMLInputElement).value); if (v > 0) updatePageMut.mutate({ id: b.id, page: v }) } }}
+                          style={{ width: 110, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 6, padding: '4px 8px', fontSize: 12, outline: 'none', color: 'var(--fg)' }}
+                        />
+                        <span style={{ fontSize: 11, color: 'var(--fg-5)' }}>Keine Seitenzahl hinterlegt</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

@@ -325,6 +325,9 @@ public class DatabaseConfig {
                 )
             """);
 
+            try { jdbc.execute("ALTER TABLE media_items ADD COLUMN current_page INTEGER NOT NULL DEFAULT 0"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE media_items ADD COLUMN total_pages  INTEGER NOT NULL DEFAULT 0"); } catch (Exception ignored) {}
+
             // ── Goals ─────────────────────────────────────────────────────
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS goals (

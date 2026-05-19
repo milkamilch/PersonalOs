@@ -24,18 +24,30 @@ public class MediaRepository {
         return jdbc.queryForList(sql.toString(), params.toArray());
     }
 
-    public Map<String, Object> create(String type, String title, String creator, String status, String notes) {
+    public Map<String, Object> create(String type, String title, String creator, String status, String notes, int totalPages) {
         var kh = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO media_items (type, title, creator, status, notes) VALUES (?,?,?,?,?)",
+                "INSERT INTO media_items (type, title, creator, status, notes, total_pages) VALUES (?,?,?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, type); ps.setString(2, title);
             ps.setString(3, creator); ps.setString(4, status); ps.setString(5, notes);
+            ps.setInt(6, totalPages);
             return ps;
         }, kh);
         return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?",
             Objects.requireNonNull(kh.getKey(), "Insert did not return a generated key").longValue());
+    }
+
+    public Map<String, Object> updateProgress(long id, int currentPage) {
+        jdbc.update("UPDATE media_items SET current_page = ? WHERE id = ?", currentPage, id);
+        return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
+    }
+
+    public Map<String, Object> addPages(long id, int pages) {
+        jdbc.update("UPDATE media_items SET current_page = MIN(current_page + ?, CASE WHEN total_pages > 0 THEN total_pages ELSE current_page + ? END) WHERE id = ?",
+            pages, pages, id);
+        return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
     }
 
     public Map<String, Object> updateStatus(long id, String status) {

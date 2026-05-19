@@ -21,7 +21,8 @@ public class MediaService {
             (String) body.getOrDefault("title", ""),
             (String) body.getOrDefault("creator", ""),
             (String) body.getOrDefault("status", "want"),
-            (String) body.getOrDefault("notes", ""));
+            (String) body.getOrDefault("notes", ""),
+            body.containsKey("totalPages") ? ((Number) body.get("totalPages")).intValue() : 0);
     }
 
     public Map<String, Object> update(long id, Map<String, Object> body) {
@@ -34,7 +35,13 @@ public class MediaService {
         }
         if (body.containsKey("notes"))
             result = repo.updateNotes(id, (String) body.get("notes"));
+        if (body.containsKey("currentPage"))
+            result = repo.updateProgress(id, ((Number) body.get("currentPage")).intValue());
         return result != null ? result : Map.of();
+    }
+
+    public Map<String, Object> addPages(long id, int pages) {
+        return repo.addPages(id, pages);
     }
 
     public void delete(long id) { repo.delete(id); }

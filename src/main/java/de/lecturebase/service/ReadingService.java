@@ -1,5 +1,6 @@
 package de.lecturebase.service;
 
+import de.lecturebase.repository.MediaRepository;
 import de.lecturebase.repository.ReadingRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -10,8 +11,12 @@ import java.util.Map;
 public class ReadingService {
 
     private final ReadingRepository repo;
+    private final MediaRepository mediaRepo;
 
-    public ReadingService(ReadingRepository repo) { this.repo = repo; }
+    public ReadingService(ReadingRepository repo, MediaRepository mediaRepo) {
+        this.repo = repo;
+        this.mediaRepo = mediaRepo;
+    }
 
     public List<Map<String, Object>> sessions(Integer mediaId, int days) {
         if (mediaId != null) return repo.findByMedia(mediaId);
@@ -21,12 +26,16 @@ public class ReadingService {
     public Map<String, Object> log(Map<String, Object> body) {
         Object mid = body.get("mediaId");
         if (mid == null) throw new IllegalArgumentException("mediaId is required");
-        return repo.log(
-            ((Number) mid).intValue(),
-            ((Number) body.getOrDefault("pagesRead", 0)).intValue(),
-            ((Number) body.getOrDefault("minutes", 0)).intValue(),
+        int mediaId  = ((Number) mid).intValue();
+        int pages    = ((Number) body.getOrDefault("pagesRead", 0)).intValue();
+        int minutes  = ((Number) body.getOrDefault("minutes", 0)).intValue();
+        Map<String, Object> session = repo.log(
+            mediaId, pages, minutes,
             (String) body.getOrDefault("sessionDate", LocalDate.now().toString()),
             (String) body.getOrDefault("note", ""));
+        // Auto-advance current_page by pages read
+        if (pages > 0) mediaRepo.addPages(mediaId, pages);
+        return session;
     }
 
     public void delete(long id) { repo.delete(id); }
