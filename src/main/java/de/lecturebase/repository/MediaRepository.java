@@ -74,6 +74,10 @@ public class MediaRepository {
         return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
     }
 
+    public Map<String, Object> findById(long id) {
+        return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
+    }
+
     public void delete(long id) { jdbc.update("DELETE FROM media_items WHERE id = ?", id); }
 
     public int count(String type, String status) {

@@ -54,7 +54,7 @@ export default function ReadingPage() {
   })
 
   const logMut = useMutation({
-    mutationFn: () => endpoints.logReading({ mediaId: selectedBook, pagesRead: parseInt(pages) || 0, minutes: running ? Math.ceil(elapsed / 60) : 0, note }),
+    mutationFn: () => endpoints.logReading({ mediaId: selectedBook, pagesRead: parseInt(pages) || 0, minutes: Math.ceil(elapsed / 60), note }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['readingSessions'] }); qc.invalidateQueries({ queryKey: ['readingStats'] }); qc.invalidateQueries({ queryKey: ['mediaBooks'] }); setPages(''); setNote(''); setRunning(false); setElapsed(0); setShowLogForm(false) },
   })
   const del = useMutation({

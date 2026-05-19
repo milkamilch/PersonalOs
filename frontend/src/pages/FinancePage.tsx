@@ -306,7 +306,7 @@ export default function FinancePage() {
           <div className="card-b">
             <div style={{ fontSize: 11.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>Übrig</div>
             <div className="display" style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.03em', marginTop: 8 }}>{actualIncome > 0 ? fmt0(balance) : '—'}</div>
-            {actualIncome > 0 && <div style={{ fontSize: 12, opacity: 0.55, marginTop: 8 }}>~{fmt0(balance / Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))} / Tag</div>}
+            {actualIncome > 0 && balance > 0 && <div style={{ fontSize: 12, opacity: 0.55, marginTop: 8 }}>~{fmt0(balance / Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))} / Tag</div>}
           </div>
         </div>
       </div>

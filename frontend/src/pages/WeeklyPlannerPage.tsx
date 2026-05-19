@@ -590,27 +590,33 @@ export default function WeeklyPlannerPage() {
   const [syncing, setSyncing]   = useState(false)
   const [syncDone, setSyncDone] = useState<number | null>(null)
 
+  const [syncError, setSyncError] = useState<string | null>(null)
+
   async function syncToCalendar() {
     setSyncing(true)
     setSyncDone(null)
-    let count = 0
-    for (const day of plan) {
+    setSyncError(null)
+    const requests = plan.flatMap(day => {
       const eventDate = day.date.toISOString().slice(0, 10)
-      for (const ev of day.events) {
-        if (SYNC_SKIP.has(ev.type)) continue
-        await endpoints.createCalendarEvent({
+      return day.events
+        .filter(ev => !SYNC_SKIP.has(ev.type))
+        .map(ev => endpoints.createCalendarEvent({
           title: `${ev.emoji} ${ev.title}`,
           event_date: eventDate,
           start_time: minsToTime(ev.start % (24 * 60)),
           end_time: minsToTime(ev.end % (24 * 60)),
           notes: ev.desc || '',
           color: TYPE_CAL_COLOR[ev.type],
-        })
-        count++
-      }
+        }))
+    })
+    try {
+      await Promise.all(requests)
+      setSyncDone(requests.length)
+    } catch {
+      setSyncError('Sync fehlgeschlagen – bitte erneut versuchen.')
+    } finally {
+      setSyncing(false)
     }
-    setSyncing(false)
-    setSyncDone(count)
   }
 
   // Load persisted config on mount
@@ -1022,12 +1028,18 @@ export default function WeeklyPlannerPage() {
             <button onClick={() => cfg && exportICS(plan, cfg)} className="btn">
               <Download size={13} /> .ics
             </button>
-            <button onClick={syncToCalendar} className="btn primary" disabled={syncing}>
-              <Calendar size={13} /> {syncing ? 'Wird synchronisiert…' : syncDone !== null ? `${syncDone} Events erstellt` : 'In Kalender'}
+            <button onClick={syncDone !== null ? () => setSyncDone(null) : syncToCalendar} className="btn primary" disabled={syncing}>
+              <Calendar size={13} /> {syncing ? 'Synchronisiert…' : syncDone !== null ? `✓ ${syncDone} Events — Nochmal?` : 'In Kalender'}
             </button>
           </div>
         }
       />
+
+      {syncError && (
+        <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,69,58,0.12)', color: 'var(--rose)', fontSize: 13 }}>
+          {syncError}
+        </div>
+      )}
 
       {/* Day tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
@@ -1141,7 +1153,7 @@ export default function WeeklyPlannerPage() {
                   {appts.map((a,j) => <Tag key={`a${j}`} label={`📅 ${a.title}`} color="var(--amber)" />)}
                   {studyMin > 0 && <Tag label={`📖 ${Math.round(studyMin/60*10)/10}h`} color="var(--accent)" />}
                   {hasHaushalt && <Tag label="🏠 Haushalt" color="#40c8e0" />}
-                  {i===6 && <Tag label="🌿 Regeneration" color="var(--green)" />}
+                  {day.dayIndex===6 && <Tag label="🌿 Regeneration" color="var(--green)" />}
                 </div>
                 {trainMin > 0 && <span style={{ fontSize: 11.5, fontFamily: 'JetBrains Mono', color: 'var(--rose)', flexShrink: 0 }}>{trainMin}min</span>}
               </div>

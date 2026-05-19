@@ -59,7 +59,9 @@ public class FinanceService {
     }
 
     public void saveSettings(Map<String, String> body) {
-        body.forEach(repo::saveSetting);
+        body.entrySet().stream()
+            .filter(e -> e.getValue() != null)
+            .forEach(e -> repo.saveSetting(e.getKey(), e.getValue()));
     }
 
     public Map<String, String> getSettings() { return repo.getAllSettings(); }

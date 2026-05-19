@@ -49,7 +49,7 @@ export default function MediaPage() {
       rating: editForm.rating,
     }
     if (editingItem.type === 'book') body.totalPages = parseInt(editForm.totalPages) || 0
-    editMut.mutate({ id: editingItem.id, ...body })
+    update.mutate({ id: editingItem.id, ...body })
   }
 
   const create = useMutation({
@@ -57,10 +57,6 @@ export default function MediaPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); setForm({ title: '', creator: '', type: 'book', status: 'want' }); setShowAdd(false) },
   })
   const update = useMutation({
-    mutationFn: ({ id, ...b }: { id: number; [key: string]: unknown }) => endpoints.updateMedia(id, b),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['media'] }),
-  })
-  const editMut = useMutation({
     mutationFn: ({ id, ...b }: { id: number; [key: string]: unknown }) => endpoints.updateMedia(id, b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); closeEdit() },
   })

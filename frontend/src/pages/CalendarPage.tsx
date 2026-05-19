@@ -167,7 +167,7 @@ export default function CalendarPage() {
 
               {selEvents.map((ev, i) => (
                 <div key={ev.id} className="agenda-item" style={{ borderTop: i > 0 ? '1px solid var(--line)' : 'none' }}>
-                  <div className="time">{ev.start_time ?? '—'}</div>
+                  <div className="time">{ev.start_time || '—'}</div>
                   <div className="bar" style={{ background: ev.color }} />
                   <div className="body">
                     <div className="t">{ev.title}</div>
@@ -184,6 +184,13 @@ export default function CalendarPage() {
                 <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderTop: (i > 0 || selEvents.length > 0) ? '1px solid var(--line)' : 'none' }}>
                   <Dumbbell size={12} style={{ color: 'var(--green)', flexShrink: 0 }} />
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{w.name}</span>
+                </div>
+              ))}
+
+              {selTodos.map((t, i) => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', borderTop: (i > 0 || selEvents.length > 0 || selWorkouts.length > 0) ? '1px solid var(--line)' : 'none', opacity: t.done ? 0.5 : 1 }}>
+                  <span style={{ fontSize: 11, color: t.done ? 'var(--green)' : 'var(--fg-4)', flexShrink: 0 }}>{t.done ? '✓' : '○'}</span>
+                  <span style={{ fontSize: 12, flex: 1, textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
                 </div>
               ))}
 
