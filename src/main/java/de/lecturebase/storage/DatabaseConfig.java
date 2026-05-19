@@ -436,6 +436,10 @@ public class DatabaseConfig {
                     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """);
+            try { jdbc.execute("ALTER TABLE calendar_events ADD COLUMN start_time TEXT"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE calendar_events ADD COLUMN end_time TEXT"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE calendar_events ADD COLUMN notes TEXT NOT NULL DEFAULT ''"); } catch (Exception ignored) {}
+            try { jdbc.execute("ALTER TABLE calendar_events ADD COLUMN color TEXT NOT NULL DEFAULT '#0a84ff'"); } catch (Exception ignored) {}
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS weekly_planner_config (
                     id              INTEGER PRIMARY KEY DEFAULT 1,
