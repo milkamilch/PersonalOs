@@ -535,6 +535,14 @@ const TYPE_STYLE: Record<EventType, { bg: string; color: string; border: string 
 const DAY_NAMES  = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag']
 const DAY_SHORT  = ['Mo','Di','Mi','Do','Fr','Sa','So']
 
+const SYNC_SKIP: Set<EventType> = new Set(['sleep', 'travel', 'food', 'routine', 'recovery', 'free'])
+const TYPE_CAL_COLOR: Record<EventType, string> = {
+  sleep: '#888888', routine: '#888888', food: '#888888', travel: '#888888', recovery: '#888888', free: '#888888',
+  run: '#ff453a', strength: '#bf5af2', recovery_sport: '#30d158',
+  uni: '#0a84ff', coding: '#30d158', reading: '#ffd60a',
+  appointment: '#ff9f0a', haushalt: '#40c8e0', study: '#409cff', thesis: '#ff375f',
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function WeeklyPlannerPage() {
@@ -579,6 +587,31 @@ export default function WeeklyPlannerPage() {
 
   const [cfg,  setCfg]  = useState<PlanConfig | null>(null)
   const [plan, setPlan] = useState<DayPlan[]>([])
+  const [syncing, setSyncing]   = useState(false)
+  const [syncDone, setSyncDone] = useState<number | null>(null)
+
+  async function syncToCalendar() {
+    setSyncing(true)
+    setSyncDone(null)
+    let count = 0
+    for (const day of plan) {
+      const eventDate = day.date.toISOString().slice(0, 10)
+      for (const ev of day.events) {
+        if (SYNC_SKIP.has(ev.type)) continue
+        await endpoints.createCalendarEvent({
+          title: `${ev.emoji} ${ev.title}`,
+          event_date: eventDate,
+          start_time: minsToTime(ev.start % (24 * 60)),
+          end_time: minsToTime(ev.end % (24 * 60)),
+          notes: ev.desc || '',
+          color: TYPE_CAL_COLOR[ev.type],
+        })
+        count++
+      }
+    }
+    setSyncing(false)
+    setSyncDone(count)
+  }
 
   // Load persisted config on mount
   useEffect(() => {
@@ -982,12 +1015,15 @@ export default function WeeklyPlannerPage() {
         title="Wochenplan"
         sub={cfg ? `${cfg.weekStart.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })} — Phase ${cfg.phase}` : ''}
         action={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => setStep('wizard')} className="btn">
               <RefreshCw size={13} /> Neu
             </button>
-            <button onClick={() => cfg && exportICS(plan, cfg)} className="btn primary">
-              <Download size={13} /> .ics Export
+            <button onClick={() => cfg && exportICS(plan, cfg)} className="btn">
+              <Download size={13} /> .ics
+            </button>
+            <button onClick={syncToCalendar} className="btn primary" disabled={syncing}>
+              <Calendar size={13} /> {syncing ? 'Wird synchronisiert…' : syncDone !== null ? `${syncDone} Events erstellt` : 'In Kalender'}
             </button>
           </div>
         }
