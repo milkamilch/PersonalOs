@@ -42,7 +42,7 @@ public class SearchController {
             WHERE LOWER(t.description) LIKE ? ORDER BY t.tx_date DESC LIMIT 5
         """, like).forEach(r -> {
             Map<String, Object> item = new LinkedHashMap<>();
-            double amt = ((Number) r.get("amount")).doubleValue();
+            double amt = r.get("amount") instanceof Number n ? n.doubleValue() : 0.0;
             String type = (String) r.get("type");
             item.put("type", "transaction");
             item.put("id", r.get("id"));

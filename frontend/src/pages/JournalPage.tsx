@@ -22,7 +22,7 @@ export default function JournalPage() {
   const [showEditor, setShowEditor] = useState(false)
   const [mood, setMood] = useState(3)
   const [content, setContent] = useState('')
-  const [synced, setSynced] = useState(false)
+  const [, setSynced] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const { data: today } = useQuery<JournalEntry>({
@@ -39,12 +39,13 @@ export default function JournalPage() {
   })
 
   useEffect(() => {
-    if (today && !synced) {
+    if (today) {
       setMood(today.mood ?? 3)
       setContent(today.content ?? '')
       setSynced(true)
     }
-  }, [today, synced])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today?.id])
 
   const save = useMutation({
     mutationFn: (data: { entryDate: string; mood: number; content: string }) => endpoints.upsertJournal(data),
@@ -53,8 +54,7 @@ export default function JournalPage() {
       qc.invalidateQueries({ queryKey: ['journalEntries'] })
       qc.invalidateQueries({ queryKey: ['moodTrend'] })
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-      setShowEditor(false)
+      setTimeout(() => { setSaved(false); setShowEditor(false) }, 1200)
     },
   })
 

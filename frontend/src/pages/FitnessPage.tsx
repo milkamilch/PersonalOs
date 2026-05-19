@@ -21,14 +21,14 @@ export default function FitnessPage() {
 
   const createWorkout = useMutation({
     mutationFn: () => endpoints.createWorkout({ name: workoutName, notes: '', workoutDate: new Date().toISOString().slice(0, 10) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); setWorkoutName(''); setShowAddWorkout(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); qc.invalidateQueries({ queryKey: ['fitnessStats'] }); setWorkoutName(''); setShowAddWorkout(false) },
   })
   const logWeight = useMutation({
     mutationFn: () => endpoints.logWeight({ weightKg: parseFloat(weightVal), logDate: new Date().toISOString().slice(0, 10) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weightLog'] }); setWeightVal(''); setShowAddWeight(false) },
   })
   const delWeight = useMutation({ mutationFn: (id: number) => endpoints.deleteWeight(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['weightLog'] }) })
-  const delWorkout = useMutation({ mutationFn: (id: number) => endpoints.deleteWorkout(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }) })
+  const delWorkout = useMutation({ mutationFn: (id: number) => endpoints.deleteWorkout(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['workouts'] }); qc.invalidateQueries({ queryKey: ['fitnessStats'] }) } })
 
   const sortedWeight = [...weightLog].sort((a, b) => a.log_date.localeCompare(b.log_date))
   const lastWeight  = sortedWeight[sortedWeight.length - 1]?.weight_kg
@@ -73,11 +73,11 @@ export default function FitnessPage() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-b" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input autoFocus type="number" step="0.1" value={weightVal} onChange={e => setWeightVal(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') logWeight.mutate() }}
+              onKeyDown={e => { if (e.key === 'Enter' && parseFloat(weightVal) > 0) logWeight.mutate() }}
               placeholder="Gewicht in kg"
               style={{ width: 140, background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)' }} />
             <span style={{ color: 'var(--fg-3)', fontSize: 13 }}>kg</span>
-            <button className="btn primary" onClick={() => weightVal && logWeight.mutate()}>Eintragen</button>
+            <button className="btn primary" onClick={() => parseFloat(weightVal) > 0 && logWeight.mutate()}>Eintragen</button>
             <button className="btn ghost" onClick={() => setShowAddWeight(false)}>Abbrechen</button>
           </div>
         </div>

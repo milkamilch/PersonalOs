@@ -285,8 +285,6 @@ public class DatabaseConfig {
                     FOREIGN KEY (category_id) REFERENCES finance_categories(id)
                 )
             """);
-            try { jdbc.execute("ALTER TABLE finance_recurring ADD COLUMN last_booked_month TEXT"); } catch (Exception ignored) {}
-
             // ── Fitness ───────────────────────────────────────────────────
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS workouts (

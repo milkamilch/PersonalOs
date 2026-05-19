@@ -36,8 +36,10 @@ export default function HabitsPage() {
   const DAYS  = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
   const todayDow = (new Date().getDay() + 6) % 7
 
+  const heatByDate = Object.fromEntries(heatmap.map(e => [e.date, e]))
   const heatCells = Array.from({ length: 84 }, (_, i) => {
-    const entry = heatmap[Math.max(0, heatmap.length - 84) + i]
+    const d = new Date(); d.setDate(d.getDate() - (83 - i))
+    const entry = heatByDate[d.toISOString().slice(0, 10)]
     if (!entry || !entry.total) return 0
     const r = entry.count / entry.total
     return r === 0 ? 0 : r < 0.4 ? 1 : r < 0.7 ? 2 : r < 1 ? 3 : 4
@@ -112,7 +114,7 @@ export default function HabitsPage() {
                     {DAYS.map((d, i) => (
                       <th key={d} style={{ width: 40, textAlign: 'center', fontWeight: 500, fontSize: 11, color: i === todayDow ? 'var(--accent)' : 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>{d}</th>
                     ))}
-                    <th style={{ width: 60, textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>Streak</th>
+                    <th style={{ width: 60, textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 0' }}>Gesamt</th>
                     <th style={{ width: 32 }} />
                   </tr>
                 </thead>
