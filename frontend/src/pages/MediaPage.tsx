@@ -1,7 +1,7 @@
 import PageHeader from '../components/PageHeader'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { endpoints } from '../api/client'
 import type { MediaItem, MediaStatus } from '../api/types'
 
@@ -23,6 +23,8 @@ export default function MediaPage() {
   const [typeFilter, setTypeFilter] = useState<'book' | 'movie' | 'series' | 'all'>('all')
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title: '', creator: '', type: 'book' as 'book' | 'movie' | 'series', status: 'want' as MediaStatus })
+  const [editingItem, setEditingItem] = useState<MediaItem | null>(null)
+  const [editForm, setEditForm] = useState({ title: '', creator: '', status: 'want' as MediaStatus, rating: null as number | null, notes: '', totalPages: '' })
 
   const { data: items = [] } = useQuery<MediaItem[]>({
     queryKey: ['media', typeFilter, tab],
@@ -32,6 +34,24 @@ export default function MediaPage() {
     }).then(r => r.data),
   })
 
+  function openEdit(m: MediaItem) {
+    setEditingItem(m)
+    setEditForm({ title: m.title, creator: m.creator, status: m.status, rating: m.rating, notes: m.notes ?? '', totalPages: String(m.total_pages ?? '') })
+  }
+  function closeEdit() { setEditingItem(null) }
+  function submitEdit() {
+    if (!editingItem || !editForm.title.trim()) return
+    const body: Record<string, unknown> = {
+      title: editForm.title.trim(),
+      creator: editForm.creator,
+      status: editForm.status,
+      notes: editForm.notes,
+      rating: editForm.rating,
+    }
+    if (editingItem.type === 'book') body.totalPages = parseInt(editForm.totalPages) || 0
+    editMut.mutate({ id: editingItem.id, ...body })
+  }
+
   const create = useMutation({
     mutationFn: () => endpoints.createMedia(form),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); setForm({ title: '', creator: '', type: 'book', status: 'want' }); setShowAdd(false) },
@@ -39,6 +59,10 @@ export default function MediaPage() {
   const update = useMutation({
     mutationFn: ({ id, ...b }: { id: number; [key: string]: unknown }) => endpoints.updateMedia(id, b),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['media'] }),
+  })
+  const editMut = useMutation({
+    mutationFn: ({ id, ...b }: { id: number; [key: string]: unknown }) => endpoints.updateMedia(id, b),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['media'] }); closeEdit() },
   })
   const del = useMutation({
     mutationFn: (id: number) => endpoints.deleteMedia(id),
@@ -132,12 +156,18 @@ export default function MediaPage() {
                     {'★'.repeat(m.rating)}<span style={{ color: 'var(--fg-5)' }}>{'★'.repeat(5 - m.rating)}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                {m.notes && <div style={{ fontSize: 11.5, color: 'var(--fg-4)', marginTop: 6, lineHeight: 1.5 }}>{m.notes}</div>}
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                   {m.status !== 'done' && (
                     <button className="btn ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}
                       onClick={() => update.mutate({ id: m.id, status: 'done' as MediaStatus })}>✓ Fertig</button>
                   )}
-                  <button onClick={() => del.mutate(m.id)} style={{ color: 'var(--fg-5)', fontSize: 11, marginLeft: 'auto', cursor: 'pointer' }}
+                  <button onClick={() => openEdit(m)} style={{ color: 'var(--fg-4)', marginLeft: 'auto', cursor: 'pointer', padding: 4 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-4)')}>
+                    <Pencil size={12} />
+                  </button>
+                  <button onClick={() => del.mutate(m.id)} style={{ color: 'var(--fg-5)', cursor: 'pointer', padding: 4 }}
                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
                     onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-5)')}>
                     <Trash2 size={12} />
@@ -148,6 +178,58 @@ export default function MediaPage() {
           )
         })}
       </div>
+
+      {editingItem && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) closeEdit() }}>
+          <div className="card" style={{ width: '100%', maxWidth: 460 }}>
+            <div className="card-h">
+              <span className="accent-dot" />
+              <span className="title">{KIND_E[editingItem.type]} {editingItem.title}</span>
+              <div className="spacer" />
+              <button onClick={closeEdit} style={{ color: 'var(--fg-4)', cursor: 'pointer' }}><X size={16} /></button>
+            </div>
+            <div className="card-b" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(() => {
+                const iStyle = { background: 'var(--surface-sunk)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '7px 10px', fontSize: 14, outline: 'none', color: 'var(--fg)', width: '100%' }
+                return <>
+                  <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Titel" style={iStyle} autoFocus />
+                  <input value={editForm.creator} onChange={e => setEditForm(f => ({ ...f, creator: e.target.value }))} placeholder="Autor / Regisseur" style={iStyle} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as MediaStatus }))}
+                      style={{ ...iStyle, width: 'auto', flex: 1 }}>
+                      <option value="want">Watchlist</option>
+                      <option value="in_progress">Läuft</option>
+                      <option value="done">Fertig</option>
+                      <option value="dropped">Abgebrochen</option>
+                    </select>
+                    {editingItem.type === 'book' && (
+                      <input value={editForm.totalPages} onChange={e => setEditForm(f => ({ ...f, totalPages: e.target.value }))}
+                        placeholder="Seiten gesamt" type="number" style={{ ...iStyle, width: 140 }} />
+                    )}
+                  </div>
+                  <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="Notizen (optional)"
+                    style={{ ...iStyle, minHeight: 72, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 6 }}>Bewertung</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} onClick={() => setEditForm(f => ({ ...f, rating: f.rating === n ? null : n }))}
+                          style={{ fontSize: 20, cursor: 'pointer', color: (editForm.rating ?? 0) >= n ? 'var(--amber)' : 'var(--fg-5)' }}>★</button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={submitEdit} disabled={!editForm.title.trim()}
+                    style={{ width: '100%', padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: 'white', cursor: 'pointer', opacity: editForm.title.trim() ? 1 : 0.4 }}>
+                    Speichern
+                  </button>
+                </>
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

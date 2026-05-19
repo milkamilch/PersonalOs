@@ -27,6 +27,13 @@ public class MediaService {
 
     public Map<String, Object> update(long id, Map<String, Object> body) {
         Map<String, Object> result = null;
+        if (body.containsKey("title") || body.containsKey("creator") || body.containsKey("totalPages")) {
+            String title      = body.containsKey("title")      ? (String) body.get("title")      : null;
+            String creator    = body.containsKey("creator")    ? (String) body.get("creator")    : null;
+            Integer totalPages = body.containsKey("totalPages") && body.get("totalPages") != null
+                ? ((Number) body.get("totalPages")).intValue() : null;
+            result = repo.updateDetails(id, title, creator, totalPages);
+        }
         if (body.containsKey("status"))
             result = repo.updateStatus(id, (String) body.get("status"));
         if (body.containsKey("rating")) {

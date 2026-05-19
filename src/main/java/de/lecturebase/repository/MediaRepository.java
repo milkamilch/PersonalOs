@@ -50,6 +50,13 @@ public class MediaRepository {
         return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
     }
 
+    public Map<String, Object> updateDetails(long id, String title, String creator, Integer totalPages) {
+        if (title != null)      jdbc.update("UPDATE media_items SET title=? WHERE id=?", title, id);
+        if (creator != null)    jdbc.update("UPDATE media_items SET creator=? WHERE id=?", creator, id);
+        if (totalPages != null) jdbc.update("UPDATE media_items SET total_pages=? WHERE id=?", totalPages, id);
+        return jdbc.queryForMap("SELECT * FROM media_items WHERE id = ?", id);
+    }
+
     public Map<String, Object> updateStatus(long id, String status) {
         String finishedAt = "done".equals(status) ? LocalDate.now().toString() : null;
         jdbc.update("UPDATE media_items SET status=?, finished_at=? WHERE id=?", status, finishedAt, id);
